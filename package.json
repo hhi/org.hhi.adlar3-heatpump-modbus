@@ -1,6 +1,6 @@
 {
   "name": "org.hhi.adlar3-heatpump-modbus",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "engines": {
     "node": ">=12.16.1"
   },

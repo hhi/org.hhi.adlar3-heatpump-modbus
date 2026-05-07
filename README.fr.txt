@@ -8,6 +8,7 @@ Etat actuel de l'implementation
 - Les anciens champs Tuya comme Device ID, Local Key et version de protocole ne sont pas utilises dans cette application Modbus.
 - Les intervalles de polling sont configurables dans les parametres du peripherique (super rapide/rapide/moyen/lent par defaut : 5 s / 10 s / 30 s / 300 s). Le polling super rapide peut accelerer temporairement a 2 s apres un changement de valeur live.
 - La cartographie actuelle des registres vise les unites Adlar Castra / Aurora III.
+- Le tableau expert inclut la carte des registres d'entree et holding Aurora III, regroupee par fonction.
 - Les registres de temperature Aurora III utilisent l'echelle x10 (deci-°C).
 
 Prerequis
@@ -33,10 +34,11 @@ Commande depuis Homey
 - Consigne d'eau chaude sanitaire
 - Prereglage de courbe de chauffage et prereglage de courbe eau chaude
 - Temperature interieure souhaitee pour le controle adaptatif
-- Cartes Flow pour lecture/ecriture directe de registres Modbus et carte Flow de courbe de chauffe DIY
+- Cartes Flow pour lecture/ecriture directe de registres Modbus
+- Cartes Flow utilitaires pour recherche de courbe generique, duree de prechauffage et calculs de valeur bases sur l'heure
 
 Valeurs calculees
-- COP calcule a partir de la puissance Modbus, du delta de temperature d'eau et du debit d'eau
+- COP et SCOP calcules a partir de la puissance Modbus, du delta de temperature d'eau et du debit d'eau
 - Puissance externe, debit, temperature exterieure, temperature interieure, prix de l'energie, puissance solaire, rayonnement solaire et vent peuvent etre fournis via des cartes Flow
 - Des cartes Flow de seuil, d'alerte et de defaut sont disponibles pour les valeurs Modbus surveillees
 
@@ -46,6 +48,7 @@ Limites actuelles
 - La consigne de chauffage au sol est lue, affichee et modifiable via la capacite de l'appareil ; il n'existe pas encore d'action Flow dediee.
 - Des outils d'ecriture Modbus avances sont disponibles via les cartes Flow et le tableau expert ; utilisez-les avec prudence.
 - Le COP peut etre absent ou moins precis si les donnees de puissance ou de debit exploitables sont indisponibles.
+- Le controle adaptatif, l'apprentissage du modele batiment, la meteo, l'optimisation des prix, l'optimisation COP et la correction du vent sont des fonctions opt-in. Plusieurs necessitent des donnees externes de temperature interieure, meteo, vent ou prix avant de fournir des resultats utiles.
 - Cette application est Aurora III-only ; les anciennes tables de registres Aurora II/R32 ne sont pas incluses.
 
 Installation
@@ -65,7 +68,7 @@ Ouvrez les tableaux de bord avec un navigateur sur le meme reseau local que Home
 - http://<homey-ip>:8090/ - tableau live en lecture seule avec les valeurs actuelles de la pompe a chaleur
 - http://<homey-ip>:8090/interactive - tableau interactif pour les commandes courantes
 - http://<homey-ip>:8090/expert - tableau expert avec adresses Modbus, identifiants de parametres P/L et outils de lecture/ecriture live
-- http://<homey-ip>:8090/heating-curve - editeur de courbe de chauffe DIY
+- http://<homey-ip>:8090/heating-curve - assistant generique de courbe de chauffe
 
 Remplacez <homey-ip> par l'adresse IP de votre Homey Pro. Utilisez le tableau expert avec prudence : les registres Modbus modifiables peuvent changer le comportement de la pompe a chaleur.
 Le port par defaut des tableaux de bord est 8090 ; si vous avez modifie le parametre Port des tableaux de bord, utilisez ce port dans l'URL.
@@ -77,6 +80,9 @@ Parametres du peripherique
 - Modbus Unit ID
 - Port des tableaux de bord (8090 par defaut)
 - Intervalles de polling super rapides, rapides, moyens et lents
+- Interrupteur de calcul COP ; lorsqu'il est desactive, les mises a jour des capacites COP et SCOP sont arretees
+- Les capacites de mesure de puissance interne sont activees par defaut pour Aurora III
+- Le controle adaptatif, le modele batiment, les apercus batiment, la meteo, l'optimisation des prix, l'optimisation COP et la correction du vent restent desactives par defaut jusqu'a configuration
 - Niveau de journalisation
 
 Remarques pratiques
