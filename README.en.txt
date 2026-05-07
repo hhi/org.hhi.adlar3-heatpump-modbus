@@ -8,6 +8,7 @@ Current implementation status
 - The old Tuya fields such as Device ID, Local Key and protocol version are not used in this Modbus app.
 - Polling intervals are configurable in the device settings (default superfast/fast/medium/slow: 5 s / 10 s / 30 s / 300 s). Superfast polling can adapt to 2 s after live value changes.
 - The current register mapping is aimed at Adlar Castra / Aurora III units.
+- The expert dashboard includes the Aurora III input and holding register map, grouped by function.
 - Aurora III temperature registers use x10 scaling (deci-°C).
 
 Requirements
@@ -33,10 +34,11 @@ Control from Homey
 - DHW setpoint
 - Heating curve preset and hot water curve preset
 - Desired indoor temperature for adaptive control
-- Direct Modbus register read/write flow cards and a DIY heating curve flow card
+- Direct Modbus register read/write flow cards
+- Utility flow cards for generic curve lookup, pre-heat time and time-based value calculations
 
 Calculated values
-- COP based on Modbus power, water temperature delta and water flow
+- COP and SCOP based on Modbus power, water temperature delta and water flow
 - External power, flow, ambient, indoor temperature, energy prices, solar power, solar radiation and wind data can be supplied via flow cards
 - Threshold, alert and fault flow cards are available for monitored Modbus values
 
@@ -46,6 +48,7 @@ Current limitations
 - The floor heating setpoint is read, displayed and writable from the device capability; there is no dedicated flow action for it yet.
 - Advanced Modbus write tools are available through flow cards and the expert dashboard; use them with care.
 - COP can be missing or less accurate when usable power or flow data is unavailable.
+- Adaptive control, building model learning, weather forecast, price optimization, COP optimization and wind correction are opt-in features. Several of these need external indoor temperature, weather, wind or price data before they can produce useful results.
 - This app is Aurora III-only; legacy Aurora II/R32 register maps are not included.
 
 Installation
@@ -65,7 +68,7 @@ Open the dashboards from a browser on the same local network as Homey:
 - http://<homey-ip>:8090/ - live read-only dashboard with current heat pump values
 - http://<homey-ip>:8090/interactive - interactive dashboard for common controls
 - http://<homey-ip>:8090/expert - expert register dashboard with Modbus addresses, P/L parameter IDs and live read/write tools
-- http://<homey-ip>:8090/heating-curve - DIY heating curve editor
+- http://<homey-ip>:8090/heating-curve - generic heating curve helper
 
 Replace <homey-ip> with the IP address of your Homey Pro. Use the expert dashboard with care: writable Modbus registers can change heat pump behaviour.
 The default dashboard port is 8090; if you changed the Dashboard port setting, use that port in the URL instead.
@@ -77,6 +80,9 @@ Device settings
 - Modbus Unit ID
 - Dashboard port (default 8090)
 - Superfast, fast, medium and slow polling intervals
+- COP calculation switch; when disabled, COP and SCOP capability updates are stopped
+- Internal power measurement capabilities are enabled by default for Aurora III
+- Adaptive control, building model, building insights, weather forecast, price optimization, COP optimization and wind correction remain disabled by default until configured
 - Log level
 
 Practical notes

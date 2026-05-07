@@ -5,7 +5,6 @@
 import Homey from 'homey';
 import { TuyaErrorCategorizer } from '../error-types';
 import { calculatePreHeatDuration } from '../utils/preheat-calculator';
-import { CapabilityCategories, UserFlowPreferences } from '../types/shared-interfaces';
 import type { BuildingInsightsService, InsightCategory } from './building-insights-service';
 import { PerformanceReportService } from './performance-report-service';
 import { SeasonalModeCalculator } from '../seasonal-mode-calculator';
@@ -160,10 +159,9 @@ export class FlowCardManagerService {
   }
 
   /**
-   * Refresh the set of flow cards (re-register based on current capabilities and data availability).
-   * @param capabilitiesWithData - optional list of capabilities known to have recent data
+   * Refresh the set of flow cards.
    */
-  async updateFlowCards(capabilitiesWithData?: string[]): Promise<void> {
+  async updateFlowCards(_capabilitiesWithData?: string[]): Promise<void> {
     try {
       // Don't proceed if device isn't fully initialized yet
       if (!this.isInitialized && Object.keys(this.device.homey.drivers.getDrivers()).length === 0) {
@@ -174,28 +172,9 @@ export class FlowCardManagerService {
       // Unregister all current flow card listeners
       this.unregisterAllFlowCards();
 
-      // Get current user preferences and available capabilities
-      const userPrefs = this.getUserFlowPreferences();
-      const availableCaps = this.getAvailableCapabilities();
-      const healthyCapabilities = capabilitiesWithData || await this.detectCapabilitiesWithData();
-
-      // Register flow cards based on settings
-      await this.registerFlowCardsByCategory('temperature', availableCaps.temperature, userPrefs.flow_temperature_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('voltage', availableCaps.voltage, userPrefs.flow_voltage_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('current', availableCaps.current, userPrefs.flow_current_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('power', availableCaps.power, userPrefs.flow_power_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('pulseSteps', availableCaps.pulseSteps, userPrefs.flow_pulse_steps_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('states', availableCaps.states, userPrefs.flow_state_alerts, healthyCapabilities);
-      await this.registerFlowCardsByCategory('efficiency', availableCaps.efficiency, userPrefs.flow_efficiency_alerts, healthyCapabilities);
-
       // Register Modbus-specific trigger filters and simple action cards.
       await this.registerModbusTriggerRunListeners();
       await this.registerModbusSimpleActionCards();
-
-      // Expert feature cards
-      if (userPrefs.flow_expert_mode) {
-        await this.registerExpertFeatureCards();
-      }
 
       // Register action-based condition cards (always available)
       await this.registerActionBasedConditionCards();
@@ -220,151 +199,6 @@ export class FlowCardManagerService {
       this.logger('FlowCardManagerService: Flow cards updated successfully');
     } catch (error) {
       this.logger('FlowCardManagerService: Error updating flow cards:', error);
-    }
-  }
-
-  /**
-   * Read user preferences related to flow card registration and return defaults if missing.
-   */
-  private getUserFlowPreferences(): UserFlowPreferences {
-    return {
-      flow_temperature_alerts: this.device.getSetting('flow_temperature_alerts') || 'auto',
-      flow_voltage_alerts: this.device.getSetting('flow_voltage_alerts') || 'auto',
-      flow_current_alerts: this.device.getSetting('flow_current_alerts') || 'auto',
-      flow_power_alerts: this.device.getSetting('flow_power_alerts') || 'auto',
-      flow_pulse_steps_alerts: this.device.getSetting('flow_pulse_steps_alerts') || 'auto',
-      flow_state_alerts: this.device.getSetting('flow_state_alerts') || 'auto',
-      flow_efficiency_alerts: this.device.getSetting('flow_efficiency_alerts') || 'auto',
-      flow_expert_mode: this.device.getSetting('flow_expert_mode') || false,
-    };
-  }
-
-  /**
-   * Return available capabilities grouped by category (temperature, voltage, etc).
-   */
-  private getAvailableCapabilities(): CapabilityCategories {
-    const capabilities = this.device.getCapabilities();
-    const result: CapabilityCategories = {
-      temperature: [],
-      voltage: [],
-      current: [],
-      power: [],
-      pulseSteps: [],
-      states: [],
-      efficiency: [],
-      calculated: [], // v1.2.3: COP/SCOP calculations
-      external: [], // v1.2.3: External integrations
-      monitoring: [], // v1.3.14: Connection monitoring (excluded from health)
-      building_model: [], // v1.3.14: Building model learned parameters (excluded from health)
-      energy_pricing: [], // v1.3.14: Energy price/cost data (excluded from health)
-    };
-
-    capabilities.forEach((capability) => {
-      const category = this.getCapabilityCategory(capability);
-      if (category in result) {
-        result[category as keyof CapabilityCategories].push(capability);
-      }
-    });
-
-    return result;
-  }
-
-  /**
-   * Map a capability id to a flow-card category key.
-   * @returns one of the CapabilityCategories keys
-   */
-  private getCapabilityCategory(capability: string): keyof CapabilityCategories {
-    if (capability.startsWith('measure_temperature')) return 'temperature';
-    if (capability.startsWith('measure_voltage')) return 'voltage';
-    if (capability.startsWith('measure_current')) return 'current';
-    if (capability.includes('power') || capability.includes('energy')) return 'power';
-    if (capability.includes('pulse_steps')) return 'pulseSteps';
-    if (capability.startsWith('adlar_state')) return 'states';
-    if (capability.includes('cop') || capability.includes('scop')) return 'efficiency';
-    return 'temperature'; // Default fallback
-  }
-
-  /**
-   * Detect capabilities that actually have recent data (for 'auto' registration mode).
-   * By default this delegates to CapabilityHealthService; a simplified fallback is provided here.
-   */
-  private async detectCapabilitiesWithData(): Promise<string[]> {
-    // This would typically get data from the CapabilityHealthService
-    // For now, return all capabilities as having data
-    const capabilitiesWithData: string[] = [];
-    const capabilities = this.device.getCapabilities();
-
-    for (const capability of capabilities) {
-      const value = this.device.getCapabilityValue(capability);
-      if (value !== null && value !== undefined) {
-        capabilitiesWithData.push(capability);
-      }
-    }
-
-    return capabilitiesWithData;
-  }
-
-  /**
-   * Register trigger/action/condition flow cards for a specific category if user settings permit it.
-   */
-  private async registerFlowCardsByCategory(
-    category: keyof CapabilityCategories,
-    availableCaps: string[],
-    userSetting: 'disabled' | 'auto' | 'enabled',
-    capabilitiesWithData: string[],
-  ): Promise<void> {
-    const shouldRegister = this.shouldRegisterCategory(category, availableCaps, userSetting, capabilitiesWithData);
-
-    if (!shouldRegister) {
-      const withDataCount = availableCaps.filter((cap) => capabilitiesWithData.includes(cap)).length;
-      this.logger(`FlowCardManagerService: Skipping ${category} flow cards - setting: ${userSetting}`);
-      this.logger(`FlowCardManagerService: Available: ${availableCaps.length}, with data: ${withDataCount}`);
-      return;
-    }
-
-    this.logger(`FlowCardManagerService: Registering ${category} flow cards - available capabilities:`, availableCaps.filter((cap) => capabilitiesWithData.includes(cap)));
-
-    // Flow cards are handled by the pattern-based system in app.ts
-    // No device-level registration needed for trigger cards
-    this.logger(`FlowCardManagerService: Category ${category} flow cards managed by pattern-based system`);
-  }
-
-  /**
-   * Decide whether cards for a category should be registered based on availability and user preference.
-   */
-  private shouldRegisterCategory(
-    _category: keyof CapabilityCategories,
-    availableCaps: string[],
-    userSetting: string,
-    capabilitiesWithData: string[],
-  ): boolean {
-    switch (userSetting) {
-      case 'disabled':
-        return false;
-
-      case 'enabled':
-        return availableCaps.length > 0; // Has capabilities
-
-      case 'auto':
-      default:
-        // Auto mode: require both capability AND data
-        return availableCaps.length > 0
-          && availableCaps.some((cap) => capabilitiesWithData.includes(cap));
-    }
-  }
-
-  /**
-   * Register advanced/expert-only flow cards. Called only when user enables expert features.
-   */
-  private async registerExpertFeatureCards(): Promise<void> {
-    try {
-      // v1.3.12: Expert trigger cards now registered in app.ts with full threshold monitoring
-      // This method kept for compatibility but no longer registers cards here
-      // Cards: compressor_efficiency_alert, fan_motor_efficiency_alert, water_flow_alert
-
-      this.logger('FlowCardManagerService: Expert feature cards registration skipped (handled in app.ts)');
-    } catch (error) {
-      this.logger('FlowCardManagerService: Error in registerExpertFeatureCards:', error);
     }
   }
 
@@ -427,15 +261,6 @@ export class FlowCardManagerService {
         const temperature = this.getRequiredNumberArg(args, 'temperature');
         this.assertSetpointRange('Desired indoor temperature', temperature, INDOOR_TARGET_MIN_C, INDOOR_TARGET_MAX_C);
         await this.triggerSelectedDeviceCapability(args, 'target_temperature.indoor', temperature);
-        return true;
-      });
-
-      this.registerCapabilityAction('set_device_onoff', async (args) => {
-        const state = String(args.state ?? '');
-        if (state !== 'on' && state !== 'off') {
-          throw new Error(`Unsupported power state: ${state}`);
-        }
-        await this.triggerSelectedDeviceCapability(args, 'onoff', state === 'on');
         return true;
       });
 
@@ -1332,7 +1157,7 @@ export class FlowCardManagerService {
 
   /**
    * Register utility action cards (ADR-036 §4.1)
-   * Stateless calculator actions: seasonal mode, curve, heating curve, time schedule
+   * Stateless calculator actions: seasonal mode, curve, time schedule
    */
   private async registerUtilityActionCards(): Promise<void> {
     try {
@@ -1372,42 +1197,7 @@ export class FlowCardManagerService {
       });
       this.flowCardListeners.set('calculate_curve_value', calculateCurveListener);
 
-      // Action 3: Calculate linear heating curve (ADR-036)
-      const calculateHeatingCurveCard = this.device.homey.flow.getActionCard('calculate_linear_heating_curve');
-      const calculateHeatingCurveListener = calculateHeatingCurveCard.registerRunListener(async (args) => {
-        this.logger('FlowCardManagerService: Calculate linear heating curve action triggered', { args });
-
-        const outdoorTemp = parseFloat(String(args.outdoor_temp));
-        if (Number.isNaN(outdoorTemp) || !Number.isFinite(outdoorTemp)) {
-          throw new Error(`Invalid outdoor temperature: '${args.outdoor_temp}'. Must be a number.`);
-        }
-
-        // eslint-disable-next-line camelcase
-        const referenceTemp = args.reference_temp as number; // L29: supply temp at -15°C
-        // eslint-disable-next-line camelcase
-        const slopeGrade = args.slope_grade as number;        // L28: slope per 10°C
-
-        // Adlar Custom curve: slope = slopeGrade / 10, intercept from reference point
-        // Formula: y = slope * x + intercept
-        // At x = -15: y = referenceTemp → intercept = referenceTemp - slope * (-15)
-        const slope = slopeGrade / 10;
-        const intercept = referenceTemp - slope * (-15);
-        const supplyTemperature = slope * outdoorTemp + intercept;
-
-        // Clamp to safe range
-        const clampedSupply = Math.max(20, Math.min(65, Math.round(supplyTemperature * 10) / 10));
-        const formula = `y = ${slope}x + ${intercept.toFixed(1)}`;
-
-        this.logger(`FlowCardManagerService: Heating curve: outdoor=${outdoorTemp}°C → supply=${clampedSupply}°C (${formula})`);
-
-        return {
-          supply_temperature: clampedSupply,
-          formula,
-        };
-      });
-      this.flowCardListeners.set('calculate_linear_heating_curve', calculateHeatingCurveListener);
-
-      // Action 5: Calculate time-based value (ADR-036)
+      // Action 3: Calculate time-based value (ADR-036)
       const calculateTimeBasedCard = this.device.homey.flow.getActionCard('calculate_time_based_value');
       const calculateTimeBasedListener = calculateTimeBasedCard.registerRunListener(async (args) => {
         this.logger('FlowCardManagerService: Calculate time-based value action triggered', { args });
@@ -1420,7 +1210,7 @@ export class FlowCardManagerService {
       });
       this.flowCardListeners.set('calculate_time_based_value', calculateTimeBasedListener);
 
-      this.logger('FlowCardManagerService: Utility action cards registered (5 cards)');
+      this.logger('FlowCardManagerService: Utility action cards registered (3 cards)');
     } catch (error) {
       this.logger('FlowCardManagerService: Error registering utility action cards:', error);
     }
@@ -1491,13 +1281,6 @@ export class FlowCardManagerService {
         async (args: { power_value: number }) => {
           this.logger(`FlowCardManagerService: 📊 Received external power data: ${args.power_value}W`);
           await this.handleReceiveExternalPowerData(args);
-
-          // Trigger intelligent power update if enabled
-          const energyTrackingEnabled = this.device.getSetting('enable_intelligent_energy_tracking');
-          if (energyTrackingEnabled) {
-            // @ts-expect-error - updateIntelligentPowerMeasurement exists in MyDevice
-            await this.device.updateIntelligentPowerMeasurement?.();
-          }
           return true;
         },
       );
@@ -2022,24 +1805,7 @@ export class FlowCardManagerService {
    * @param changedKeys - array of settings keys that were modified
    */
   async updateSettings(changedKeys: string[]): Promise<void> {
-    // Check if any flow-related settings changed
-    const flowSettingKeys = [
-      'flow_temperature_alerts',
-      'flow_voltage_alerts',
-      'flow_current_alerts',
-      'flow_power_alerts',
-      'flow_pulse_steps_alerts',
-      'flow_state_alerts',
-      'flow_efficiency_alerts',
-      'flow_expert_mode',
-    ];
-
-    const flowSettingsChanged = changedKeys.some((key) => flowSettingKeys.includes(key));
-
-    if (flowSettingsChanged) {
-      this.logger('FlowCardManagerService: Flow settings changed, updating flow cards');
-      await this.updateFlowCards();
-    }
+    void changedKeys;
   }
 
   /**

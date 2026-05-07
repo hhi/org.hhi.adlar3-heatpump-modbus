@@ -4,7 +4,7 @@
 /* eslint-disable import/extensions */
 import Homey from 'homey';
 import { DeviceConstants } from '../constants';
-import { CapabilityCategories, UserFlowPreferences } from '../types/shared-interfaces';
+import { CapabilityCategories } from '../types/shared-interfaces';
 
 export interface CapabilityHealthOptions {
   device: Homey.Device;
@@ -316,54 +316,21 @@ export class CapabilityHealthService {
   }
 
   /**
-   * Read user preferences related to flow card registration (settings-aware filtering).
-   * Returns defaults if settings are missing.
-   */
-  private getUserFlowPreferences(): UserFlowPreferences {
-    return {
-      flow_temperature_alerts: this.device.getSetting('flow_temperature_alerts') || 'auto',
-      flow_voltage_alerts: this.device.getSetting('flow_voltage_alerts') || 'auto',
-      flow_current_alerts: this.device.getSetting('flow_current_alerts') || 'auto',
-      flow_power_alerts: this.device.getSetting('flow_power_alerts') || 'auto',
-      flow_pulse_steps_alerts: this.device.getSetting('flow_pulse_steps_alerts') || 'auto',
-      flow_state_alerts: this.device.getSetting('flow_state_alerts') || 'auto',
-      flow_efficiency_alerts: this.device.getSetting('flow_efficiency_alerts') || 'auto',
-      flow_expert_mode: this.device.getSetting('flow_expert_mode') || false,
-    };
-  }
-
-  /**
    * Determine if a capability category is enabled via user settings.
-   * v1.2.1 FIX: Checks BOTH feature enablement AND flow card settings.
    * v1.2.3: Calculated/external categories always return true (excluded from health tracking elsewhere).
-   * Settings can be 'disabled', 'auto', or 'enabled'.
-   * Returns false only if explicitly disabled.
    */
   private isCategoryEnabled(category: keyof CapabilityCategories): boolean {
-    const userPrefs = this.getUserFlowPreferences();
-
-    // v1.2.1: First check feature enablement settings (master switches)
     const enablePowerMeasurements = this.device.getSetting('enable_power_measurements') ?? true;
     const enableCOPCalculation = this.device.getSetting('cop_calculation_enabled') !== false; // default true
 
     switch (category) {
-      case 'temperature':
-        return userPrefs.flow_temperature_alerts !== 'disabled';
-
       case 'voltage':
       case 'current':
       case 'power':
-        // v1.2.1 FIX: If power measurements disabled, these categories are ALWAYS disabled
-        if (!enablePowerMeasurements) return false;
-        // Otherwise check flow card settings
-        if (category === 'voltage') return userPrefs.flow_voltage_alerts !== 'disabled';
-        if (category === 'current') return userPrefs.flow_current_alerts !== 'disabled';
-        return userPrefs.flow_power_alerts !== 'disabled';
+        return enablePowerMeasurements;
 
       case 'efficiency':
-        // v1.2.1 FIX: If COP calculation disabled, efficiency category is ALWAYS disabled
-        if (!enableCOPCalculation) return false;
-        return userPrefs.flow_efficiency_alerts !== 'disabled';
+        return enableCOPCalculation;
 
       case 'calculated':
       case 'external':
@@ -371,12 +338,8 @@ export class CapabilityHealthService {
         // Return true here for flow card compatibility
         return true;
 
-      case 'pulseSteps':
-        return userPrefs.flow_pulse_steps_alerts !== 'disabled';
-      case 'states':
-        return userPrefs.flow_state_alerts !== 'disabled';
       default:
-        return true; // Unknown categories are enabled by default
+        return true;
     }
   }
 

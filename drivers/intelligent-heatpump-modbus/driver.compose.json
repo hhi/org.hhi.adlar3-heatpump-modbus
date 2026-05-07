@@ -288,9 +288,9 @@
     }
   },
   "images": {
-    "small": "{{driverAssetsPath}}/images/Aurora3-drv-small.png",
-    "large": "{{driverAssetsPath}}/images/Aurora3-drv-large.png",
-    "xlarge": "{{driverAssetsPath}}/images/Aurora3-drv-xlarge.png"
+    "small": "{{driverAssetsPath}}/images/Aurora-drv-small.png",
+    "large": "{{driverAssetsPath}}/images/Aurora-drv-large.png",
+    "xlarge": "{{driverAssetsPath}}/images/Aurora-drv-xlarge.png"
   },
   "pair": [
     {

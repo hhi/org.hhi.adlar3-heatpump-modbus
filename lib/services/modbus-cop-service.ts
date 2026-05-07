@@ -94,6 +94,11 @@ export class ModbusCOPService {
   }
 
   public processSnapshot(snap: DataSnapshot, set: CapabilitySetter): void {
+    if (this.device.getSetting('cop_calculation_enabled') === false) {
+      this.clearCOPCapabilities(set);
+      return;
+    }
+
     const data = this.gatherDeviceDataSources(snap);
     const result = COPCalculator.calculateCOP(data, { enableOutlierDetection: true });
     const methodDisplay = this.formatCOPMethodDisplay(result);
@@ -108,6 +113,17 @@ export class ModbusCOPService {
 
     set('adlar_cop', 0);
     set('adlar_cop_method', methodDisplay);
+  }
+
+  private clearCOPCapabilities(set: CapabilitySetter): void {
+    set('adlar_cop', 0);
+    set('adlar_cop_method', 'Disabled');
+    set('adlar_cop_daily', 0);
+    set('adlar_cop_weekly', 0);
+    set('adlar_cop_monthly', 0);
+    set('adlar_cop_trend', 'disabled');
+    set('adlar_scop', 0);
+    set('adlar_scop_quality', 'disabled');
   }
 
   private gatherDeviceDataSources(snap: DataSnapshot): COPDataSources {

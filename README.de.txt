@@ -8,6 +8,7 @@ Aktueller Stand der Implementierung
 - Alte Tuya-Felder wie Device ID, Local Key und Protokollversion werden in dieser Modbus-App nicht verwendet.
 - Die Polling-Intervalle sind in den Geraeteeinstellungen konfigurierbar (Standard superschnell/schnell/mittel/langsam: 5 s / 10 s / 30 s / 300 s). Superschnelles Polling kann nach Live-Wertaenderungen kurz auf 2 s beschleunigen.
 - Das aktuelle Register-Mapping ist auf Adlar Castra / Aurora III Geraete ausgerichtet.
+- Das Experten-Dashboard enthaelt die Aurora III Input- und Holding-Registerkarte, nach Funktion gruppiert.
 - Aurora III Temperaturregister verwenden x10-Skalierung (Dezi-°C).
 
 Voraussetzungen
@@ -33,10 +34,11 @@ Steuerung aus Homey
 - Warmwasser-Sollwert
 - Heizkurven-Preset und Warmwasser-Kurven-Preset
 - Gewuenschte Innentemperatur fuer adaptive Regelung
-- Flow-Karten fuer direktes Modbus-Register Lesen/Schreiben und eine DIY-Heizkurven-Flow-Karte
+- Flow-Karten fuer direktes Modbus-Register Lesen/Schreiben
+- Utility-Flow-Karten fuer generische Kurvenabfrage, Vorheizzeit und zeitbasierte Wertberechnung
 
 Berechnete Werte
-- COP auf Basis von Modbus-Leistung, Wasser-Temperaturdifferenz und Wasserdurchfluss
+- COP und SCOP auf Basis von Modbus-Leistung, Wasser-Temperaturdifferenz und Wasserdurchfluss
 - Externe Leistung, Durchfluss, Aussentemperatur, Innentemperatur, Energiepreise, Solarleistung, Sonnenstrahlung und Winddaten koennen ueber Flow-Karten geliefert werden
 - Schwellenwert-, Alarm- und Stoerungs-Flow-Karten sind fuer ueberwachte Modbus-Werte verfuegbar
 
@@ -46,6 +48,7 @@ Aktuelle Einschraenkungen
 - Der Fussbodenheizungs-Sollwert wird gelesen, angezeigt und ist ueber die Geraetecapability schreibbar; es gibt noch keine eigene Flow-Aktion dafuer.
 - Erweiterte Modbus-Schreibwerkzeuge sind ueber Flow-Karten und das Experten-Dashboard verfuegbar; verwenden Sie sie vorsichtig.
 - Der COP kann fehlen oder ungenauer sein, wenn nutzbare Leistungs- oder Durchflussdaten fehlen.
+- Adaptive Regelung, Gebaeudemodell-Lernen, Wettervorhersage, Preisoptimierung, COP-Optimierung und Windkorrektur sind Opt-in-Funktionen. Einige davon benoetigen externe Innenraumtemperatur-, Wetter-, Wind- oder Preisdaten, bevor sie sinnvolle Ergebnisse liefern.
 - Diese App ist Aurora III-only; legacy Aurora II/R32-Registerkarten sind nicht enthalten.
 
 Installation
@@ -65,7 +68,7 @@ Oeffnen Sie die Dashboards mit einem Browser im selben lokalen Netzwerk wie Home
 - http://<homey-ip>:8090/ - Live-Dashboard nur zum Lesen mit aktuellen Waermepumpenwerten
 - http://<homey-ip>:8090/interactive - interaktives Dashboard fuer haeufige Bedienung
 - http://<homey-ip>:8090/expert - Experten-Dashboard mit Modbus-Adressen, P/L-Parameter-IDs und Live-Lese-/Schreibwerkzeugen
-- http://<homey-ip>:8090/heating-curve - Editor fuer die DIY-Heizkurve
+- http://<homey-ip>:8090/heating-curve - generischer Heizkurven-Helfer
 
 Ersetzen Sie <homey-ip> durch die IP-Adresse Ihres Homey Pro. Verwenden Sie das Experten-Dashboard vorsichtig: schreibbare Modbus-Register koennen das Verhalten der Waermepumpe aendern.
 Der Standard-Dashboard-Port ist 8090; wenn Sie die Einstellung Dashboard-Port geaendert haben, verwenden Sie diesen Port in der URL.
@@ -77,6 +80,9 @@ Geraeteeinstellungen
 - Modbus Unit ID
 - Dashboard-Port (Standard 8090)
 - Superschnelle, schnelle, mittlere und langsame Polling-Intervalle
+- COP-Berechnungsschalter; wenn deaktiviert, werden COP- und SCOP-Capability-Updates gestoppt
+- Interne Leistungsmessungs-Capabilities sind fuer Aurora III standardmaessig aktiviert
+- Adaptive Regelung, Gebaeudemodell, Gebaeudeerkenntnisse, Wettervorhersage, Preisoptimierung, COP-Optimierung und Windkorrektur bleiben standardmaessig deaktiviert, bis sie konfiguriert sind
 - Log-Level
 
 Praktische Hinweise
