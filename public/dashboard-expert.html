@@ -223,10 +223,11 @@ function setViewMode(mode) {
 
 function buildFunctionalBlocks(sourceBlocks) {
   const categories = [
-    { id: 'func_status', label: 'Status & storingen', match: r => inAddress(r, 0x0000, 0x0028) || hasAny(r, ['fault', 'status', 'state', 'switch', 'relay']) },
-    { id: 'func_heating', label: 'Verwarming', match: r => hasAny(r, ['heating', 'heat', 'floor', 'zone', 'curve', 'stooklijn', 'water outlet', 'water inlet']) || inAddress(r, 0x0301, 0x0303) },
+    { id: 'func_config', label: 'Configuratie & apparaat', match: r => inAddress(r, 0, 9) || inAddress(r, 34, 37) || hasAny(r, ['terminal type', 'refrigerant type', 'unit type']) },
+    { id: 'func_status', label: 'Status & storingen', match: r => [38, 39, 80, 81, 102, 103].includes(r.address) || inAddress(r, 90, 109) || hasAny(r, ['fault', 'status', 'state', 'switch', 'relay', 'operation mode']) },
     { id: 'func_dhw', label: 'Tapwater & retourcirculatie', match: r => hasAny(r, ['dhw', 'hot water', 'tank', 'backwater', 'return water', 'sterilization']) || inAddress(r, 0x080B, 0x080F) || r.address === 0x0054 || r.address === 0x0059 },
     { id: 'func_cooling', label: 'Koeling', match: r => hasAny(r, ['cooling', 'cool']) || r.address === 0x0300 },
+    { id: 'func_heating', label: 'Verwarming', match: r => hasAny(r, ['heating', 'heat', 'floor', 'climate curve', 'stooklijn', 'water outlet', 'water inlet', 'room temperature']) || inAddress(r, 0x0301, 0x0303) },
     { id: 'func_compressor', label: 'Compressor & ventilator', match: r => hasAny(r, ['compressor', 'fan', 'frequency', 'freq', 'ipm', 'eev', 'evi']) || inAddress(r, 0x0040, 0x0048) },
     { id: 'func_water', label: 'Watercircuit', match: r => hasAny(r, ['water', 'flow', 'pump', 'pressure', 'mixing', 'buffer']) },
     { id: 'func_energy', label: 'Energie & COP', match: r => hasAny(r, ['energy', 'power', 'current', 'voltage', 'consumption', 'cop']) },
@@ -298,7 +299,7 @@ function renderRow(block, reg) {
   return `
     <tr id="row-${reg.address}" data-addr="${reg.address}" data-multiply="${reg.multiply||1}" data-iscoil="${!!reg.isCoil}" data-fc="${esc(reg.fc || 'holding')}">
       <td class="addr">${addrHex}${bitsBtn}</td>
-      <td class="reg-id">${esc(reg.registerId || '')}</td>
+      <td class="reg-id">${reg.fc === 'input' ? '3' : '4'}-${reg.address}</td>
       <td class="name-cell">${nameHtml}</td>
       <td class="poll-cell">${renderPollGroups(reg.pollGroups)}</td>
       <td class="val-raw" id="raw-${reg.address}">—</td>
@@ -338,8 +339,7 @@ function renderBitsTable(reg) {
 function rangeStr(reg) {
   if (reg.isCoil) return 'bool';
   if (reg.min != null && reg.max != null) {
-    const mul = scaleMultiply(reg);
-    return `${(reg.min*mul).toFixed(mul<1?1:0)}–${(reg.max*mul).toFixed(mul<1?1:0)}`;
+    return `${reg.min}–${reg.max}`;
   }
   return '—';
 }
@@ -481,8 +481,8 @@ function openWriteDialog(addr) {
     document.getElementById('dlg-input-label').textContent = 'Nieuwe waarde' + (reg.unit ? ' (' + reg.unit + ')' : '');
     inputEl.value = '';
     inputEl.step = mul < 1 ? String(mul) : '1';
-    if (reg.min != null) inputEl.min = String(reg.min * mul);
-    if (reg.max != null) inputEl.max = String(reg.max * mul);
+    if (reg.min != null) inputEl.min = String(reg.min);
+    if (reg.max != null) inputEl.max = String(reg.max);
     document.getElementById('dlg-range').textContent = rangeStr(reg) + (reg.unit ? ' ' + reg.unit : '');
     inputEl.oninput = () => updateRawPreview(reg);
     updateRawPreview(reg);
@@ -510,8 +510,7 @@ function validateDlgOk() {
   if (reg.isCoil) { btn.disabled = false; return; }
   const v = parseFloat(document.getElementById('dlg-input').value);
   if (isNaN(v)) { btn.disabled = true; return; }
-  const mul = scaleMultiply(reg);
-  const ok = (reg.min == null || v >= reg.min * mul) && (reg.max == null || v <= reg.max * mul);
+  const ok = (reg.min == null || v >= reg.min) && (reg.max == null || v <= reg.max);
   btn.disabled = !ok;
 }
 

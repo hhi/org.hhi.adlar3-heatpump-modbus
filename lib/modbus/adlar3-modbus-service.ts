@@ -147,8 +147,6 @@ export interface StatusSnapshot {
   antifreeze: boolean;
   sterilization: boolean;
   compressorOn: boolean;
-  faultAlarm: boolean;
-  faultShutdown: boolean;
   activeFaults: string[];
 }
 
@@ -156,22 +154,15 @@ export interface ControlSnapshot {
   on: boolean;
   mode: number;
   modeName: string;
-  userMode: number;
   heatingSetpointC: number;
   coolingSetpointC: number;
   dhwSetpointC: number;
   floorSetpointC: number;
-  heatingCurve: number;
-  hotWaterCurve: number;
-  protocolVersion: number;
-  coilsAvailable: boolean;
 }
 
 export interface PowerSnapshot {
-  inputPowerKw: number;
   inputCurrentA: number;
   inputVoltageV: number;
-  totalEnergyKwh: number;
   derivedPowerKw: number;
 }
 
@@ -186,14 +177,6 @@ export interface CopSnapshot {
   reason?: string;
 }
 
-export interface VersionSnapshot {
-  programVersionRaw: number | null;
-  programVersion: string | null;
-  productType: number | null;
-  productTypeId: number | null;
-  protocolVersion: number | null;
-  protocolVersionFormatted: string | null;
-}
 
 export interface DiyHeatingCurve {
   active: boolean;
@@ -216,7 +199,6 @@ export interface DataSnapshot {
   control: ControlSnapshot;
   power: PowerSnapshot;
   cop: CopSnapshot;
-  version: VersionSnapshot;
   sensors: Record<string, SensorValue>;
   diy?: DiyHeatingCurve;
   diagnostics?: DiagnosticsSnapshot;
@@ -446,7 +428,6 @@ export class Adlar3ModbusService extends EventEmitter {
       control: this.buildControl(),
       power: this.buildPower(),
       cop: this.buildCop(),
-      version: this.buildVersion(),
       sensors: this.buildSensors(),
     };
   }
@@ -463,8 +444,6 @@ export class Adlar3ModbusService extends EventEmitter {
       antifreeze: statusBitSet(reg38, STATUS_BITS.ANTI_FREEZING),
       sterilization: statusBitSet(reg38, STATUS_BITS.DISINFECTION),
       compressorOn: compFreq > 0,
-      faultAlarm: activeFaults.length > 0,
-      faultShutdown: activeFaults.length > 0,
       activeFaults,
     };
   }
@@ -475,15 +454,10 @@ export class Adlar3ModbusService extends EventEmitter {
       on: mode !== HvacMode.Off,
       mode,
       modeName: modeName(mode),
-      userMode: 0,
       heatingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1HeatingSetTemp, true),
       coolingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1CoolingSetTemp, true),
       dhwSetpointC: this.readScaledValue(CONTROL_REGISTERS.dhwSetTemp, true),
       floorSetpointC: this.readScaledValue(CONTROL_REGISTERS.roomTempSetTemp, true),
-      heatingCurve: 0,
-      hotWaterCurve: 0,
-      protocolVersion: 0,
-      coilsAvailable: false,
     };
   }
 
@@ -493,10 +467,8 @@ export class Adlar3ModbusService extends EventEmitter {
     const derivedPowerKw = (inputVoltageV * inputCurrentA) / 1000;
 
     return {
-      inputPowerKw: derivedPowerKw,
       inputCurrentA,
       inputVoltageV,
-      totalEnergyKwh: 0,
       derivedPowerKw,
     };
   }
@@ -536,16 +508,7 @@ export class Adlar3ModbusService extends EventEmitter {
     };
   }
 
-  private buildVersion(): VersionSnapshot {
-    return {
-      programVersionRaw: null,
-      programVersion: null,
-      productType: null,
-      productTypeId: null,
-      protocolVersion: null,
-      protocolVersionFormatted: null,
-    };
-  }
+
 
   private buildSensors(): Record<string, SensorValue> {
     const sensors: Record<string, SensorValue> = {};
