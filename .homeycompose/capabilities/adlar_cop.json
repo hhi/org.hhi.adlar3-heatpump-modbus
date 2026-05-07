@@ -1,0 +1,37 @@
+{
+  "id": "adlar_cop",
+  "title": {
+    "en": "Instant Coefficient of Performance",
+    "nl": "Momentopname Prestatiecoëfficiënt",
+    "de": "Momentane Leistungszahl",
+    "fr": "Coefficient de performance instantané"
+  },
+  "type": "number",
+  "units": {
+    "en": "COP",
+    "nl": "COP",
+    "de": "COP",
+    "fr": "COP"
+  },
+  "min": 0,
+  "max": 8,
+  "step": 0.01,
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "Heat Pump Efficiency (COP)",
+    "nl": "Warmtepomp Efficiëntie (COP)",
+    "de": "Wärmepumpen Effizienz (COP)",
+    "fr": "Efficacité de la pompe à chaleur (COP)"
+  },
+  "icon": "/assets/cop-efficiency.svg",
+  "description": {
+    "en": "Instant COP calculated from water flow and temperature delta using registers 3-0042, 3-0043 and 3-0064, with electrical power from 3-0074/3-0075 or an external meter.",
+    "nl": "Actuele COP berekend uit waterdebiet en temperatuurverschil via registers 3-0042, 3-0043 en 3-0064, met elektrisch vermogen uit 3-0074/3-0075 of een externe meter.",
+    "fr": "COP instantané calculé à partir du débit d’eau et de l’écart de température via les registres 3-0042, 3-0043 et 3-0064, avec la puissance électrique de 3-0074/3-0075 ou d’un compteur externe.",
+    "de": "Aktueller COP, berechnet aus Wasserdurchfluss und Temperaturdifferenz über die Register 3-0042, 3-0043 und 3-0064, mit elektrischer Leistung aus 3-0074/3-0075 oder einem externen Zähler."
+  }
+}

@@ -1,0 +1,127 @@
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable import/no-unresolved */
+/* eslint-disable node/no-missing-import */
+/* eslint-disable import/extensions */
+import { DataSnapshot } from '../modbus/adlar3-modbus-service';
+
+const MODE_OPTIONS: Record<number, string> = {
+  0: 'Off',
+  1: 'Cool',
+  2: 'Heat',
+  4: 'Auto',
+};
+
+const THRESHOLD = 0.5;
+
+type TriggerFn = (
+  cardId: string,
+  tokens: Record<string, unknown>,
+  state: Record<string, unknown>,
+) => void;
+
+/**
+ * SnapshotTriggerService vergelijkt opeenvolgende DataSnapshots en roept
+ * de meegegeven trigger-callback aan wanneer een significante wijziging
+ * wordt gedetecteerd.
+ *
+ * Heeft geen Homey-dependency — werkt puur op DataSnapshot en een
+ * framework-agnostische trigger-functie.
+ */
+export class SnapshotTriggerService {
+  private _lastValues = new Map<string, number>();
+  private _lastHeatingMode: number | null = null;
+  private _lastActiveFaults: string[] = [];
+
+  detect(snap: DataSnapshot, trigger: TriggerFn): void {
+    this._detectChangedTriggers(snap, trigger);
+    this._detectAlertTriggers(snap, trigger);
+  }
+
+  private _detectChangedTriggers(snap: DataSnapshot, trigger: TriggerFn): void {
+    this._detectNumericChange('ambient', snap.sensors.ambientT1?.value, 'ambient_temperature_changed', trigger, (value) => ({
+      current_temperature: this._round1(value),
+    }));
+    this._detectNumericChange('inlet', snap.sensors.inletT6?.value, 'inlet_temperature_changed', trigger, (value) => ({
+      current_temperature: this._round1(value),
+    }));
+    this._detectNumericChange('outlet', snap.sensors.outletT7?.value, 'outlet_temperature_changed', trigger, (value) => ({
+      current_temperature: this._round1(value),
+    }));
+
+    const mode = snap.control.mode;
+    if (this._lastHeatingMode !== null && mode !== this._lastHeatingMode) {
+      trigger('heating_mode_changed',
+        {
+          mode: MODE_OPTIONS[mode as keyof typeof MODE_OPTIONS] ?? String(mode),
+          previous_mode: MODE_OPTIONS[this._lastHeatingMode as keyof typeof MODE_OPTIONS] ?? String(this._lastHeatingMode),
+        },
+        {});
+    }
+    this._lastHeatingMode = mode;
+
+    const currentFaults = snap.status.activeFaults;
+    const newFaults = currentFaults.filter((f) => !this._lastActiveFaults.includes(f));
+    for (const fault of newFaults) {
+      trigger('fault_detected',
+        { fault_code: fault, fault_description: fault },
+        { faultCode: fault, fault_description: fault });
+    }
+    this._lastActiveFaults = [...currentFaults];
+  }
+
+  private _detectAlertTriggers(snap: DataSnapshot, trigger: TriggerFn): void {
+    this._detectTemperatureAlert('dhwTank', snap.sensors.dhwTankTemp?.value, 'tank_temperature_alert', trigger);
+    this._detectTemperatureAlert('outerCoil', snap.sensors.outerCoilT3?.value, 'coiler_temperature_alert', trigger);
+    this._detectTemperatureAlert('suction', snap.sensors.suctionT4?.value, 'suction_temperature_alert', trigger);
+    this._detectTemperatureAlert('exhaust', snap.sensors.exhaustT5?.value, 'discharge_temperature_alert', trigger);
+    this._detectNumericChange('eevStep', snap.sensors.eevStep?.value, 'eev_pulse_steps_alert', trigger, (value) => ({
+      current_pulse_steps: Math.round(value),
+      threshold_pulse_steps: 0,
+    }));
+    this._detectNumericChange('eviStep', snap.sensors.eviStep?.value, 'evi_pulse_steps_alert', trigger, (value) => ({
+      current_pulse_steps: Math.round(value),
+      threshold_pulse_steps: 0,
+    }));
+    this._detectNumericChange('waterFlow', snap.sensors.waterFlow?.value, 'water_flow_alert', trigger, (value) => ({
+      current_flow_rate: this._round1(value),
+      threshold_flow_rate: 0,
+    }));
+    this._detectNumericChange('compFreq', snap.sensors.compRunningFreq?.value, 'compressor_efficiency_alert', trigger, (value) => ({
+      current_frequency: this._round1(value),
+      threshold_frequency: 0,
+    }));
+    this._detectNumericChange('fanSpeed', snap.sensors.fanSpeed?.value, 'fan_motor_efficiency_alert', trigger, (value) => ({
+      current_fan_frequency: this._round1(value),
+      threshold_frequency: 0,
+    }));
+  }
+
+  private _detectTemperatureAlert(key: string, value: number | undefined, cardId: string, trigger: TriggerFn): void {
+    this._detectNumericChange(key, value, cardId, trigger, (currentValue) => ({
+      current_temperature: this._round1(currentValue),
+      threshold_temperature: 0,
+    }));
+  }
+
+  private _detectNumericChange(
+    key: string,
+    value: number | undefined,
+    cardId: string,
+    trigger: TriggerFn,
+    tokensForValue: (value: number) => Record<string, unknown>,
+  ): void {
+    if (value === undefined) return;
+
+    const previousValue = this._lastValues.get(key);
+    if (previousValue !== undefined && Math.abs(value - previousValue) >= THRESHOLD) {
+      const condition = value > previousValue ? 'above' : 'below';
+      trigger(cardId, tokensForValue(value), { condition, currentValue: value });
+    }
+
+    this._lastValues.set(key, value);
+  }
+
+  private _round1(value: number): number {
+    return Math.round(value * 10) / 10;
+  }
+}

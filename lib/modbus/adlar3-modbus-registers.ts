@@ -1,0 +1,703 @@
+/**
+ * adlar3-modbus-registers.ts
+ *
+ * Modbus register definitions for the Adlar Castra Aurora III series heat pump.
+ *
+ * SCOPE: best-effort definitions derived from:
+ *   1. The Aurora III official register map spreadsheet (125 registers, "Register Map" tab)
+ *   2. The Home Assistant adlar_heatpump.yaml reference implementation (12 registers used)
+ *   3. Cross-mapping against legacy Aurora II semantics where useful
+ *
+ * NOTATION:
+ *   - Aurora III uses Modbus Modicon-style addressing:
+ *       3-NNNN  = Input Register   (FC04, read-only sensor data, address range 0–109)
+ *       4-NNNN  = Holding Register (FC03/06, read/write setpoints, address range 2100–2114)
+ *   - The numeric `address` field is the bare register number (e.g. 50, 2107) — that is what
+ *     the Modbus PDU carries. The function code is selected via `fc` ('input' | 'holding').
+ *   - Aurora II addresses (when referenced in comments) are real hex (0x004A = 74 decimal).
+ *
+ * VERIFICATION STATUS:
+ *   Many fields are flagged with @verify markers. These are best-effort values that should be
+ *   confirmed against hardware before relying on them in production. See VERIFICATION_TASKS
+ *   at the bottom of this file for the consolidated list.
+ *
+ * IMPORTANT DIFFERENCES FROM AURORA II (READ THESE BEFORE WRITING DRIVER CODE):
+ *   - System status bitmap (STATUS_BITS) uses ENTIRELY DIFFERENT bit positions from Aurora II.
+ *   - Water flow unit is m³/h on III, L/min on II (factor 60).
+ *   - III has no native power register — power must be derived (V × I) or sourced externally.
+ *   - III lacks dedicated main on/off switch — likely encoded in mode register (verify).
+ *   - III pressure sensors report kPa directly; Aurora II only had saturation temperature.
+ *
+ * Version: 0.1.0-draft (best-effort, pre-hardware-verification)
+ */
+
+// ============================================================================
+// BLOCK 1: TYPES & CONSTANTS
+// ============================================================================
+
+/** Modbus function code group. */
+export type ModbusFC = 'input' | 'holding';
+//   'input'   → FC04 (Read Input Register)              — Modicon "3-NNNN"
+//   'holding' → FC03 (Read), FC06/16 (Write)             — Modicon "4-NNNN"
+
+/** Standard scale factor used by all temperature registers. raw = degC * 10. */
+export const TEMP_MULTIPLY = 0.1;
+
+/** Default Modbus unit-id used by the YAML reference (slave 1). */
+export const DEFAULT_UNIT_ID = 1;
+
+/** Standard scan interval used by the YAML reference (seconds). */
+export const DEFAULT_SCAN_INTERVAL_S = 30;
+
+/**
+ * Map a register definition to a Modicon-style reference string for logging/UI.
+ * Examples: refOf({ address: 50, fc: 'input' })   → '3-50'
+ *           refOf({ address: 2107, fc: 'holding' }) → '4-2107'
+ */
+export function refOf(reg: { address: number; fc: ModbusFC }): string {
+  return `${reg.fc === 'input' ? '3' : '4'}-${reg.address}`;
+}
+
+/** Decode a raw register value to its physical value using a scale factor. */
+export function scaleRegisterValue(raw: number, multiply: number): number {
+  return raw * multiply;
+}
+
+/**
+ * Aurora III sign convention: spec marks registers as either U16 (unsigned) or S16 (signed).
+ * For S16 registers a 16-bit raw must be sign-extended before scaling.
+ */
+export function decodeS16(raw: number): number {
+  return raw >= 0x8000 ? raw - 0x10000 : raw;
+}
+
+// ============================================================================
+// BLOCK 2: SYSTEM STATUS BITS (Reg 38)
+// ============================================================================
+//
+// Reg 38 (3-38) is a 16-bit bitmask that consolidates multiple status flags into a single
+// register. Aurora II splits the same information across two registers (0x0000 + 0x0001) with
+// fully named bits — Aurora III packs everything into one register with a different bit layout.
+//
+// VERIFIED bits (from adlar_heatpump.yaml reference implementation):
+//
+//   Bit 0  → Oil return active
+//   Bit 1  → Defrost active
+//   Bit 2  → Anti-freezing active
+//   Bit 4  → Disinfection (sterilization) active
+//   Bit 11 → Outdoor temperature too low (compressor blocked)
+//
+// The remaining 11 bits are UNDOCUMENTED. The names below marked `// @verify` are educated
+// guesses based on Aurora II's STATUS_1_BITS / STATUS_2_BITS — they MUST be confirmed by
+// logging Reg 38 across a full operational cycle (idle → start → run → defrost → fault → ...).
+//
+// ============================================================================
+
+export const STATUS_BITS = {
+  /** Bit 0: Oil-return cycle active. VERIFIED. */
+  OIL_RETURN: 0x0001,
+  /** Bit 1: Defrost cycle active. VERIFIED. */
+  DEFROST: 0x0002,
+  /** Bit 2: Anti-freezing cycle active. VERIFIED. */
+  ANTI_FREEZING: 0x0004,
+  /** Bit 3: UNKNOWN — possibly fault alarm (II maps Bit3 to FAULT_ALARM). @verify */
+  RESERVED_BIT_3: 0x0008,
+  /** Bit 4: Disinfection / sterilization cycle. VERIFIED. */
+  DISINFECTION: 0x0010,
+  /** Bits 5–10: UNKNOWN. @verify */
+  RESERVED_BIT_5: 0x0020,
+  RESERVED_BIT_6: 0x0040,
+  RESERVED_BIT_7: 0x0080,
+  RESERVED_BIT_8: 0x0100,
+  RESERVED_BIT_9: 0x0200,
+  RESERVED_BIT_10: 0x0400,
+  /** Bit 11: Outdoor temperature too low — compressor blocked. VERIFIED. */
+  OUTDOOR_TEMP_TOO_LOW: 0x0800,
+  /** Bits 12–15: UNKNOWN. @verify */
+  RESERVED_BIT_12: 0x1000,
+  RESERVED_BIT_13: 0x2000,
+  RESERVED_BIT_14: 0x4000,
+  RESERVED_BIT_15: 0x8000,
+} as const;
+
+/** Helper: test whether a status bit is set in a Reg 38 raw value. */
+export function statusBitSet(reg38Raw: number, bit: number): boolean {
+  return (reg38Raw & bit) !== 0;
+}
+
+// ============================================================================
+// BLOCK 3: SILENT MODE BIT-FIELD (Reg 2103)
+// ============================================================================
+//
+// Reg 2103 is "Additional function A" — a writable holding register that packs multiple
+// configuration flags into one word. The YAML reference confirms that the SILENT MODE level
+// occupies bits 4–5 (mask 0x0030, shifted right by 4 to get a 0–3 value).
+//
+// The remaining 14 bits are unknown but are PRESERVED on writes via read-modify-write.
+// Aurora II exposes silent mode via a dedicated enum register (0x0307 runningMode) which also
+// supports a "Powerful" boost mode — Aurora III appears to lack the boost option.
+//
+// ============================================================================
+
+export const SILENT_MODE_MASK = 0x0030;     // bits 4-5
+export const SILENT_MODE_SHIFT = 4;
+
+export enum SilentMode {
+  Off = 0,
+  Level1 = 1,
+  Level2 = 2,
+  // Level 3 reserved by encoding but not exposed in YAML reference
+}
+
+/** Decode silent-mode level from raw Reg 2103 value. */
+export function decodeSilentMode(reg2103Raw: number): SilentMode {
+  return ((reg2103Raw & SILENT_MODE_MASK) >> SILENT_MODE_SHIFT) as SilentMode;
+}
+
+/** Encode a new silent-mode level while preserving the other 14 bits. */
+export function encodeSilentMode(currentReg2103Raw: number, newLevel: SilentMode): number {
+  const cleared = currentReg2103Raw & ~SILENT_MODE_MASK;
+  return cleared | (newLevel << SILENT_MODE_SHIFT);
+}
+
+// ============================================================================
+// BLOCK 4: HVAC MODE ENUM (Reg 2100)
+// ============================================================================
+//
+// Reg 2100 controls the HVAC mode. The YAML reference verifies three values; auto/dehum/dhw
+// values below are best-effort and need confirmation. Writing 0 is hypothesized to mean OFF
+// (since Aurora III lacks a dedicated main switch register) — this MUST be tested before use.
+//
+// ============================================================================
+
+export enum HvacMode {
+  /** @verify  Hypothesized OFF state — Aurora III has no dedicated on/off register. */
+  Off = 0,
+  /** Cooling mode. VERIFIED. */
+  Cool = 1,
+  /** Heating mode. VERIFIED. */
+  Heat = 2,
+  /** @verify  Mode value 3 is unmapped — possibly DHW or dehumidify. */
+  Reserved3 = 3,
+  /** Auto mode. VERIFIED. */
+  Auto = 4,
+}
+
+// ============================================================================
+// BLOCK 5: SENSOR REGISTERS (Input Registers, FC04)
+// All addresses below are READ-ONLY input registers. Modicon ref: 3-NNNN.
+// ============================================================================
+//
+// Calibration notes (carried over from Aurora II — applicability to Aurora III @verify):
+//   - acInputCurrent (Reg 75) is likely the SAME non-linear sensor used on Aurora II.
+//     Without correction, derived power readings are 18–38% too low at part load.
+//     The Aurora II calibrationCurve should be tried as a default until disproven.
+//   - acInputVoltage (Reg 74) likely reads ~1% high (Aurora II empirical finding).
+//
+// ============================================================================
+
+export interface InputRegister {
+  address: number;
+  fc: 'input';
+  dataType: 'U16' | 'S16';
+  unit?: string;
+  multiply?: number;   // physical value = raw * multiply (after sign-extension if S16)
+  name: string;
+  desc?: string;
+}
+
+export const SENSOR_REGISTERS: Record<string, InputRegister> = {
+  // --- Room / Indoor ---
+  roomTemperature: {
+    address: 40, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Room Temperature (Tldr)',
+    desc: 'Indoor room temperature. Aurora II has no equivalent (only setpoint).',
+  },
+
+  // --- Hydraulic Temperatures ---
+  totalLeavingWaterTemp: {
+    address: 41, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Total Leaving Water Temperature (TC)',
+    desc: 'Total outlet temperature after auxiliary heat source. II ≈ 0x0075.',
+  },
+  inletWaterTemp: {
+    address: 42, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Inlet Water Temperature (TA)',
+    desc: 'Return water from installation. II ≈ 0x004F (T6).',
+  },
+  outletWaterTemp: {
+    address: 43, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Leaving Water Temperature (TE1)',
+    desc: 'Supply water to installation. II ≈ 0x0050 (T7). Used as climate.current_temperature.',
+  },
+  bufferTankUpperTemp: {
+    address: 44, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Buffer Tank Upper Part Temperature (TE2)',
+    desc: 'Spec marks RESERVED — verify presence on actual hardware.',
+  },
+  bufferTankLowerTemp: {
+    address: 45, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Buffer Tank Lower Part Temperature (TW)',
+    desc: 'II has only one buffer sensor (0x0074); III splits upper/lower.',
+  },
+  dhwTankTemp: {
+    address: 46, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'DHW Water Tank Temperature (TZ2)',
+    desc: 'II ≈ 0x0054.',
+  },
+  zone2MixingInletTemp: {
+    address: 47, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Mixing Station Inlet Water Temperature (Tso)',
+  },
+  solarHeatingTemp: {
+    address: 48, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Solar Water Heating Temperature (T3-solar)',
+    desc: 'Caveat: Aurora III spec uses label "T3" for both Reg 48 (solar) and Reg 49 (coil).',
+  },
+  outdoorCoilTemp: {
+    address: 49, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Outdoor Unit Coil Temperature (T3)',
+    desc: 'II ≈ 0x004B (T2).',
+  },
+
+  // --- Ambient & Refrigerant ---
+  ambientTemp: {
+    address: 50, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Ambient Temperature (T4)',
+    desc: 'Outdoor ambient. II ≈ 0x004A (T1).',
+  },
+  exvOutletTemp: {
+    address: 51, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'EXV Valve Outlet Temperature (T5)',
+    desc: 'II has two economizer sensors (0x0051, 0x0052); III has only this one.',
+  },
+  dischargeTemp: {
+    address: 52, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Compressor Discharge Temperature (TP)',
+    desc: 'II ≈ 0x004E (called "Exhaust Temp T5").',
+  },
+  suctionTemp: {
+    address: 53, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Compressor Suction Temperature (TH)',
+    desc: 'II ≈ 0x004D (T4).',
+  },
+
+  // --- Setpoints (read-only; controller-computed) ---
+  targetOutletTemp: {
+    address: 56, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Target Outlet Setting Temperature (TOut)',
+    desc: 'Controller-computed setpoint after curve+modulation. Compare with Reg 43 to assess control performance.',
+  },
+
+  // --- Hydraulic ---
+  inletWaterPressure: {
+    address: 60, fc: 'input', dataType: 'U16', unit: 'Bar', /* @verify scale */ multiply: 0.1,
+    name: 'Inlet Water Pressure',
+    desc: 'Spec marks RESERVED — may not be populated on all units. @verify',
+  },
+  outletWaterPressure: {
+    address: 61, fc: 'input', dataType: 'U16', unit: 'Bar', /* @verify scale */ multiply: 0.1,
+    name: 'Outlet Water Pressure',
+    desc: 'YAML uses scale 0.1; spec does not declare scale. @verify',
+  },
+  pumpPwmOutput: {
+    address: 62, fc: 'input', dataType: 'U16', unit: '%', multiply: 1,
+    name: 'PWM Percentage of DC Water Pump',
+    desc: 'II ≈ 0x0057.',
+  },
+  pumpPwmFeedback: {
+    address: 63, fc: 'input', dataType: 'U16', /* @verify unit/scale */ multiply: 0.1,
+    name: 'PWM Feedback DC Water Pump',
+    desc: 'III-only. Useful for detecting blocked impeller / pump failures.',
+  },
+  waterFlow: {
+    address: 64, fc: 'input', dataType: 'U16', unit: 'm³/h', /* @verify scale */ multiply: 0.1,
+    name: 'Actual Water Flow of DC Pump',
+    desc: '⚠️ UNIT DIFFERS FROM AURORA II (II=L/min, III=m³/h, factor 60). YAML uses scale 0.1.',
+  },
+
+  // --- Climate Curve Outputs (read-only computed setpoints) ---
+  zone1CurveCoolingSetTemp: {
+    address: 66, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 1 Climate Curve Cooling Set Temperature',
+  },
+  zone1CurveHeatingSetTemp: {
+    address: 67, fc: 'input', dataType: 'S16', unit: '°C',
+    /* @verify — spec says scale x1 but other °C registers are x10. Assume x10 until verified. */
+    multiply: TEMP_MULTIPLY,
+    name: 'Zone 1 Climate Curve Heating Set Temperature',
+  },
+  zone2CurveCoolingSetTemp: {
+    address: 68, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Climate Curve Cooling Set Temperature',
+  },
+  zone2CurveHeatingSetTemp: {
+    address: 69, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Climate Curve Heating Set Temperature',
+  },
+
+  // --- Compressor / Fan / EEV ---
+  mainEevOpenDegree: {
+    address: 70, fc: 'input', dataType: 'U16', unit: 'P', multiply: 1,
+    name: 'Main EEV Open Degree',
+    desc: 'Steps. II ≈ 0x0042.',
+  },
+  auxEevOpenDegree: {
+    address: 71, fc: 'input', dataType: 'U16', unit: 'P', multiply: 1,
+    name: 'Auxiliary EEV Open Degree',
+    desc: 'Spec marks RESERVED but likely returns useful values. II ≈ 0x0043 (EVI valve). @verify',
+  },
+  fanSpeed: {
+    address: 72, fc: 'input', dataType: 'U16', unit: 'RPM', multiply: 1,
+    name: 'Speed of No.1 DC Fan',
+    desc: 'II ≈ 0x0041.',
+  },
+
+  // --- Electrical ---
+  acInputVoltage: {
+    address: 74, fc: 'input', dataType: 'U16', unit: 'V', multiply: 1,
+    name: 'AC Input Voltage',
+    desc: 'Aurora II applies 0.99 calibration factor (~1% sensor offset). Likely also applies here. @verify',
+  },
+  acInputCurrent: {
+    address: 75, fc: 'input', dataType: 'U16', unit: 'A', multiply: 0.1,
+    name: 'AC Input Current',
+    desc: '⚠️ Aurora II documents non-linear sensor (38% error @4A → 18% @10A). '
+        + 'III likely uses same sensor architecture. Apply calibration curve before deriving power. @verify',
+  },
+  dcBusVoltage: {
+    address: 76, fc: 'input', dataType: 'U16', unit: 'V', multiply: 1,
+    name: 'DC Bus Voltage',
+    desc: 'III-only continuous reading. II only reports DC bus over/undervoltage as fault bits.',
+  },
+  compressorCurrent: {
+    address: 77, fc: 'input', dataType: 'U16', unit: 'A', multiply: 0.1,
+    name: 'Compressor Phase Current',
+    desc: 'II ≈ 0x0046.',
+  },
+  compressorTargetFreq: {
+    address: 78, fc: 'input', dataType: 'U16', unit: 'Hz', multiply: 1,
+    name: 'Compressor Target Frequency',
+    desc: 'II ≈ 0x0027 (in STATUS_REGISTER_MAP).',
+  },
+  compressorRunningFreq: {
+    address: 79, fc: 'input', dataType: 'U16', unit: 'Hz', multiply: 1,
+    name: 'Compressor Actual Frequency',
+    desc: 'II ≈ 0x0040.',
+  },
+
+  // --- Status / Control Outputs ---
+  systemStatus: {
+    address: 38, fc: 'input', dataType: 'U16',
+    name: 'System Status (16-bit bitmask)',
+    desc: 'Decode using STATUS_BITS. See Block 2 for verified bit definitions.',
+  },
+  ahsRequest: {
+    address: 39, fc: 'input', dataType: 'U16',
+    name: 'Request External Heating Source (Hybrid)',
+    desc: 'AHS = Auxiliary Heat Source. II ≈ 0x001B bit 9 (RELAY_3.AHS_SIGNAL_OUTPUT).',
+  },
+  mainPumpStatus: {
+    address: 80, fc: 'input', dataType: 'U16',
+    name: 'Main Water Pump On/Off',
+    desc: 'II ≈ 0x0019 bit 6 (RELAY_1.MAIN_CIRCULATING_PUMP).',
+  },
+  fourWayValveStatus: {
+    address: 81, fc: 'input', dataType: 'U16',
+    name: 'Four Way Valve On/Off',
+    desc: 'II ≈ 0x001A bit 3 (RELAY_2.FOUR_WAY_VALVE_1).',
+  },
+
+  // --- Refrigerant Pressure (III-only direct readings) ---
+  highPressure: {
+    address: 86, fc: 'input', dataType: 'U16', unit: 'kPa', /* @verify scale */ multiply: 1,
+    name: 'High Pressure',
+    desc: 'III-only direct kPa reading. II only had saturation-temperature derivative.',
+  },
+  lowPressure: {
+    address: 87, fc: 'input', dataType: 'U16', unit: 'kPa', multiply: 1,
+    name: 'Low Pressure',
+    desc: 'Same as highPressure. @verify scale',
+  },
+
+  // --- Fault & Protection Codes ---
+  errorCodes_E01_E16: {
+    address: 90, fc: 'input', dataType: 'U16',
+    name: 'Error Codes E01-E16',
+    desc: 'Numeric code value (not bitmask). Lookup table not in spec — see VERIFICATION_TASKS.',
+  },
+  errorCodes_E17_E32: { address: 91, fc: 'input', dataType: 'U16', name: 'Error Codes E17-E32' },
+  errorCodes_E33_E48: { address: 92, fc: 'input', dataType: 'U16', name: 'Error Codes E33-E48' },
+  errorCodes_E49_E64: { address: 93, fc: 'input', dataType: 'U16', name: 'Error Codes E49-E64' },
+  errorCodes_E65_E80: { address: 94, fc: 'input', dataType: 'U16', name: 'Error Codes E65-E80' },
+  errorCodes_E81_E96: { address: 95, fc: 'input', dataType: 'U16', name: 'Error Codes E81-E96' },
+
+  protectionCodes_P01_P16: {
+    address: 96, fc: 'input', dataType: 'U16',
+    name: 'Protection Codes P01-P16',
+  },
+  protectionCodes_P17_P32: { address: 97, fc: 'input', dataType: 'U16', name: 'Protection Codes P17-P32' },
+  protectionCodes_P33_P48: { address: 98, fc: 'input', dataType: 'U16', name: 'Protection Codes P33-P48' },
+  protectionCodes_P49_P64: { address: 99, fc: 'input', dataType: 'U16', name: 'Protection Codes P49-P64' },
+  protectionCodes_P65_P80: { address: 100, fc: 'input', dataType: 'U16', name: 'Protection Codes P65-P80' },
+  protectionCodes_P81_P96: { address: 101, fc: 'input', dataType: 'U16', name: 'Protection Codes P81-P96' },
+
+  // --- Operation Mode Readback ---
+  currentTargetOpMode: {
+    address: 102, fc: 'input', dataType: 'U16',
+    name: 'Current Target Operation Mode',
+    desc: 'III-only explicit readback. Enum values undocumented. @verify',
+  },
+  actualOpMode: {
+    address: 103, fc: 'input', dataType: 'U16',
+    name: 'Actual Operation Mode',
+    desc: 'Distinguishes from target during transitions/defrost. Enum values undocumented. @verify',
+  },
+} as const;
+
+// ============================================================================
+// BLOCK 6: CONTROL REGISTERS (Holding Registers, FC03/06)
+// All addresses below are READ/WRITE holding registers. Modicon ref: 4-NNNN.
+// ============================================================================
+
+export interface HoldingRegister {
+  address: number;
+  fc: 'holding';
+  dataType: 'U16' | 'S16';
+  unit?: string;
+  multiply?: number;
+  min?: number;
+  max?: number;
+  name: string;
+  desc?: string;
+}
+
+export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
+  // --- HVAC Mode ---
+  hvacMode: {
+    address: 2100, fc: 'holding', dataType: 'U16',
+    name: 'Air Conditioning Modes',
+    desc: 'See HvacMode enum. Verified: 1=Cool, 2=Heat, 4=Auto. Value 0 may serve as OFF — @verify.',
+  },
+
+  // --- DHW On/Off ---
+  dhwOnOff: {
+    address: 2102, fc: 'holding', dataType: 'U16',
+    name: 'DHW Mode On/Off',
+    desc: 'Aurora II uses 0x0305 mainSwitch + 0x0304 mode for the same purpose.',
+  },
+
+  // --- Additional Function A (Silent Mode lives in bits 4-5) ---
+  additionalFunctionA: {
+    address: 2103, fc: 'holding', dataType: 'U16',
+    name: 'Additional Function A (Silent Mode bits 4-5)',
+    desc: 'Use decodeSilentMode/encodeSilentMode helpers. Other bits unknown — preserve via RMW.',
+  },
+
+  // --- Setpoints ---
+  dhwSetTemp: {
+    address: 2105, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    min: 20, max: 75, /* @verify ranges — taken from Aurora II */
+    name: 'DHW Mode Water Temperature Setting',
+    desc: 'II ≈ 0x0302. Active limits in Reg 14/15.',
+  },
+  zone1CoolingSetTemp: {
+    address: 2106, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    min: 7, max: 25, /* @verify */
+    name: 'Zone 1 Cooling Mode Temperature Setting',
+    desc: 'II ≈ 0x0300. Active limits in Reg 10/11.',
+  },
+  zone1HeatingSetTemp: {
+    address: 2107, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    min: 18, max: 50, /* From YAML number platform definition */
+    name: 'Zone 1 Heating Mode Temperature Setting',
+    desc: 'II ≈ 0x0301. Used as climate.target_temperature in YAML.',
+  },
+  zone1AutoCoolingSetTemp: {
+    address: 2108, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 1 Auto Mode Cooling Temperature Setting',
+    desc: 'III-only. Aurora II has no auto-mode subdivision per zone.',
+  },
+  zone1AutoHeatingSetTemp: {
+    address: 2109, fc: 'holding', dataType: 'S16', unit: '°C',
+    /* @verify — spec lists scale x1, almost certainly a typo (other °C registers are x10).
+       This is a WRITABLE register — verify BEFORE writing or risk a 10× setpoint error. */
+    multiply: TEMP_MULTIPLY,
+    name: 'Zone 1 Auto Mode Heating Temperature Setting',
+    desc: '⚠️ SPEC SCALE TYPO RISK. Confirm before write.',
+  },
+  zone2CoolingSetTemp: {
+    address: 2110, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Cooling Mode Temperature Setting',
+  },
+  zone2HeatingSetTemp: {
+    address: 2111, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Heating Mode Temperature Setting',
+  },
+  zone2AutoCoolingSetTemp: {
+    address: 2112, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Auto Mode Cooling Temperature Setting',
+  },
+  zone2AutoHeatingSetTemp: {
+    address: 2113, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Zone 2 Auto Mode Heating Temperature Setting',
+  },
+  roomTempSetTemp: {
+    address: 2114, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Room Temperature Setting',
+    desc: 'II ≈ 0x0306 indoorTempSetpoint.',
+  },
+} as const;
+
+// ============================================================================
+// BLOCK 7: STATIC LIMIT REGISTERS (Reg 10-31, read-only U16)
+// ============================================================================
+//
+// These registers hold the configured upper/lower limits per zone × mode. They are static
+// (configured once) — Aurora II has runtime-computed active limits at 0x00FA-0x00FF instead.
+// Useful at startup to populate min/max on UI capabilities.
+//
+// All scales TEMP_MULTIPLY (x10). The four "x1" entries in the spec for Reg 16, 27, 67, 2109
+// are flagged as suspected typos (see VERIFICATION_TASKS).
+//
+// ============================================================================
+
+export const LIMIT_REGISTERS: Record<string, InputRegister> = {
+  zone1CoolingUpperLimit: { address: 10, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Cooling Upper Limit' },
+  zone1CoolingLowerLimit: { address: 11, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Cooling Lower Limit' },
+  zone1HeatingUpperLimit: { address: 12, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Heating Upper Limit' },
+  zone1HeatingLowerLimit: { address: 13, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Heating Lower Limit' },
+  dhwUpperLimit:          { address: 14, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'DHW Upper Limit' },
+  dhwLowerLimit:          { address: 15, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'DHW Lower Limit' },
+  zone1AutoCoolingUpperLimit: {
+    address: 16, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Z1 Auto Cooling Upper Limit',
+    desc: '@verify — spec lists scale x1, almost certainly typo.',
+  },
+  // ... additional limit registers follow same pattern. Truncated for brevity in this draft;
+  // the full set 17-31 covers Z1 auto-cooling lower, Z1 auto-heating upper/lower, Z2 cooling
+  // upper/lower, Z2 heating upper/lower, Z2 auto-cooling upper/lower, Z2 auto-heating
+  // upper/lower, room-temp upper/lower.
+} as const;
+
+// ============================================================================
+// BLOCK 8: AGGREGATED REGISTER MAP (for driver iteration)
+// ============================================================================
+
+/** All registers grouped by function code, for batched polling. */
+export const ALL_INPUT_REGISTERS = { ...SENSOR_REGISTERS, ...LIMIT_REGISTERS } as const;
+export const ALL_HOLDING_REGISTERS = CONTROL_REGISTERS;
+
+// ============================================================================
+// BLOCK 9: DERIVED CALCULATIONS (HA YAML helpers, transcribed to TS)
+// ============================================================================
+
+/** ΔT across the heat exchanger (supply − return), in °C. */
+export function deltaT(outletTempC: number, inletTempC: number): number {
+  return outletTempC - inletTempC;
+}
+
+/**
+ * Thermal power in kW.
+ *   Q = c_p × ρ × V̇ × ΔT
+ * Constant 1.163 = c_p × ρ for water in (kW × h) / (m³ × K).
+ * NOTE: requires waterFlow already in m³/h (i.e. Reg 64 already scaled).
+ */
+export function thermalPowerKw(flowM3h: number, deltaTC: number): number {
+  return 1.163 * flowM3h * deltaTC;
+}
+
+/**
+ * COP. Returns null if input power is too low (< 50 W) or thermal power is non-positive.
+ * Mirrors the YAML logic: avoids divide-by-zero and meaningless ratios at idle.
+ */
+export function cop(thermalKw: number, electricalW: number): number | null {
+  if (electricalW <= 50 || thermalKw <= 0) return null;
+  return thermalKw / (electricalW / 1000);
+}
+
+// ============================================================================
+// BLOCK 10: VERIFICATION TASKS
+// ============================================================================
+//
+// Items below MUST be confirmed against hardware before trusting the related register
+// definitions. Listed in priority order.
+//
+// ============================================================================
+
+export const VERIFICATION_TASKS = [
+  {
+    priority: 'critical',
+    item: 'AC current sensor non-linearity',
+    affects: ['SENSOR_REGISTERS.acInputCurrent', 'derived measure_power'],
+    issue: 'Aurora II documents 38% error @4A → 18% @10A. Unknown if III shares the sensor.',
+    action: 'Compare Reg 75 readings against external ammeter across 2-15A range.',
+  },
+  {
+    priority: 'critical',
+    item: 'Reg 2109 scale factor (writable)',
+    affects: ['CONTROL_REGISTERS.zone1AutoHeatingSetTemp'],
+    issue: 'Spec lists x1 while peer registers are x10. Writable → typo causes 10× setpoint.',
+    action: 'Read register, compare with UI display. DO NOT WRITE before confirmation.',
+  },
+  {
+    priority: 'high',
+    item: 'On/Off mechanism via Reg 2100',
+    affects: ['HvacMode.Off (hypothesized)'],
+    issue: 'Aurora III lacks dedicated main switch register.',
+    action: 'Test write 0 to Reg 2100; observe whether unit halts. Test all enum values.',
+  },
+  {
+    priority: 'high',
+    item: 'Reg 38 full bit mapping',
+    affects: ['STATUS_BITS bits 3, 5-10, 12-15'],
+    issue: 'Only 5 bits verified (from YAML); 11 bits unmapped.',
+    action: 'Log Reg 38 across full operational cycle (idle/start/run/defrost/sterilize/fault).',
+  },
+  {
+    priority: 'high',
+    item: 'Error code lookup table (E01-E96)',
+    affects: ['SENSOR_REGISTERS.errorCodes_*'],
+    issue: 'III emits numeric codes, not bitmasks. Code-to-description mapping not in spec.',
+    action: 'Request manufacturer table OR trigger known faults and record values.',
+  },
+  {
+    priority: 'medium',
+    item: 'Water flow unit confirmation',
+    affects: ['SENSOR_REGISTERS.waterFlow'],
+    issue: 'Spec says m³/h; YAML uses scale 0.1 → could be dL/min OR 0.1 m³/h.',
+    action: 'Compare register value to external flow meter reading.',
+  },
+  {
+    priority: 'medium',
+    item: 'Reg 71 (auxiliary EEV) availability',
+    affects: ['SENSOR_REGISTERS.auxEevOpenDegree'],
+    issue: 'Spec marks RESERVED but II equivalent (0x0043) is functional.',
+    action: 'Read Reg 71 across operating conditions; if value varies → usable.',
+  },
+  {
+    priority: 'medium',
+    item: 'Reg 2103 full bit layout',
+    affects: ['SILENT_MODE_MASK + 14 unknown bits'],
+    issue: 'Only silent-mode bits 4-5 verified; 14 bits unknown but preserved on write.',
+    action: 'Log Reg 2103 in standard operation; test bits 0-3 for "Powerful" mode equivalent.',
+  },
+  {
+    priority: 'medium',
+    item: 'Refrigerant pressure scale (Reg 86, 87)',
+    affects: ['SENSOR_REGISTERS.highPressure', 'SENSOR_REGISTERS.lowPressure'],
+    issue: 'Reg 87 listed as x1; Reg 86 has no scale. Unit kPa, ranges unknown.',
+    action: 'Compare with manometer if available, or theoretical values from saturation tables.',
+  },
+  {
+    priority: 'low',
+    item: 'Operation mode enum (Reg 102, 103)',
+    affects: ['SENSOR_REGISTERS.currentTargetOpMode', 'SENSOR_REGISTERS.actualOpMode'],
+    issue: 'No value-list in spec.',
+    action: 'Log both registers during mode transitions.',
+  },
+] as const;
+
+// ============================================================================
+// END OF FILE
+// ============================================================================

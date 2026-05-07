@@ -1,0 +1,242 @@
+/* eslint-disable import/prefer-default-export */
+/* eslint-disable import/no-unresolved */
+/* eslint-disable node/no-missing-import */
+/* eslint-disable import/extensions */
+import { EventEmitter } from 'events';
+import Homey from 'homey';
+import { DataSnapshot } from '../modbus/adlar3-modbus-service';
+import { TimerProvider } from '../modbus/modbus-tcp-service';
+import { ModbusRuntimeService } from '../modbus/modbus-runtime-service';
+
+type TemperatureRegisterScale = 'x1' | 'x10';
+
+export interface ModbusConnectionConfig {
+  host: string;
+  port?: number;
+  unitId?: number;
+  pollSuperfastMs?: number;
+  pollSuperfastAdaptive?: boolean;
+  pollSuperfastAdaptiveMs?: number;
+  pollFastMs?: number;
+  pollMediumMs?: number;
+  pollSlowMs?: number;
+}
+
+export interface ModbusConnectionOptions<TSnapshot = DataSnapshot> {
+  device: Homey.Device;
+  logger?: (message: string, ...args: unknown[]) => void;
+  createService: (args: {
+    config: ModbusConnectionConfig;
+    timerProvider: TimerProvider;
+  }) => ModbusRuntimeService<TSnapshot>;
+  onData: (snapshot: TSnapshot) => void;
+  onConnected: () => void;
+  onDisconnected: (reason: string) => void;
+  onError: (err: Error, context: string) => void;
+  onPollGroupSucceeded?: (groupName: string) => void;
+}
+
+/**
+ * ModbusConnectionService wraps a ModbusRuntimeService and exposes a clean
+ * interface to the ServiceCoordinator. The concrete service implementation is
+ * injected via the createService factory — ModbusConnectionService has no
+ * direct dependency on a concrete Modbus implementation.
+ *
+ * ADR-031: ModbusConnectionService ontkoppelen van Adlar-registerset.
+ */
+export class ModbusConnectionService<TSnapshot = DataSnapshot> extends EventEmitter {
+  private device: Homey.Device;
+  private logger: (message: string, ...args: unknown[]) => void;
+  private service: ModbusRuntimeService<TSnapshot> | null = null;
+  private connected = false;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+  private readonly createService: ModbusConnectionOptions<TSnapshot>['createService'];
+  private readonly onData: (snapshot: TSnapshot) => void;
+  private readonly onConnected: () => void;
+  private readonly onDisconnected: (reason: string) => void;
+  private readonly onError: (err: Error, context: string) => void;
+  private readonly onPollGroupSucceeded?: (groupName: string) => void;
+
+  constructor(options: ModbusConnectionOptions<TSnapshot>) {
+    super();
+    this.device = options.device;
+    this.logger = options.logger || (() => {});
+    this.createService = options.createService;
+    this.onData = options.onData;
+    this.onConnected = options.onConnected;
+    this.onDisconnected = options.onDisconnected;
+    this.onError = options.onError;
+    this.onPollGroupSucceeded = options.onPollGroupSucceeded;
+  }
+
+  /**
+   * Connect to the Modbus device using the provided config.
+   */
+  async connect(config: ModbusConnectionConfig): Promise<void> {
+    this.logger('ModbusConnectionService: Connecting to', config.host);
+
+    const timerProvider: TimerProvider = {
+      setTimeout: this.device.homey.setTimeout.bind(this.device.homey),
+      setInterval: this.device.homey.setInterval.bind(this.device.homey),
+      clearTimeout: this.device.homey.clearTimeout.bind(this.device.homey),
+      clearInterval: this.device.homey.clearInterval.bind(this.device.homey),
+    };
+
+    this.service = this.createService({ config, timerProvider });
+
+    this.service.on('connected', () => {
+      this.connected = true;
+      this.logger('ModbusConnectionService: Connected');
+      const superfast = config.pollSuperfastMs ?? 5_000;
+      const superfastAdaptive = config.pollSuperfastAdaptive ?? true;
+      const superfastAdaptiveMs = config.pollSuperfastAdaptiveMs ?? 2_000;
+      const fast = config.pollFastMs ?? 10_000;
+      const medium = config.pollMediumMs ?? 30_000;
+      const slow = config.pollSlowMs ?? 300_000;
+      this.service!.startPolling({
+        superfast,
+        superfastAdaptive,
+        superfastAdaptiveMs,
+        fast,
+        medium,
+        slow,
+      });
+      this.onConnected();
+    });
+
+    this.service.on('disconnected', (reason: string) => {
+      this.connected = false;
+      this.logger('ModbusConnectionService: Disconnected:', reason);
+      this.onDisconnected(reason);
+    });
+
+    this.service.on('reconnecting', (attempt: number, delayMs: number) => {
+      this.logger(`ModbusConnectionService: Reconnect attempt #${attempt} in ${delayMs}ms`);
+    });
+
+    this.service.on('data', (snapshot: TSnapshot) => {
+      this.onData(snapshot);
+    });
+
+    this.service.on('error', (err: Error, ctx: string) => {
+      this.logger(`ModbusConnectionService: Error [${ctx}]:`, err.message);
+      this.onError(err, ctx);
+    });
+
+    this.service.on('poll-group-succeeded', (groupName: string) => {
+      this.onPollGroupSucceeded?.(groupName);
+    });
+
+    try {
+      await this.service.connect();
+    } catch (err) {
+      this.logger('ModbusConnectionService: Initial connect failed, will retry in 30s:', (err as Error).message);
+      this.retryTimer = this.device.homey.setTimeout(async () => {
+        this.retryTimer = null;
+        await this.connect(config);
+      }, 30_000);
+    }
+  }
+
+  /**
+   * Write a setpoint to the device.
+   */
+  async setTemperature(type: 'heating' | 'cooling' | 'dhw' | 'floor' | 'indoor', value: number): Promise<void> {
+    if (!this.service) throw new Error('Not connected');
+    await this.service.setTemperature(type, value);
+  }
+
+  /**
+   * Write the on/off switch to the device.
+   */
+  async setMainSwitch(value: boolean): Promise<void> {
+    if (!this.service) throw new Error('Not connected');
+    await this.service.setMainSwitch(value);
+  }
+
+  /**
+   * Write the operating mode to the device.
+   */
+  async setMode(mode: number): Promise<void> {
+    if (!this.service) throw new Error('Not connected');
+    await this.service.setMode(mode);
+  }
+
+  /**
+   * Returns whether the device is currently connected.
+   */
+  isDeviceConnected(): boolean {
+    return this.connected;
+  }
+
+  /**
+   * Returns diagnostic information.
+   */
+  getDiagnostics(): Record<string, unknown> {
+    return {
+      connected: this.connected,
+      hasService: !!this.service,
+      hasRetryTimer: !!this.retryTimer,
+    };
+  }
+
+  /**
+   * Update the external flow rate used for COP calculations.
+   */
+  setExternalFlow(lpm: number | null): void {
+    this.service?.setExternalFlow(lpm);
+  }
+
+  getTemperatureScale(): TemperatureRegisterScale {
+    return (this.service as unknown as { activeTemperatureScale: TemperatureRegisterScale } | null)?.activeTemperatureScale ?? 'x1';
+  }
+
+  /** FC03 — lees één holding register; retourneert de ruwe unsigned waarde. */
+  async readRegister(addr: number): Promise<number> {
+    if (!this.service) throw new Error('Niet verbonden');
+    return (this.service as unknown as { readRegister(a: number): Promise<number> }).readRegister(addr);
+  }
+
+  /** FC04 — lees één input register; retourneert de ruwe signed-compatible waarde. */
+  async readInputRegister(addr: number): Promise<number> {
+    if (!this.service) throw new Error('Niet verbonden');
+    return (this.service as unknown as { readInputRegister(a: number): Promise<number> }).readInputRegister(addr);
+  }
+
+  /** FC01 — lees één coil; retourneert 1 (aan) of 0 (uit). */
+  async readCoil(addr: number): Promise<number> {
+    if (!this.service) throw new Error('Niet verbonden');
+    return (this.service as unknown as { readCoil(a: number): Promise<number> }).readCoil(addr);
+  }
+
+  /** FC06 of FC05 — schrijf één register of coil met de ruwe waarde. */
+  async writeRaw(addr: number, rawValue: number, isCoil: boolean): Promise<void> {
+    if (!this.service) throw new Error('Niet verbonden');
+    if (isCoil) {
+      return (this.service as unknown as { writeCoil(a: number, s: boolean): Promise<void> }).writeCoil(addr, rawValue === 1);
+    }
+    return (this.service as unknown as { writeRegister(a: number, v: number): Promise<void> }).writeRegister(addr, rawValue);
+  }
+
+  /**
+   * Destroy the service and clean up all resources.
+   */
+  async destroy(): Promise<void> {
+    this.logger('ModbusConnectionService: Destroying');
+
+    if (this.retryTimer) {
+      this.device.homey.clearTimeout(this.retryTimer);
+      this.retryTimer = null;
+    }
+
+    if (this.service) {
+      await this.service.destroy();
+      this.service = null;
+    }
+
+    this.connected = false;
+    this.removeAllListeners();
+    this.logger('ModbusConnectionService: Destroyed');
+  }
+}

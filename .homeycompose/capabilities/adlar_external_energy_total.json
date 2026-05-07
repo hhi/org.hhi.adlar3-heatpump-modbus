@@ -1,0 +1,37 @@
+{
+  "id": "adlar_external_energy_total",
+  "title": {
+    "en": "Estimated Total Energy Consumption",
+    "nl": "Geschat Totaal Energieverbruik",
+    "de": "Geschätzter Gesamtenergieverbrauch",
+    "fr": "Consommation d'énergie totale estimée"
+  },
+  "type": "number",
+  "units": {
+    "en": "kWh",
+    "nl": "kWh",
+    "de": "kWh",
+    "fr": "kWh"
+  },
+  "min": 0,
+  "max": 999999,
+  "step": 0.000001,
+  "decimals": 6,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "External Energy Cumulative",
+    "nl": "Extern Energie Cumulatief",
+    "de": "Externe Energie kumulativ",
+    "fr": "Énergie externe cumulative"
+  },
+  "icon": "/assets/external-energy-total.svg",
+  "description": {
+    "en": "Total energy value supplied by an external meter through Homey flows.",
+    "nl": "Totale energiewaarde geleverd door een externe meter via Homey-flows.",
+    "fr": "Valeur d’énergie totale fournie par un compteur externe via les flows Homey.",
+    "de": "Gesamtenergiewert von einem externen Zähler über Homey-Flows."
+  }
+}

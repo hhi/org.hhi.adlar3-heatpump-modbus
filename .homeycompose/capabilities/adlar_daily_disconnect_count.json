@@ -1,0 +1,31 @@
+{
+  "id": "adlar_daily_disconnect_count",
+  "title": {
+    "en": "Daily Disconnect Count",
+    "nl": "Dagelijkse Disconnect Telling",
+    "de": "Tägliche Verbindungsabbrüche",
+    "fr": "Nombre quotidien de déconnexions"
+  },
+  "type": "number",
+  "min": 0,
+  "max": 9999,
+  "step": 1,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "Daily disconnects",
+    "nl": "Dagelijkse disconnects",
+    "de": "Tägliche Verbindungsabbrüche",
+    "fr": "Déconnexions quotidiennes"
+  },
+  "icon": "/assets/connection-status.svg",
+  "description": {
+    "en": "Number of Modbus connection interruptions counted during the current day.",
+    "nl": "Aantal Modbus-verbindingsonderbrekingen geteld gedurende de huidige dag.",
+    "fr": "Nombre d’interruptions de connexion Modbus comptées pendant la journée en cours.",
+    "de": "Anzahl der Modbus-Verbindungsunterbrechungen am aktuellen Tag."
+  }
+}

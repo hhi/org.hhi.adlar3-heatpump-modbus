@@ -1,0 +1,21 @@
+{
+  "id": "adlar_cop_method",
+  "title": {
+    "en": "COP Calculation Method",
+    "nl": "COP Berekenings Methode",
+    "de": "COP-Berechnungsmethode",
+    "fr": "Méthode de Calcul COP"
+  },
+  "type": "string",
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": false,
+  "icon": "/assets/cop-efficiency.svg",
+  "description": {
+    "en": "Diagnostic label showing which COP calculation method is currently used, based on available Modbus and external measurements.",
+    "nl": "Diagnoselabel dat toont welke COP-berekeningsmethode actief is, gebaseerd op beschikbare Modbus- en externe metingen.",
+    "fr": "Libellé de diagnostic indiquant la méthode de calcul du COP actuellement utilisée, selon les mesures Modbus et externes disponibles.",
+    "de": "Diagnoselabel für die aktuell verwendete COP-Berechnungsmethode, basierend auf verfügbaren Modbus- und externen Messwerten."
+  }
+}

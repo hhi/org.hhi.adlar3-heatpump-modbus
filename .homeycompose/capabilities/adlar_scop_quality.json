@@ -1,0 +1,21 @@
+{
+  "id": "adlar_scop_quality",
+  "title": {
+    "en": "SCOP Quality",
+    "nl": "SCOP Kwaliteit",
+    "de": "SCOP-Qualität",
+    "fr": "Qualité SCOP"
+  },
+  "type": "string",
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": false,
+  "icon": "/assets/data-quality.svg",
+  "description": {
+    "en": "Quality indicator for the SCOP calculation, based on available history and data completeness.",
+    "nl": "Kwaliteitsindicator voor de SCOP-berekening, gebaseerd op beschikbare historie en volledigheid van gegevens.",
+    "fr": "Indicateur de qualité du calcul SCOP, basé sur l’historique disponible et la complétude des données.",
+    "de": "Qualitätsindikator für die SCOP-Berechnung, basierend auf verfügbarer Historie und Datenvollständigkeit."
+  }
+}

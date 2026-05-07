@@ -1,0 +1,37 @@
+{
+  "id": "adlar_external_flow",
+  "title": {
+    "en": "External Water Flow Measurement",
+    "nl": "Externe Water Doorstroom Meting",
+    "de": "Externe Wasserdurchflussmessung",
+    "fr": "Mesure de débit d'eau externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "L/min",
+    "nl": "L/min",
+    "de": "L/min",
+    "fr": "L/min"
+  },
+  "min": 0,
+  "max": 200,
+  "step": 0.1,
+  "decimals": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "External Flow Input for COP",
+    "nl": "Externe Doorstroom Input voor COP",
+    "de": "Externe Durchflusseingabe für COP",
+    "fr": "Entrée de débit externe pour COP"
+  },
+  "icon": "/assets/external-flow.svg",
+  "description": {
+    "en": "External water-flow measurement supplied through Homey flows; can override the internal Modbus flow register 3-0064 for COP calculations.",
+    "nl": "Externe waterdebietmeting geleverd via Homey-flows; kan het interne Modbus-debietregister 3-0064 overschrijven voor COP-berekeningen.",
+    "fr": "Mesure externe du débit d’eau fournie via les flows Homey; peut remplacer le registre Modbus interne 3-0064 pour les calculs COP.",
+    "de": "Externe Wasserdurchflussmessung über Homey-Flows; kann das interne Modbus-Durchflussregister 3-0064 für COP-Berechnungen ersetzen."
+  }
+}

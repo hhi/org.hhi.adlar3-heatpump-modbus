@@ -1,0 +1,24 @@
+{
+  "id": "adlar_evi_step",
+  "type": "number",
+  "title": {
+    "en": "EVI opening steps",
+    "nl": "EVI-openingsstappen",
+    "fr": "Position EEV auxiliaire",
+    "de": "Hilfs-EEV-Position"
+  },
+  "icon": "/assets/pulse-steps.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "units": "steps",
+  "decimals": 0,
+  "min": 0,
+  "max": 500,
+  "description": {
+    "en": "Auxiliary electronic expansion valve position from input register 3-0071.",
+    "nl": "Positie van de elektronische hulpexpansieklep uit inputregister 3-0071.",
+    "fr": "Position de la vanne d’expansion électronique auxiliaire depuis le registre d’entrée 3-0071.",
+    "de": "Position des elektronischen Hilfsexpansionsventils aus Eingangsregister 3-0071."
+  }
+}

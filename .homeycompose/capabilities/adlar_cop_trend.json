@@ -1,0 +1,21 @@
+{
+  "id": "adlar_cop_trend",
+  "title": {
+    "en": "COP Trend",
+    "nl": "COP Trend",
+    "de": "COP-Trend",
+    "fr": "Tendance COP"
+  },
+  "type": "string",
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": false,
+  "icon": "/assets/data-quality.svg",
+  "description": {
+    "en": "Short-term COP trend calculated from recent efficiency history.",
+    "nl": "Kortetermijntrend van de COP, berekend uit recente efficiëntiehistorie.",
+    "fr": "Tendance COP à court terme calculée à partir de l’historique récent d’efficacité.",
+    "de": "Kurzfristiger COP-Trend, berechnet aus der jüngsten Effizienzhistorie."
+  }
+}

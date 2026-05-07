@@ -1,0 +1,37 @@
+{
+  "id": "adlar_external_indoor_temperature",
+  "title": {
+    "en": "External Indoor Temperature",
+    "nl": "Externe Binnen Temperatuur",
+    "de": "Externe Raumtemperatur",
+    "fr": "Température intérieure externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "°C",
+    "nl": "°C",
+    "de": "°C",
+    "fr": "°C"
+  },
+  "min": -10,
+  "max": 50,
+  "step": 0.1,
+  "decimals": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "External Indoor Temperature for Adaptive Control",
+    "nl": "Externe Binnentemperatuur voor Adaptieve Regeling",
+    "de": "Externe Raumtemperatur für adaptive Steuerung",
+    "fr": "Température intérieure externe pour contrôle adaptatif"
+  },
+  "icon": "/assets/external_indoor-temperature.svg",
+  "description": {
+    "en": "Indoor temperature supplied by another Homey device for building-model learning and comfort logic.",
+    "nl": "Binnentemperatuur geleverd door een ander Homey-apparaat voor gebouwmodeltraining en comfortlogica.",
+    "fr": "Température intérieure fournie par un autre appareil Homey pour l’apprentissage du modèle du bâtiment et la logique de confort.",
+    "de": "Innentemperatur von einem anderen Homey-Gerät für Gebäudemodell-Lernen und Komfortlogik."
+  }
+}

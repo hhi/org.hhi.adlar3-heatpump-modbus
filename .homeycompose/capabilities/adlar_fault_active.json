@@ -1,0 +1,20 @@
+{
+  "id": "adlar_fault_active",
+  "type": "string",
+  "title": {
+    "en": "Active fault description",
+    "nl": "Actieve foutomschrijving",
+    "fr": "Défauts actifs",
+    "de": "Aktive Fehler"
+  },
+  "icon": "/assets/fault.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "description": {
+    "en": "Text list of active fault and protection codes decoded from input registers 3-0090 through 3-0101.",
+    "nl": "Tekstlijst met actieve storings- en beveiligingscodes, gedecodeerd uit inputregisters 3-0090 t/m 3-0101.",
+    "fr": "Liste textuelle des codes de défaut et de protection actifs décodés depuis les registres d’entrée 3-0090 à 3-0101.",
+    "de": "Textliste aktiver Fehler- und Schutzcodes, dekodiert aus den Eingangsregistern 3-0090 bis 3-0101."
+  }
+}

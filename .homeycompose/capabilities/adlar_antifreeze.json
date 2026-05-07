@@ -1,0 +1,33 @@
+{
+  "id": "adlar_antifreeze",
+  "type": "boolean",
+  "title": {
+    "en": "Antifreeze protection active",
+    "nl": "Antivriesbeveiliging actief",
+    "fr": "Protection antigel active",
+    "de": "Frostschutz aktiv"
+  },
+  "icon": "/assets/antifreeze.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Antifreeze protection activated",
+    "nl": "Antivriesbeveiliging geactiveerd",
+    "fr": "Protection antigel activée",
+    "de": "Frostschutz aktiviert"
+  },
+  "insightsTitleFalse": {
+    "en": "Antifreeze protection deactivated",
+    "nl": "Antivriesbeveiliging uitgeschakeld",
+    "fr": "Protection antigel désactivée",
+    "de": "Frostschutz deaktiviert"
+  },
+  "description": {
+    "en": "Antifreeze protection state decoded from Aurora III input register 3-0038, bit 2.",
+    "nl": "Status van de antivriesbeveiliging, gedecodeerd uit Aurora III inputregister 3-0038, bit 2.",
+    "fr": "État de la protection antigel décodé depuis le registre d’entrée Aurora III 3-0038, bit 2.",
+    "de": "Status des Frostschutzes, dekodiert aus Aurora-III-Eingangsregister 3-0038, Bit 2."
+  }
+}

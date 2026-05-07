@@ -1,0 +1,31 @@
+{
+  "id": "adlar_external_solar_power",
+  "title": {
+    "en": "External Solar Power",
+    "nl": "Externe Zonnepaneel Vermogen",
+    "de": "Externe Solarleistung",
+    "fr": "Puissance solaire externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "W",
+    "nl": "W",
+    "de": "W",
+    "fr": "W"
+  },
+  "min": 0,
+  "max": 50000,
+  "step": 1,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/external-solar-power.svg",
+  "description": {
+    "en": "Solar power supplied by another Homey device for forecasting and building-model corrections.",
+    "nl": "Zonnevermogen geleverd door een ander Homey-apparaat voor voorspellingen en correcties in het gebouwmodel.",
+    "fr": "Puissance solaire fournie par un autre appareil Homey pour les prévisions et corrections du modèle du bâtiment.",
+    "de": "Solarleistung von einem anderen Homey-Gerät für Prognosen und Korrekturen im Gebäudemodell."
+  }
+}

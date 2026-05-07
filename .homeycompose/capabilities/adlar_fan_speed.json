@@ -1,0 +1,24 @@
+{
+  "id": "adlar_fan_speed",
+  "type": "number",
+  "title": {
+    "en": "Fan speed",
+    "nl": "Ventilatorsnelheid",
+    "fr": "Vitesse du ventilateur",
+    "de": "Lüfterdrehzahl"
+  },
+  "icon": "/assets/fan-speed.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "units": "RPM",
+  "decimals": 0,
+  "min": 0,
+  "max": 3000,
+  "description": {
+    "en": "Outdoor unit fan speed from input register 3-0072.",
+    "nl": "Ventilatorsnelheid van de buitenunit uit inputregister 3-0072.",
+    "fr": "Vitesse du ventilateur de l’unité extérieure depuis le registre d’entrée 3-0072.",
+    "de": "Lüfterdrehzahl der Außeneinheit aus Eingangsregister 3-0072."
+  }
+}

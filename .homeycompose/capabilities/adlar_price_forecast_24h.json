@@ -1,0 +1,28 @@
+{
+  "id": "adlar_price_forecast_24h",
+  "type": "number",
+  "title": {
+    "en": "Price Forecast (24h)",
+    "nl": "Prijsvoorspelling (24u)",
+    "de": "Preisprognose (24 Std)",
+    "fr": "Prévision Prix (24h)"
+  },
+  "units": {
+    "en": "€/kWh",
+    "nl": "€/kWh",
+    "de": "€/kWh",
+    "fr": "€/kWh"
+  },
+  "decimals": 4,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/price-forecast-24h.svg",
+  "description": {
+    "en": "Energy price forecast for the next 24 hours, used by adaptive control and thermal storage logic.",
+    "nl": "Energieprijsverwachting voor de komende 24 uur, gebruikt door adaptieve regeling en thermische opslaglogica.",
+    "fr": "Prévision des prix de l’énergie pour les prochaines 24 heures, utilisée par le contrôle adaptatif et la logique de stockage thermique.",
+    "de": "Energiepreisprognose für die nächsten 24 Stunden, verwendet von adaptiver Regelung und thermischer Speicherlogik."
+  }
+}

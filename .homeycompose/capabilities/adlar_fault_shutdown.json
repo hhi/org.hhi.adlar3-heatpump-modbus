@@ -1,0 +1,33 @@
+{
+  "id": "adlar_fault_shutdown",
+  "type": "boolean",
+  "title": {
+    "en": "Fault shutdown",
+    "nl": "Fout - unit gestopt",
+    "fr": "Arrêt sur défaut",
+    "de": "Fehlerabschaltung"
+  },
+  "icon": "/assets/fault.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Unit shut down due to fault",
+    "nl": "Unit gestopt door fout",
+    "fr": "Arrêt sur défaut actif",
+    "de": "Fehlerabschaltung aktiv"
+  },
+  "insightsTitleFalse": {
+    "en": "Fault shutdown cleared",
+    "nl": "Fout-stop opgeheven",
+    "fr": "Arrêt sur défaut désactivé",
+    "de": "Fehlerabschaltung inaktiv"
+  },
+  "description": {
+    "en": "Fault shutdown indicator derived from active fault and protection codes in registers 3-0090 through 3-0101.",
+    "nl": "Indicator voor uitschakeling door storing, afgeleid uit actieve storings- en beveiligingscodes in registers 3-0090 t/m 3-0101.",
+    "fr": "Indicateur d’arrêt sur défaut dérivé des codes de défaut et de protection actifs dans les registres 3-0090 à 3-0101.",
+    "de": "Anzeige für Fehlerabschaltung, abgeleitet aus aktiven Fehler- und Schutzcodes in den Registern 3-0090 bis 3-0101."
+  }
+}
