@@ -470,6 +470,7 @@ export interface HoldingRegister {
   max?: number;
   name: string;
   desc?: string;
+  readOnly?: boolean;
 }
 
 export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
@@ -478,6 +479,11 @@ export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
     address: 2100, fc: 'holding', dataType: 'U16',
     name: 'Air Conditioning Modes',
     desc: 'See HvacMode enum. Verified: 1=Cool, 2=Heat, 4=Auto. Value 0 may serve as OFF — @verify.',
+  },
+  hvacZoneControlMode: {
+    address: 2101, fc: 'holding', dataType: 'U16',
+    name: 'Air Conditioning Modes (Zone Control)',
+    desc: 'Zone-control mode bit field. Values are not verified; exposed for expert read/write only. @verify.',
   },
 
   // --- DHW On/Off ---
@@ -492,6 +498,12 @@ export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
     address: 2103, fc: 'holding', dataType: 'U16',
     name: 'Additional Function A (Silent Mode bits 4-5)',
     desc: 'Use decodeSilentMode/encodeSilentMode helpers. Other bits unknown — preserve via RMW.',
+  },
+  additionalFunctionB: {
+    address: 2104, fc: 'holding', dataType: 'U16',
+    name: 'Additional Function B (Reserved)',
+    desc: 'Reserved additional-function register. Keep at 0 unless verified on hardware.',
+    readOnly: true,
   },
 
   // --- Setpoints ---
@@ -574,10 +586,98 @@ export const LIMIT_REGISTERS: Record<string, InputRegister> = {
     name: 'Z1 Auto Cooling Upper Limit',
     desc: '@verify — spec lists scale x1, almost certainly typo.',
   },
-  // ... additional limit registers follow same pattern. Truncated for brevity in this draft;
-  // the full set 17-31 covers Z1 auto-cooling lower, Z1 auto-heating upper/lower, Z2 cooling
-  // upper/lower, Z2 heating upper/lower, Z2 auto-cooling upper/lower, Z2 auto-heating
-  // upper/lower, room-temp upper/lower.
+  zone1AutoCoolingLowerLimit: { address: 17, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Auto Cooling Lower Limit' },
+  zone1AutoHeatingUpperLimit: { address: 18, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Auto Heating Upper Limit' },
+  zone1AutoHeatingLowerLimit: { address: 19, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z1 Auto Heating Lower Limit' },
+  zone2CoolingUpperLimit: { address: 20, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Cooling Upper Limit' },
+  zone2CoolingLowerLimit: { address: 21, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Cooling Lower Limit' },
+  zone2HeatingUpperLimit: { address: 22, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Heating Upper Limit' },
+  zone2HeatingLowerLimit: { address: 23, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Heating Lower Limit' },
+  reserved24: { address: 24, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved25: { address: 25, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  zone2AutoCoolingUpperLimit: { address: 26, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Auto Cooling Upper Limit' },
+  zone2AutoCoolingLowerLimit: {
+    address: 27, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    name: 'Z2 Auto Cooling Lower Limit',
+    desc: '@verify — spec lists scale x1, almost certainly typo.',
+  },
+  zone2AutoHeatingUpperLimit: { address: 28, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Auto Heating Upper Limit' },
+  zone2AutoHeatingLowerLimit: { address: 29, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Auto Heating Lower Limit' },
+  roomTempUpperLimit: { address: 30, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Room Temperature Upper Limit' },
+  roomTempLowerLimit: { address: 31, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Room Temperature Lower Limit' },
+} as const;
+
+export const CONFIG_REGISTERS: Record<string, InputRegister> = {
+  totalRegisterCount: {
+    address: 0, fc: 'input', dataType: 'U16',
+    name: 'Total Number of Modbus Registers',
+    desc: 'Total register count in the Aurora III map: 110 input registers plus 15 holding registers.',
+  },
+  thermostatControllerType: { address: 1, fc: 'input', dataType: 'U16', name: 'Third Party Thermostat Controller Type' },
+  zoneControlModeWithoutThermostat: { address: 2, fc: 'input', dataType: 'U16', name: 'Single Zone or Two Zones Control Without Third Party Thermostat' },
+  singleZoneControlWithoutThermostat: { address: 3, fc: 'input', dataType: 'U16', name: 'Single Zone Control Without Third Party Thermostat' },
+  twoZonesControlWithoutThermostat: { address: 4, fc: 'input', dataType: 'U16', name: 'Two Zones Control Without Third Party Thermostat' },
+  singleZoneControlWithThermostat: { address: 5, fc: 'input', dataType: 'U16', name: 'Single Zone Control With Thermostat' },
+  twoZonesControlWithThermostat: { address: 6, fc: 'input', dataType: 'U16', name: 'Two Zones Control With Thermostat' },
+  refrigerantType: {
+    address: 7, fc: 'input', dataType: 'U16',
+    name: 'Refrigerant Type',
+    desc: '0=R32, 1=R290.',
+  },
+  unitType: {
+    address: 8, fc: 'input', dataType: 'U16',
+    name: 'Unit Type',
+    desc: 'Bit field. Exact model mapping is not documented in the public register sheet. @verify.',
+  },
+  effectiveMode: {
+    address: 9, fc: 'input', dataType: 'U16',
+    name: 'Effective Mode',
+    desc: 'Bit field: bit0=cooling effective, bit1=heating effective, bit2=DHW effective.',
+  },
+  reserved32: { address: 32, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved33: { address: 33, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  zone1TerminalCooling: {
+    address: 34, fc: 'input', dataType: 'U16',
+    name: 'Zone 1 Terminal Type for Cooling',
+    desc: '0=FCU, 1=radiator, 2=floor heating circuit.',
+  },
+  zone1TerminalHeating: {
+    address: 35, fc: 'input', dataType: 'U16',
+    name: 'Zone 1 Terminal Type for Heating',
+    desc: '0=FCU, 1=radiator, 2=floor heating circuit.',
+  },
+  zone2TerminalCooling: {
+    address: 36, fc: 'input', dataType: 'U16',
+    name: 'Zone 2 Terminal Type for Cooling',
+    desc: '0=FCU, 1=radiator, 2=floor heating circuit.',
+  },
+  zone2TerminalHeating: {
+    address: 37, fc: 'input', dataType: 'U16',
+    name: 'Zone 2 Terminal Type for Heating',
+    desc: '0=FCU, 1=radiator, 2=floor heating circuit.',
+  },
+} as const;
+
+export const RESERVED_INPUT_REGISTERS: Record<string, InputRegister> = {
+  reserved54: { address: 54, fc: 'input', dataType: 'S16', name: 'Reserved' },
+  reserved55: { address: 55, fc: 'input', dataType: 'S16', name: 'Reserved' },
+  reserved57: { address: 57, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved58: { address: 58, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved59: { address: 59, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved65: { address: 65, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved73: { address: 73, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved82: { address: 82, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved83: { address: 83, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved84: { address: 84, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved85: { address: 85, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved88: { address: 88, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved89: { address: 89, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved104: { address: 104, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved105: { address: 105, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved106: { address: 106, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved107: { address: 107, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved108: { address: 108, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved109: { address: 109, fc: 'input', dataType: 'U16', name: 'Reserved' },
 } as const;
 
 // ============================================================================
@@ -585,7 +685,12 @@ export const LIMIT_REGISTERS: Record<string, InputRegister> = {
 // ============================================================================
 
 /** All registers grouped by function code, for batched polling. */
-export const ALL_INPUT_REGISTERS = { ...SENSOR_REGISTERS, ...LIMIT_REGISTERS } as const;
+export const ALL_INPUT_REGISTERS = {
+  ...CONFIG_REGISTERS,
+  ...LIMIT_REGISTERS,
+  ...SENSOR_REGISTERS,
+  ...RESERVED_INPUT_REGISTERS,
+} as const;
 export const ALL_HOLDING_REGISTERS = CONTROL_REGISTERS;
 
 // ============================================================================

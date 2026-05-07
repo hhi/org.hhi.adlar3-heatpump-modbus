@@ -117,7 +117,6 @@ export class ModbusCOPService {
     const externalAmbient = this.getNumberCapability('adlar_external_ambient');
 
     const internalPowerW = this.firstPositive(
-      snap.power.inputPowerKw * 1000,
       snap.power.derivedPowerKw * 1000,
       sensors.unitPower?.value !== undefined ? sensors.unitPower.value * 1000 : undefined,
     );

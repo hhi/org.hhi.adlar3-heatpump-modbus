@@ -341,7 +341,7 @@ class AdlarModbusDevice extends Homey.Device {
     set('adlar_compressor_on', snap.status.compressorOn);
     set('adlar_antifreeze', snap.status.antifreeze);
     set('adlar_sterilization', snap.status.sterilization);
-    set('adlar_fault_shutdown', snap.status.faultShutdown);
+    set('adlar_fault_shutdown', snap.status.activeFaults.length > 0);
     set('adlar_state_compressor_state', snap.status.compressorOn);
     set('adlar_state_defrost_state', snap.status.defrosting);
     set('alarm_generic', snap.status.activeFaults.length > 0);
@@ -362,7 +362,7 @@ class AdlarModbusDevice extends Homey.Device {
     set('measure_temperature.zone2', s.zone2Temp?.value);
 
     // Power
-    setWithExternalPriority('measure_power', 'adlar_external_power', snap.power.inputPowerKw * 1000);
+    setWithExternalPriority('measure_power', 'adlar_external_power', snap.power.derivedPowerKw * 1000);
     // meter_power is written exclusively by EnergyTrackingService (ETS).
     // ETS abstracts internal/external power sources and handles hardware that lacks register 0x005D.
     set('measure_voltage', snap.power.inputVoltageV);

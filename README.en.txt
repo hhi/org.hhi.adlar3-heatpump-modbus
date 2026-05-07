@@ -56,7 +56,7 @@ Installation
 4. Enter the gateway IP address, TCP port and Modbus Unit ID.
 5. Optionally adjust polling intervals and other device settings after pairing.
 
-For EW11A wiring and configuration screenshots, see docs/setup/README.md.
+See docs/setup/README.md for the complete installation procedure for connecting the heat pump via a Modbus TCP gateway.
 
 Local dashboards
 

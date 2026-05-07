@@ -267,7 +267,7 @@ function row(r) {
 function tableHtml(rows) {
   return `<table>
     <thead><tr>
-      <th>Adres</th><th>Naam</th><th>Waarde</th>
+      <th>ID</th><th>Naam</th><th>Waarde</th>
       <th>RAW</th><th>Categorie</th><th>Poll-groep</th>
     </tr></thead>
     <tbody>${rows.map(row).join('')}</tbody>
@@ -312,7 +312,7 @@ function buildRows(snap) {
 
   // Sensors
   const sensorRows = Object.values(snap.sensors).map(sv => ({
-    address: hex(sv.address),
+    address: `3-${sv.address}`,
     name: sv.label,
     value: sv.unit ? `${sv.value} ${sv.unit}` : String(sv.value),
     raw: sv.raw,
@@ -325,14 +325,12 @@ function buildRows(snap) {
 
   // Status
   const statusRows = [
-    { address: '—', name: 'Running',           value: snap.status.running      ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
-    { address: '—', name: 'Compressor on',      value: snap.status.compressorOn ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
-    { address: '—', name: 'Defrosting',         value: snap.status.defrosting   ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
-    { address: '—', name: 'Antifreeze',         value: snap.status.antifreeze   ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
-    { address: '—', name: 'Sterilization',      value: snap.status.sterilization? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
-    { address: '—', name: 'Fault alarm',        value: snap.status.faultAlarm   ? 'JA' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: snap.status.faultAlarm },
-    { address: '—', name: 'Fault shutdown',     value: snap.status.faultShutdown? 'JA' : 'nee', raw: '—', category: 'Status', pollGroup: 'MEDIUM', fault: snap.status.faultShutdown },
-    { address: '—', name: 'Waiting',            value: snap.status.waiting      ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST',   fault: false },
+    { address: '3-79/80', name: 'Running',       value: snap.status.running      ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
+    { address: '3-79',    name: 'Compressor on', value: snap.status.compressorOn ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
+    { address: '3-38 b1', name: 'Defrosting',    value: snap.status.defrosting   ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
+    { address: '3-38 b2', name: 'Antifreeze',    value: snap.status.antifreeze   ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
+    { address: '3-38 b4', name: 'Sterilization', value: snap.status.sterilization? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
+    { address: '3-38',    name: 'Waiting',       value: snap.status.waiting      ? 'ja' : 'nee', raw: '—', category: 'Status', pollGroup: 'FAST', fault: false },
   ];
   sections.push({ label: 'Status', rows: statusRows });
 
@@ -346,52 +344,38 @@ function buildRows(snap) {
 
   // Control
   const controlRows = [
-    { address: '—', name: 'On/off',           value: snap.control.on        ? 'aan' : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'Mode',             value: `${snap.control.modeName} (${snap.control.mode})`, raw: snap.control.mode, category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'User mode',        value: String(snap.control.userMode),              raw: snap.control.userMode, category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'Heating setpoint', value: `${snap.control.heatingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'Cooling setpoint', value: `${snap.control.coolingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'DHW setpoint',     value: `${snap.control.dhwSetpointC} °C`,          raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'Floor setpoint',   value: `${snap.control.floorSetpointC} °C`,        raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
-    { address: '—', name: 'Heating curve',    value: String(snap.control.heatingCurve),          raw: '—', category: 'Control', pollGroup: 'SLOW',   fault: false },
-    { address: '—', name: 'Hot water curve',  value: String(snap.control.hotWaterCurve),         raw: '—', category: 'Control', pollGroup: 'SLOW',   fault: false },
-    { address: '—', name: 'Protocol version', value: String(snap.control.protocolVersion),       raw: '—', category: 'Control', pollGroup: 'ONCE',   fault: false },
-    { address: '—', name: 'Coils available',  value: snap.control.coilsAvailable ? 'ja' : 'nee',raw: '—', category: 'Control', pollGroup: 'ONCE',   fault: false },
+    { address: '4-2100', name: 'On/off',           value: snap.control.on        ? 'aan' : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2100', name: 'Mode',             value: `${snap.control.modeName} (${snap.control.mode})`, raw: snap.control.mode, category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2107', name: 'Heating setpoint', value: `${snap.control.heatingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2106', name: 'Cooling setpoint', value: `${snap.control.coolingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2105', name: 'DHW setpoint',     value: `${snap.control.dhwSetpointC} °C`,          raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2114', name: 'Floor setpoint',   value: `${snap.control.floorSetpointC} °C`,        raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
   ];
   sections.push({ label: 'Control', rows: controlRows });
 
   // Power
   const powerRows = [
-    { address: hex(0x005C), name: 'Input power',        value: `${snap.power.inputPowerKw} kW`,    raw: '—', category: 'Power', pollGroup: 'FAST', fault: false },
-    { address: hex(0x005B), name: 'Input current',      value: `${snap.power.inputCurrentA} A`,    raw: '—', category: 'Power', pollGroup: 'FAST', fault: false },
-    { address: hex(0x005A), name: 'Input voltage',      value: `${snap.power.inputVoltageV} V`,    raw: '—', category: 'Power', pollGroup: 'FAST', fault: false },
-    { address: hex(0x005D), name: 'Total energy',       value: `${snap.power.totalEnergyKwh} kWh`, raw: '—', category: 'Power', pollGroup: 'FAST', fault: false },
-    { address: '—',         name: 'Derived power',      value: `${snap.power.derivedPowerKw} kW`,  raw: '—', category: 'Power', pollGroup: 'Afgeleid', fault: false },
+    { address: '3-74', name: 'Input voltage',  value: `${snap.power.inputVoltageV} V`,   raw: '—', category: 'Power', pollGroup: 'FAST',     fault: false },
+    { address: '3-75', name: 'Input current',  value: `${snap.power.inputCurrentA} A`,   raw: '—', category: 'Power', pollGroup: 'FAST',     fault: false },
+    { address: '—',    name: 'Input power',    value: `${snap.power.derivedPowerKw} kW`, raw: '—', category: 'Power', pollGroup: 'Afgeleid', fault: false },
   ];
   sections.push({ label: 'Power', rows: powerRows });
 
-  // COP
-  if (snap.cop.valid) {
+  // COP — altijd tonen, ook als ongeldig (dan reden tonen)
+  {
+    const copValue = snap.cop.valid
+      ? `${snap.cop.cop.toFixed(2)} · direct (V×I / flow×ΔT)`
+      : `— · ${snap.cop.reason ?? 'geen data'}`;
     const copRows = [
-      { address: '—', name: 'COP',                value: snap.cop.cop.toFixed(2),                 raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'Thermal power',      value: `${snap.cop.thermalPowerKw.toFixed(2)} kW`, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'Electrical power',   value: `${snap.cop.electricalPowerKw.toFixed(2)} kW`, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'ΔT water',           value: `${snap.cop.deltaTc.toFixed(1)} °C`,     raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'Flow rate',          value: `${snap.cop.flowLpm} L/min`,             raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'Ambient (COP ref)',  value: `${snap.cop.ambientTempC} °C`,           raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
+      { address: '—', name: 'COP snapshot ≠ adlar_cop', value: copValue, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: !snap.cop.valid },
+      { address: '—', name: 'Thermisch vermogen',        value: `${snap.cop.thermalPowerKw.toFixed(2)} kW`,   raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
+      { address: '—', name: 'Elektrisch vermogen',       value: `${snap.cop.electricalPowerKw.toFixed(2)} kW`, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
+      { address: '—', name: 'ΔT water (3-43 − 3-42)',   value: `${snap.cop.deltaTc.toFixed(1)} °C`,           raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
+      { address: '3-64', name: 'Debiet',                 value: `${snap.cop.flowLpm} L/min`,                   raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
     ];
-    sections.push({ label: 'COP', rows: copRows });
+    sections.push({ label: 'COP snapshot', rows: copRows });
   }
 
-  // Version
-  if (snap.version.programVersion) {
-    const verRows = [
-      { address: hex(0x0360), name: 'Firmware version',  value: snap.version.programVersion,              raw: snap.version.programVersionRaw ?? '—', category: 'Version', pollGroup: 'ONCE', fault: false },
-      { address: hex(0x0362), name: 'Product type',       value: String(snap.version.productType ?? '—'),  raw: snap.version.productTypeId ?? '—',     category: 'Version', pollGroup: 'ONCE', fault: false },
-      { address: hex(0x0363), name: 'Protocol version',   value: snap.version.protocolVersionFormatted ?? '—', raw: snap.version.protocolVersion ?? '—', category: 'Version', pollGroup: 'ONCE', fault: false },
-    ];
-    sections.push({ label: 'Version', rows: verRows });
-  }
 
   return sections;
 }
