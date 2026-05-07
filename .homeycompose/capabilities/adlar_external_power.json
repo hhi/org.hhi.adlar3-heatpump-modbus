@@ -1,0 +1,37 @@
+{
+  "id": "adlar_external_power",
+  "title": {
+    "en": "External Power Measurement",
+    "nl": "Externe Vermogen Meting",
+    "de": "Externe Leistungsmessung",
+    "fr": "Mesure de puissance externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "W",
+    "nl": "W",
+    "de": "W",
+    "fr": "W"
+  },
+  "min": 0,
+  "max": 50000,
+  "step": 0.1,
+  "decimals": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "External Power Input for COP",
+    "nl": "Externe Vermogen Input voor COP",
+    "de": "Externe Leistungseingabe für COP",
+    "fr": "Entrée de puissance externe pour COP"
+  },
+  "icon": "/assets/external-power.svg",
+  "description": {
+    "en": "External electrical power measurement supplied through Homey flows; preferred over derived Modbus power from registers 3-0074 and 3-0075 when available.",
+    "nl": "Externe elektrische vermogensmeting geleverd via Homey-flows; krijgt voorrang boven afgeleid Modbus-vermogen uit registers 3-0074 en 3-0075 wanneer beschikbaar.",
+    "fr": "Mesure externe de puissance électrique fournie via les flows Homey; prioritaire sur la puissance Modbus dérivée des registres 3-0074 et 3-0075 lorsqu’elle est disponible.",
+    "de": "Externe elektrische Leistungsmessung über Homey-Flows; wird gegenüber der aus den Registern 3-0074 und 3-0075 abgeleiteten Modbus-Leistung bevorzugt, wenn verfügbar."
+  }
+}

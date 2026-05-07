@@ -1,0 +1,37 @@
+{
+  "id": "defrost_active_power",
+  "title": {
+    "en": "Defrost Power Consumption",
+    "nl": "Ontdooistand Vermogensverbruik",
+    "de": "Abtau-Leistungsaufnahme",
+    "fr": "Consommation pendant dégivrage"
+  },
+  "type": "number",
+  "units": {
+    "en": "W",
+    "nl": "W",
+    "de": "W",
+    "fr": "W"
+  },
+  "min": 0,
+  "max": 50000,
+  "step": 0.1,
+  "decimals": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "Power Consumption During Defrost",
+    "nl": "Ontdooistand Vermogensverbruik",
+    "de": "Leistungsaufnahme Während Abtauen",
+    "fr": "Consommation Pendant Dégivrage"
+  },
+  "icon": "/assets/defrost-active-power.svg",
+  "description": {
+    "en": "Power used during defrost cycles, combining the defrost flag from register 3-0038 bit 1 with the external power measurement.",
+    "nl": "Vermogen tijdens ontdooicycli, gecombineerd uit de ontdooivlag in register 3-0038 bit 1 en de externe vermogensmeting.",
+    "fr": "Puissance utilisée pendant les cycles de dégivrage, combinant l’indicateur du registre 3-0038 bit 1 avec la mesure de puissance externe.",
+    "de": "Leistung während Abtauzyklen, kombiniert aus dem Abtau-Flag in Register 3-0038 Bit 1 und der externen Leistungsmessung."
+  }
+}

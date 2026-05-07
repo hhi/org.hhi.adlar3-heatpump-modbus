@@ -1,0 +1,33 @@
+{
+  "id": "adlar_state_compressor_state",
+  "title": {
+    "en": "Compressor state",
+    "nl": "Compressor status",
+    "de": "Kompressorstatus",
+    "fr": "État du compresseur"
+  },
+  "type": "boolean",
+  "setable": false,
+  "getable": true,
+  "uiComponent": "sensor",
+  "icon": "/assets/compressor-state.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Compressor is ON",
+    "nl": "Compressor is AAN",
+    "de": "Kompressor ist EIN",
+    "fr": "Compresseur est ALLUMÉ"
+  },
+  "insightsTitleFalse": {
+    "en": "Compressor is OFF",
+    "nl": "Compressor is UIT",
+    "de": "Kompressor ist AUS",
+    "fr": "Compresseur est ÉTEINT"
+  },
+  "description": {
+    "en": "Compressor state derived from compressor actual frequency in input register 3-0079.",
+    "nl": "Compressorstatus afgeleid van de actuele compressorfrequentie in inputregister 3-0079.",
+    "fr": "État du compresseur déduit de la fréquence réelle du compresseur dans le registre d’entrée 3-0079.",
+    "de": "Kompressorstatus abgeleitet aus der aktuellen Kompressorfrequenz in Eingangsregister 3-0079."
+  }
+}

@@ -1,0 +1,33 @@
+{
+  "id": "adlar_state_defrost_state",
+  "title": {
+    "en": "Defrosting",
+    "nl": "Ontdooi status",
+    "de": "Abtaustatus",
+    "fr": "État de dégivrage"
+  },
+  "type": "boolean",
+  "setable": false,
+  "getable": true,
+  "uiComponent": "sensor",
+  "icon": "/assets/defrost-state.svg",
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Defrosting active",
+    "nl": "Ontdooien actief",
+    "de": "Abtauen aktiv",
+    "fr": "Dégivrage actif"
+  },
+  "insightsTitleFalse": {
+    "en": "Defrosting inactive",
+    "nl": "Ontdooien niet actief",
+    "de": "Abtauen inaktiv",
+    "fr": "Dégivrage inactif"
+  },
+  "description": {
+    "en": "Defrost state decoded from Aurora III input register 3-0038, bit 1.",
+    "nl": "Ontdooistatus gedecodeerd uit Aurora III inputregister 3-0038, bit 1.",
+    "fr": "État de dégivrage décodé depuis le registre d’entrée Aurora III 3-0038, bit 1.",
+    "de": "Abtaustatus dekodiert aus Aurora-III-Eingangsregister 3-0038, Bit 1."
+  }
+}

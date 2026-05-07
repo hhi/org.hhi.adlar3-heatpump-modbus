@@ -1,0 +1,36 @@
+{
+  "id": "adlar_forecast_cop_correction",
+  "type": "number",
+  "title": {
+    "en": "COP Weather Conditions Performance",
+    "nl": "COP rendement weercondities",
+    "de": "COP Leistung Wetterbedingungen",
+    "fr": "COP rendement conditions météo"
+  },
+  "units": {
+    "en": "%",
+    "nl": "%",
+    "de": "%",
+    "fr": "%"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "COP Weather Conditions Performance",
+    "nl": "COP rendement weercondities",
+    "de": "COP Leistung Wetterbedingungen",
+    "fr": "COP rendement conditions météo"
+  },
+  "icon": "/assets/forecast-cop-correction.svg",
+  "decimals": 1,
+  "min": -25,
+  "max": 10,
+  "description": {
+    "en": "COP correction factor used by the forecast model, based on learned performance history.",
+    "nl": "COP-correctiefactor gebruikt door het voorspellingsmodel, gebaseerd op geleerde prestatiehistorie.",
+    "fr": "Facteur de correction COP utilisé par le modèle de prévision, basé sur l’historique de performance appris.",
+    "de": "COP-Korrekturfaktor des Prognosemodells, basierend auf gelernter Leistungshistorie."
+  }
+}

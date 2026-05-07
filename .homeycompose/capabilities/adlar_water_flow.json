@@ -1,0 +1,24 @@
+{
+  "id": "adlar_water_flow",
+  "type": "number",
+  "title": {
+    "en": "Water flow",
+    "nl": "Waterdebiet",
+    "fr": "Débit d’eau",
+    "de": "Wasserdurchfluss"
+  },
+  "icon": "/assets/water-flow.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "units": "L/min",
+  "decimals": 1,
+  "min": 0,
+  "max": 60,
+  "description": {
+    "en": "Water-flow value from input register 3-0064 unless an external flow measurement has priority.",
+    "nl": "Waterdebiet uit inputregister 3-0064, tenzij een externe debietmeting voorrang heeft.",
+    "fr": "Débit d’eau issu du registre d’entrée 3-0064, sauf priorité donnée à une mesure externe.",
+    "de": "Wasserdurchfluss aus Eingangsregister 3-0064, sofern keine externe Durchflussmessung Vorrang hat."
+  }
+}

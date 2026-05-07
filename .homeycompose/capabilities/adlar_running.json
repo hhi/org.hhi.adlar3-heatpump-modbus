@@ -1,0 +1,33 @@
+{
+  "id": "adlar_running",
+  "type": "boolean",
+  "title": {
+    "en": "Unit running",
+    "nl": "Unit in bedrijf",
+    "fr": "Pompe à chaleur en marche",
+    "de": "Wärmepumpe läuft"
+  },
+  "icon": "/assets/compressor-state.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Unit started running",
+    "nl": "Unit gestart",
+    "fr": "Pompe à chaleur démarrée",
+    "de": "Wärmepumpe gestartet"
+  },
+  "insightsTitleFalse": {
+    "en": "Unit stopped running",
+    "nl": "Unit gestopt",
+    "fr": "Pompe à chaleur arrêtée",
+    "de": "Wärmepumpe gestoppt"
+  },
+  "description": {
+    "en": "Running state derived from compressor actual frequency register 3-0079 and main pump status register 3-0080.",
+    "nl": "Bedrijfsstatus afgeleid uit actuele compressorfrequentie register 3-0079 en hoofdpompstatus register 3-0080.",
+    "fr": "État de marche déduit de la fréquence réelle du compresseur registre 3-0079 et de l’état de la pompe principale registre 3-0080.",
+    "de": "Betriebsstatus abgeleitet aus aktueller Kompressorfrequenz Register 3-0079 und Hauptpumpenstatus Register 3-0080."
+  }
+}

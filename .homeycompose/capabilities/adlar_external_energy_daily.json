@@ -1,0 +1,37 @@
+{
+  "id": "adlar_external_energy_daily",
+  "title": {
+    "en": "Daily Estimated Energy Consumption",
+    "nl": "Dagelijks Geschat Energieverbruik",
+    "de": "Geschätzter täglicher Energieverbrauch",
+    "fr": "Consommation d'énergie quotidienne estimée"
+  },
+  "type": "number",
+  "units": {
+    "en": "kWh",
+    "nl": "kWh",
+    "de": "kWh",
+    "fr": "kWh"
+  },
+  "min": 0,
+  "max": 500,
+  "step": 0.000001,
+  "decimals": 6,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "insightsTitle": {
+    "en": "Daily External Energy Consumption",
+    "nl": "Dagelijks Extern Energieverbruik",
+    "de": "Täglicher externer Energieverbrauch",
+    "fr": "Consommation d'énergie externe quotidienne"
+  },
+  "icon": "/assets/external-energy-daily.svg",
+  "description": {
+    "en": "Daily energy value supplied by an external meter through Homey flows.",
+    "nl": "Dagelijkse energiewaarde geleverd door een externe meter via Homey-flows.",
+    "fr": "Valeur d’énergie journalière fournie par un compteur externe via les flows Homey.",
+    "de": "Täglicher Energiewert von einem externen Zähler über Homey-Flows."
+  }
+}

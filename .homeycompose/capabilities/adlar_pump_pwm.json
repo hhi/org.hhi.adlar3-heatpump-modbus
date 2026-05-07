@@ -1,0 +1,24 @@
+{
+  "id": "adlar_pump_pwm",
+  "type": "number",
+  "title": {
+    "en": "Pump PWM",
+    "nl": "Pomp PWM",
+    "fr": "PWM pompe à eau",
+    "de": "Wasserpumpen-PWM"
+  },
+  "icon": "/assets/pump.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "units": "%",
+  "decimals": 0,
+  "min": 0,
+  "max": 100,
+  "description": {
+    "en": "DC water-pump PWM command from input register 3-0062.",
+    "nl": "PWM-aansturing van de DC-waterpomp uit inputregister 3-0062.",
+    "fr": "Commande PWM de la pompe à eau DC depuis le registre d’entrée 3-0062.",
+    "de": "PWM-Ansteuerung der DC-Wasserpumpe aus Eingangsregister 3-0062."
+  }
+}

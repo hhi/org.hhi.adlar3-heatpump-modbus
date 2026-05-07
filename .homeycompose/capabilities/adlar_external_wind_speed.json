@@ -1,0 +1,31 @@
+{
+  "id": "adlar_external_wind_speed",
+  "title": {
+    "en": "External Wind Speed",
+    "nl": "Externe Windsnelheid",
+    "de": "Externe Windgeschwindigkeit",
+    "fr": "Vitesse du vent externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "km/h",
+    "nl": "km/u",
+    "de": "km/h",
+    "fr": "km/h"
+  },
+  "min": 0,
+  "max": 200,
+  "step": 0.1,
+  "decimals": 1,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/external-wind-speed.svg",
+  "description": {
+    "en": "Wind speed supplied by another Homey device for weather correction and heat-loss estimation.",
+    "nl": "Windsnelheid geleverd door een ander Homey-apparaat voor weercorrectie en warmteverliesinschatting.",
+    "fr": "Vitesse du vent fournie par un autre appareil Homey pour la correction météo et l’estimation des pertes de chaleur.",
+    "de": "Windgeschwindigkeit von einem anderen Homey-Gerät für Wetterkorrektur und Wärmeverlustschätzung."
+  }
+}

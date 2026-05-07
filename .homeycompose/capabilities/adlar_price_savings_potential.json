@@ -1,0 +1,28 @@
+{
+  "id": "adlar_price_savings_potential",
+  "type": "number",
+  "title": {
+    "en": "Daily Savings Potential",
+    "nl": "Dagelijks Besparingspotentieel",
+    "de": "Tägliches Einsparpotenzial",
+    "fr": "Potentiel d'Économies Quotidiennes"
+  },
+  "units": {
+    "en": "€",
+    "nl": "€",
+    "de": "€",
+    "fr": "€"
+  },
+  "decimals": 2,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/price-savings-potential.svg",
+  "description": {
+    "en": "Estimated savings potential from shifting heat-pump operation to cheaper energy periods.",
+    "nl": "Geschat besparingspotentieel door warmtepompbedrijf te verschuiven naar goedkopere energieperiodes.",
+    "fr": "Potentiel d’économies estimé en décalant le fonctionnement de la pompe à chaleur vers les périodes d’énergie moins chère.",
+    "de": "Geschätztes Einsparpotenzial durch Verschieben des Wärmepumpenbetriebs in günstigere Energiezeiten."
+  }
+}

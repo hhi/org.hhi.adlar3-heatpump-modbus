@@ -1,0 +1,20 @@
+{
+  "id": "adlar_forecast_advice",
+  "type": "string",
+  "title": {
+    "en": "Efficiency Forecast advice",
+    "nl": "Efficiëntie forecast advies",
+    "de": "Effizienzprognose-Empfehlung",
+    "fr": "Conseil de prévision d'efficacité"
+  },
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "icon": "/assets/forecast.svg",
+  "description": {
+    "en": "Efficiency forecast advice calculated from weather, price and heat-pump performance data.",
+    "nl": "Efficiëntievoorspellingsadvies berekend uit weer-, prijs- en warmtepompprestatiegegevens.",
+    "fr": "Conseil de prévision d’efficacité calculé à partir des données météo, de prix et de performance de la pompe à chaleur.",
+    "de": "Effizienzprognose-Empfehlung, berechnet aus Wetter-, Preis- und Wärmepumpen-Leistungsdaten."
+  }
+}

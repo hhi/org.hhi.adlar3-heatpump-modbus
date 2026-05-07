@@ -1,0 +1,33 @@
+{
+  "id": "adlar_sterilization",
+  "type": "boolean",
+  "title": {
+    "en": "Sterilization mode active",
+    "nl": "Sterilisatiemodus actief",
+    "fr": "Stérilisation active",
+    "de": "Sterilisation aktiv"
+  },
+  "icon": "/assets/sterilization.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "insights": true,
+  "insightsTitleTrue": {
+    "en": "Sterilization mode started",
+    "nl": "Sterilisatiemodus gestart",
+    "fr": "Stérilisation activée",
+    "de": "Sterilisation aktiviert"
+  },
+  "insightsTitleFalse": {
+    "en": "Sterilization mode stopped",
+    "nl": "Sterilisatiemodus gestopt",
+    "fr": "Stérilisation désactivée",
+    "de": "Sterilisation deaktiviert"
+  },
+  "description": {
+    "en": "Sterilization or disinfection state decoded from Aurora III input register 3-0038, bit 4.",
+    "nl": "Sterilisatie- of desinfectiestatus, gedecodeerd uit Aurora III inputregister 3-0038, bit 4.",
+    "fr": "État de stérilisation ou de désinfection décodé depuis le registre d’entrée Aurora III 3-0038, bit 4.",
+    "de": "Sterilisations- oder Desinfektionsstatus, dekodiert aus Aurora-III-Eingangsregister 3-0038, Bit 4."
+  }
+}

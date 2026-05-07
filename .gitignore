@@ -1,0 +1,17 @@
+node_modules/
+.homeybuild/
+*.js.map
+.DS_Store
+build
+env.json
+roadmap.txt
+/.vscode/
+zzz_*
+todo
+todo/
+plans
+plans/
+tmp/
+.claude/settings.local.json
+.claude/worktrees/
+ADR/

@@ -1,0 +1,24 @@
+{
+  "id": "adlar_eev_step",
+  "type": "number",
+  "title": {
+    "en": "EEV opening steps",
+    "nl": "EEV-openingsstappen",
+    "fr": "Position EEV principale",
+    "de": "Haupt-EEV-Position"
+  },
+  "icon": "/assets/pulse-steps.svg",
+  "uiComponent": "sensor",
+  "getable": true,
+  "setable": false,
+  "units": "steps",
+  "decimals": 0,
+  "min": 0,
+  "max": 500,
+  "description": {
+    "en": "Main electronic expansion valve position from input register 3-0070.",
+    "nl": "Positie van de elektronische hoofexpansieklep uit inputregister 3-0070.",
+    "fr": "Position de la vanne d’expansion électronique principale depuis le registre d’entrée 3-0070.",
+    "de": "Position des elektronischen Hauptexpansionsventils aus Eingangsregister 3-0070."
+  }
+}

@@ -1,0 +1,31 @@
+{
+  "id": "adlar_external_solar_radiation",
+  "title": {
+    "en": "External Solar Radiation",
+    "nl": "Externe Zonnestraling",
+    "de": "Externe Sonnenstrahlung",
+    "fr": "Rayonnement solaire externe"
+  },
+  "type": "number",
+  "units": {
+    "en": "W/m²",
+    "nl": "W/m²",
+    "de": "W/m²",
+    "fr": "W/m²"
+  },
+  "min": 0,
+  "max": 1500,
+  "step": 1,
+  "decimals": 0,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/external-solar-radiation.svg",
+  "description": {
+    "en": "Solar radiation supplied by another Homey device for forecasting and solar-gain learning.",
+    "nl": "Zonnestraling geleverd door een ander Homey-apparaat voor voorspellingen en leren van zonnewinst.",
+    "fr": "Rayonnement solaire fourni par un autre appareil Homey pour les prévisions et l’apprentissage du gain solaire.",
+    "de": "Solarstrahlung von einem anderen Homey-Gerät für Prognosen und das Lernen des solaren Gewinns."
+  }
+}

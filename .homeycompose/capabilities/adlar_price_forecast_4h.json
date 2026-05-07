@@ -1,0 +1,28 @@
+{
+  "id": "adlar_price_forecast_4h",
+  "type": "number",
+  "title": {
+    "en": "Price Forecast (4h)",
+    "nl": "Prijsvoorspelling (4u)",
+    "de": "Preisprognose (4 Std)",
+    "fr": "Prévision Prix (4h)"
+  },
+  "units": {
+    "en": "€/kWh",
+    "nl": "€/kWh",
+    "de": "€/kWh",
+    "fr": "€/kWh"
+  },
+  "decimals": 4,
+  "getable": true,
+  "setable": false,
+  "uiComponent": "sensor",
+  "insights": true,
+  "icon": "/assets/price-forecast-4h.svg",
+  "description": {
+    "en": "Energy price forecast for the next 4 hours, used for short-term heating decisions.",
+    "nl": "Energieprijsverwachting voor de komende 4 uur, gebruikt voor kortetermijnbeslissingen over verwarmen.",
+    "fr": "Prévision des prix de l’énergie pour les prochaines 4 heures, utilisée pour les décisions de chauffage à court terme.",
+    "de": "Energiepreisprognose für die nächsten 4 Stunden, verwendet für kurzfristige Heizentscheidungen."
+  }
+}
