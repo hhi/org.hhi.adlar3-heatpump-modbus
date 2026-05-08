@@ -21,7 +21,7 @@ What works today
 
 Readout
 - Heating, cooling, DHW and floor heating setpoints
-- Outlet, inlet, ambient, coil, suction, exhaust, DHW, economizer, saturation, buffer and zone temperatures
+- Outlet, inlet, ambient, heat exchanger, suction, exhaust, DHW, economizer, saturation, buffer and zone temperatures
 - Power, energy, voltage, current, compressor frequency, fan speed, EEV step, pump PWM and water flow
 - Running state, defrost, antifreeze, sterilization and decoded fault information
 - Local dashboards at http://<homey-ip>:8090/ by default, including an expert register dashboard that shows Modbus addresses plus P/L parameter IDs such as P88 and L28
