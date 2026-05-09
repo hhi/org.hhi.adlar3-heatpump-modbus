@@ -1,4 +1,11 @@
 {
+  "1.0.6": {
+    "en": "Security maintenance release: updated the fast-uri development dependency to 3.1.2 to include the latest security fix.",
+    "nl": "Security-onderhoudsrelease: de fast-uri development dependency is bijgewerkt naar 3.1.2 om de nieuwste security fix mee te nemen.",
+    "de": "Sicherheits-Wartungsrelease: Die fast-uri-Entwicklungsabhängigkeit wurde auf 3.1.2 aktualisiert, um den neuesten Security-Fix einzuschließen.",
+    "fr": "Version de maintenance de sécurité : la dépendance de développement fast-uri a été mise à jour vers 3.1.2 afin d'inclure le dernier correctif de sécurité.",
+    "es": "Versión de mantenimiento de seguridad: se actualizó la dependencia de desarrollo fast-uri a 3.1.2 para incluir la corrección de seguridad más reciente."
+  },
   "1.0.5": {
     "en": "Cleaned up obsolete Advanced Flow cards and feature toggles. Removed the custom linear heating curve calculator and the duplicate device power action. Removed unused COP method/outlier settings, intelligent energy tracking toggle and flow alert preference toggles. The COP calculation switch now actually disables COP/SCOP capability updates when turned off. Internal power measurements are enabled by default for Aurora III, and driver images were consolidated under the shared Aurora artwork.",
     "nl": "Verouderde Advanced Flow-kaarten en feature toggles opgeschoond. De custom stooklijncalculator en dubbele apparaat-aan/uit actie zijn verwijderd. Ongebruikte COP-methode/outlier-instellingen, de intelligente energy tracking toggle en flow-alert voorkeuren zijn verwijderd. De COP-berekening schakelaar schakelt nu daadwerkelijk COP/SCOP capability-updates uit wanneer deze uit staat. Interne vermogensmetingen staan standaard aan voor Aurora III, en driver-afbeeldingen zijn samengevoegd onder de gedeelde Aurora-afbeeldingen.",
