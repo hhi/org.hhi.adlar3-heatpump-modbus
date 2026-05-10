@@ -59,7 +59,7 @@ const MIN_COP_DELTA_T_C = 0.5;
 const MAX_VALID_COP = 15.0;
 
 const ADLAR3_POLL_SUPERFAST_DEF: RegisterPollGroupDefinition = {
-  name: 'adlar3-superfast',
+  name: 'superfast',
   interval: 5_000,
   reads: [
     { start: 38, count: 2, label: 'AIII status 3-38..3-39', fc: 'input' },
@@ -70,7 +70,7 @@ const ADLAR3_POLL_SUPERFAST_DEF: RegisterPollGroupDefinition = {
 };
 
 const ADLAR3_POLL_FAST_DEF: RegisterPollGroupDefinition = {
-  name: 'adlar3-fast',
+  name: 'fast',
   interval: 10_000,
   reads: [
     { start: 40, count: 17, label: 'AIII temperatures 3-40..3-56', fc: 'input' },
@@ -82,7 +82,7 @@ const ADLAR3_POLL_FAST_DEF: RegisterPollGroupDefinition = {
 };
 
 const ADLAR3_POLL_MEDIUM_DEF: RegisterPollGroupDefinition = {
-  name: 'adlar3-medium',
+  name: 'medium',
   interval: 30_000,
   reads: [
     { start: 60, count: 2, label: 'AIII pressures 3-60..3-61', fc: 'input', optional: true },
@@ -91,7 +91,7 @@ const ADLAR3_POLL_MEDIUM_DEF: RegisterPollGroupDefinition = {
 };
 
 const ADLAR3_POLL_SLOW_DEF: RegisterPollGroupDefinition = {
-  name: 'adlar3-slow',
+  name: 'slow',
   interval: 300_000,
   reads: [
     { start: 10, count: 22, label: 'AIII limits 3-10..3-31', fc: 'input', optional: true },
@@ -99,7 +99,7 @@ const ADLAR3_POLL_SLOW_DEF: RegisterPollGroupDefinition = {
 };
 
 const ADLAR3_POLL_ONCE_DEF: RegisterPollGroupDefinition = {
-  name: 'adlar3-once',
+  name: 'once',
   interval: 0,
   reads: [
     { start: 2100, count: 15, label: 'AIII initial controls 4-2100..4-2114', fc: 'holding' },

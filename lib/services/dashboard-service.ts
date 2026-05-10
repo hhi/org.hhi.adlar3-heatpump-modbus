@@ -467,7 +467,7 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
 function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string[] {
   const groups = [
     {
-      name: 'adlar3-superfast',
+      name: 'superfast',
       reads: [
         { start: 38, count: 2, fc: 'input' },
         { start: 43, count: 1, fc: 'input' },
@@ -476,7 +476,7 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
       ],
     },
     {
-      name: 'adlar3-fast',
+      name: 'fast',
       reads: [
         { start: 40, count: 17, fc: 'input' },
         { start: 62, count: 3, fc: 'input' },
@@ -486,20 +486,20 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
       ],
     },
     {
-      name: 'adlar3-medium',
+      name: 'medium',
       reads: [
         { start: 60, count: 2, fc: 'input' },
         { start: 86, count: 18, fc: 'input' },
       ],
     },
     {
-      name: 'adlar3-slow',
+      name: 'slow',
       reads: [
         { start: 10, count: 22, fc: 'input' },
       ],
     },
     {
-      name: 'adlar3-once',
+      name: 'once',
       reads: [
         { start: 2100, count: 15, fc: 'holding' },
       ],
