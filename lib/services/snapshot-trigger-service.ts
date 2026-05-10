@@ -11,7 +11,20 @@ const MODE_OPTIONS: Record<number, string> = {
   4: 'Auto',
 };
 
-const THRESHOLD = 0.5;
+const CARD_PROFILES: Record<string, { threshold: number; stateField: string }> = {
+  ambient_temperature_changed: { threshold: 0.5, stateField: 'temperature' },
+  inlet_temperature_changed: { threshold: 0.5, stateField: 'temperature' },
+  outlet_temperature_changed: { threshold: 0.5, stateField: 'temperature' },
+  coiler_temperature_alert: { threshold: 2, stateField: 'temperature' },
+  tank_temperature_alert: { threshold: 2, stateField: 'temperature' },
+  suction_temperature_alert: { threshold: 2, stateField: 'temperature' },
+  discharge_temperature_alert: { threshold: 2, stateField: 'temperature' },
+  eev_pulse_steps_alert: { threshold: 20, stateField: 'pulse_steps' },
+  evi_pulse_steps_alert: { threshold: 20, stateField: 'pulse_steps' },
+  water_flow_alert: { threshold: 1, stateField: 'flow_rate' },
+  compressor_efficiency_alert: { threshold: 5, stateField: 'frequency' },
+  fan_motor_efficiency_alert: { threshold: 5, stateField: 'frequency' },
+};
 
 type TriggerFn = (
   cardId: string,
@@ -76,30 +89,30 @@ export class SnapshotTriggerService {
     this._detectTemperatureAlert('exhaust', snap.sensors.exhaustT5?.value, 'discharge_temperature_alert', trigger);
     this._detectNumericChange('eevStep', snap.sensors.eevStep?.value, 'eev_pulse_steps_alert', trigger, (value) => ({
       current_pulse_steps: Math.round(value),
-      threshold_pulse_steps: 0,
+      threshold_pulse_steps: value,
     }));
     this._detectNumericChange('eviStep', snap.sensors.eviStep?.value, 'evi_pulse_steps_alert', trigger, (value) => ({
       current_pulse_steps: Math.round(value),
-      threshold_pulse_steps: 0,
+      threshold_pulse_steps: value,
     }));
-    this._detectNumericChange('waterFlow', snap.sensors.waterFlow?.value, 'water_flow_alert', trigger, (value) => ({
+    this._detectNumericChange('waterFlow', this._flowLitersPerMinute(snap.sensors.waterFlow), 'water_flow_alert', trigger, (value) => ({
       current_flow_rate: this._round1(value),
-      threshold_flow_rate: 0,
+      threshold_flow_rate: value,
     }));
     this._detectNumericChange('compFreq', snap.sensors.compRunningFreq?.value, 'compressor_efficiency_alert', trigger, (value) => ({
       current_frequency: this._round1(value),
-      threshold_frequency: 0,
+      threshold_frequency: value,
     }));
     this._detectNumericChange('fanSpeed', snap.sensors.fanSpeed?.value, 'fan_motor_efficiency_alert', trigger, (value) => ({
       current_fan_frequency: this._round1(value),
-      threshold_frequency: 0,
+      threshold_frequency: value,
     }));
   }
 
   private _detectTemperatureAlert(key: string, value: number | undefined, cardId: string, trigger: TriggerFn): void {
     this._detectNumericChange(key, value, cardId, trigger, (currentValue) => ({
       current_temperature: this._round1(currentValue),
-      threshold_temperature: 0,
+      threshold_temperature: currentValue,
     }));
   }
 
@@ -112,13 +125,19 @@ export class SnapshotTriggerService {
   ): void {
     if (value === undefined) return;
 
+    const profile = CARD_PROFILES[cardId] ?? { threshold: 0.5, stateField: 'currentValue' };
     const previousValue = this._lastValues.get(key);
-    if (previousValue !== undefined && Math.abs(value - previousValue) >= THRESHOLD) {
+    if (previousValue !== undefined && Math.abs(value - previousValue) >= profile.threshold) {
       const condition = value > previousValue ? 'above' : 'below';
-      trigger(cardId, tokensForValue(value), { condition, currentValue: value });
+      trigger(cardId, tokensForValue(value), { condition, [profile.stateField]: value, currentValue: value });
     }
 
     this._lastValues.set(key, value);
+  }
+
+  private _flowLitersPerMinute(flow: { value?: number; unit?: string } | undefined): number | undefined {
+    if (flow?.value === undefined) return undefined;
+    return flow.unit === 'm³/h' ? (flow.value * 1000) / 60 : flow.value;
   }
 
   private _round1(value: number): number {

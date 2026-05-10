@@ -316,6 +316,10 @@ class AdlarModbusDevice extends Homey.Device {
         this.setCapabilityValue(cap, val).catch((e: Error) => this.logger.debug(`setCapabilityValue(${cap}) failed:`, e.message));
       }
     };
+    const flowLitersPerMinute = (flow: { value?: number; unit?: string } | undefined): number | undefined => {
+      if (flow?.value === undefined) return undefined;
+      return flow.unit === 'm³/h' ? (flow.value * 1000) / 60 : flow.value;
+    };
 
     // Schrijft modbusVal alleen als er geen actieve externe waarde beschikbaar is.
     const setWithExternalPriority = (cap: string, externalCap: string, modbusVal: unknown) => {
@@ -378,7 +382,7 @@ class AdlarModbusDevice extends Homey.Device {
     set('adlar_eev_step', s.eevStep?.value);
     set('adlar_evi_step', s.eviStep?.value);
     set('adlar_pump_pwm', s.pumpPwm?.value);
-    setWithExternalPriority('adlar_water_flow', 'adlar_external_flow', s.waterFlow?.value);
+    setWithExternalPriority('adlar_water_flow', 'adlar_external_flow', flowLitersPerMinute(s.waterFlow));
 
     // Additional currents
     set('measure_current.comp_phase', s.compPhaseI?.value);
