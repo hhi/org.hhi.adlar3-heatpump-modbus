@@ -299,6 +299,7 @@ export class ServiceCoordinator {
       if (age === null || age <= TEMP_TTL_MS) {
         if (this.device.hasCapability('adlar_external_ambient')) {
           await this.device.setCapabilityValue('adlar_external_ambient', outdoorTemp);
+          (this.device as unknown as { registerExternalDataReceived(cap: string): void }).registerExternalDataReceived('adlar_external_ambient');
         }
         this.logger(`ServiceCoordinator: Restored external outdoor temp: ${outdoorTemp}°C`);
       } else {

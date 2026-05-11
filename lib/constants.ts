@@ -11,6 +11,10 @@ export class DeviceConstants {
   /** Notification throttling - prevent spam notifications for 30 minutes */
   static readonly NOTIFICATION_THROTTLE_MS = 30 * 60 * 1000; // 30 minutes
 
+  /** TTL for external capability values (ambient, flow, power). After this period without a new
+   *  flow-card update the value is considered stale and Modbus takes over again. */
+  static readonly EXTERNAL_DATA_TTL_MS = 60 * 60 * 1000; // 1 hour
+
   /** Tuya device reconnection attempt interval */
   static readonly RECONNECTION_INTERVAL_MS = 20 * 1000; // 20 seconds
 

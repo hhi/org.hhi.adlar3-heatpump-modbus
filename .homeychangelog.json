@@ -1,4 +1,11 @@
 {
+  "1.1.3": {
+    "en": "External values (ambient temperature, water flow, power) now expire after 1 hour without a new flow-card update. When the value expires, Modbus takes over automatically. A restored ambient temperature after an app restart retains its TTL from the original update.",
+    "nl": "Externe waarden (buitentemperatuur, waterdebiet, vermogen) vervallen nu na 1 uur zonder nieuwe flowkaart-update. Bij vervallen neemt Modbus automatisch weer over. Een herstelde buitentemperatuur na een herstart behoudt de TTL van de originele update.",
+    "de": "Externe Werte (Außentemperatur, Wasserdurchfluss, Leistung) verfallen nun nach 1 Stunde ohne neues Flow-Karten-Update. Nach Ablauf übernimmt Modbus automatisch. Eine nach einem App-Neustart wiederhergestellte Außentemperatur behält die TTL des ursprünglichen Updates.",
+    "fr": "Les valeurs externes (température ambiante, débit d'eau, puissance) expirent désormais après 1 heure sans mise à jour via une carte Flow. À l'expiration, Modbus reprend automatiquement le contrôle. Une température ambiante restaurée après un redémarrage conserve la TTL de la mise à jour d'origine.",
+    "es": "Los valores externos (temperatura ambiente, caudal de agua, potencia) expiran ahora tras 1 hora sin una nueva actualización de tarjeta Flow. Al expirar, Modbus retoma el control automáticamente. Una temperatura ambiente restaurada tras un reinicio conserva el TTL de la actualización original."
+  },
   "1.1.2": {
     "en": "Seven sensor capabilities (EEV steps, EVI steps, fan speed, high pressure, low pressure, pump PWM, water flow) now appear in Homey Insights with a dedicated graph title. Fourteen flow cards (8 triggers, 6 conditions) are now shown in the flow editor hint section.",
     "nl": "Zeven sensorcapabilities (EEV-stappen, EVI-stappen, ventilatorsnelheid, hogedruk, lagedruk, pomp PWM, waterdebiet) verschijnen nu in Homey Insights met een eigen grafiektitel. Veertien flowkaarten (8 triggers, 6 condities) worden nu getoond in de hint-sectie van de floweditor.",
