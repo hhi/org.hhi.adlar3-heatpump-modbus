@@ -18,6 +18,7 @@
     "de": "Prüfen Sie, ob der Geräteleistungsstatus mit dem ausgewählten Status übereinstimmt",
     "fr": "Vérifier si l'état d'alimentation de l'appareil correspond à l'état sélectionné"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

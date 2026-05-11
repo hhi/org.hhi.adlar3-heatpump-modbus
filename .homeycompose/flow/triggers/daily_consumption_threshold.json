@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn der tägliche Stromverbrauch den angegebenen Schwellenwert erreicht",
     "fr": "Se déclenche lorsque la consommation d'électricité quotidienne atteint le seuil spécifié"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

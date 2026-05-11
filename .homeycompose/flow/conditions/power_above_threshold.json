@@ -18,6 +18,7 @@
     "de": "Prüfen Sie, ob der aktuelle Stromverbrauch über oder unter einem Schwellenwert liegt (erfordert Leistungsüberwachung)",
     "fr": "Vérifier si la consommation électrique actuelle est au-dessus ou en dessous d'un seuil (nécessite le support de surveillance de puissance)"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

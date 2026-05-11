@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn der Wasserdurchfluss einen angegebenen Schwellenwert über- oder unterschreitet. Erfordert 'Expertenfunktionskarten aktivieren' in den Geräteeinstellungen.",
     "fr": "Se déclenche lorsque le débit d'eau dépasse ou descend en dessous d'un niveau spécifié. Nécessite 'Activer les cartes de fonctionnalités d'expert' dans les paramètres de l'appareil."
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

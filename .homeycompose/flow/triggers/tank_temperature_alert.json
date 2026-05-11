@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn die Warmwasser-Temperatur einen angegebenen Schwellenwert über- oder unterschreitet",
     "fr": "Se déclenche lorsque la température du ballon dépasse ou descend en dessous d'un niveau spécifié"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

@@ -18,6 +18,7 @@
     "de": "Prüfen Sie, ob die Warmwassertemperatur der angegebenen Bedingung entspricht",
     "fr": "Vérifier si la température de l'eau chaude correspond à la condition spécifiée"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

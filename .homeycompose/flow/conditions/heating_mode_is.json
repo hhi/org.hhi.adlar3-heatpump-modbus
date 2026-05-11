@@ -18,6 +18,7 @@
     "de": "Prüfen Sie, ob der Heizmodus mit dem ausgewählten Modus übereinstimmt",
     "fr": "Vérifier si le mode de chauffage correspond au mode sélectionné"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",
