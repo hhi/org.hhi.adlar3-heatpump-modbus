@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "Low Pressure",
+    "nl": "Lagedruk",
+    "de": "Niederdruck",
+    "fr": "Basse pression"
+  },
   "units": "kPa",
   "decimals": 0,
   "min": 0,

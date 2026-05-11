@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "EVI Opening Steps",
+    "nl": "EVI-openingsstappen",
+    "de": "Hilfs-EEV-Position",
+    "fr": "Position EEV auxiliaire"
+  },
   "units": "steps",
   "decimals": 0,
   "min": 0,

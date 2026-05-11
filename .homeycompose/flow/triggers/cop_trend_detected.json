@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn COP über die letzten 24 Stunden einen signifikanten Verbesserungs- oder Verschlechterungstrend zeigt",
     "fr": "Se déclenche lorsque le COP montre une tendance significative à l'amélioration ou à la dégradation au cours des dernières 24 heures"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

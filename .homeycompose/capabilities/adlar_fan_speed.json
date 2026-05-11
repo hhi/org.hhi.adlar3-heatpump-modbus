@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "Fan Speed",
+    "nl": "Ventilatorsnelheid",
+    "de": "Lüfterdrehzahl",
+    "fr": "Vitesse du ventilateur"
+  },
   "units": "RPM",
   "decimals": 0,
   "min": 0,

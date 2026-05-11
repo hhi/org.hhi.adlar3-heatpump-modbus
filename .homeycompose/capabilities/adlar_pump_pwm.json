@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "Pump PWM",
+    "nl": "Pomp PWM",
+    "de": "Wasserpumpen-PWM",
+    "fr": "PWM pompe à eau"
+  },
   "units": "%",
   "decimals": 0,
   "min": 0,

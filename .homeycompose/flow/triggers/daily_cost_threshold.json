@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn die heutigen Gesamtenergiekosten den angegebenen Betrag überschreiten (erfordert Preisoptimierer)",
     "fr": "Se déclenche lorsque le coût énergétique total d'aujourd'hui dépasse le montant spécifié (nécessite l'optimiseur de prix)"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

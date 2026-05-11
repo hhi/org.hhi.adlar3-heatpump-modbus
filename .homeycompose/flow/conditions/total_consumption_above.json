@@ -18,6 +18,7 @@
     "de": "Prüfen Sie, ob der gesamte Stromverbrauch über oder unter einem Schwellenwert liegt",
     "fr": "Vérifier si la consommation électrique totale est au-dessus ou en dessous d'un seuil"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

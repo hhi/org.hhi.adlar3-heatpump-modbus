@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "org.hhi.adlar3-heatpump-modbus",
-  "version": "1.1.1",
+  "version": "1.1.2",
   "compatibility": ">=12.2.0",
   "sdk": 3,
   "platforms": [
@@ -1056,6 +1056,7 @@
           "de": "Wird ausgelöst, wenn COP über die letzten 24 Stunden einen signifikanten Verbesserungs- oder Verschlechterungstrend zeigt",
           "fr": "Se déclenche lorsque le COP montre une tendance significative à l'amélioration ou à la dégradation au cours des dernières 24 heures"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -1169,6 +1170,7 @@
           "de": "Wird ausgelöst, wenn der tägliche Stromverbrauch den angegebenen Schwellenwert erreicht",
           "fr": "Se déclenche lorsque la consommation d'électricité quotidienne atteint le seuil spécifié"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -1355,6 +1357,7 @@
           "de": "Wird ausgelöst, wenn die heutigen Gesamtenergiekosten den angegebenen Betrag überschreiten (erfordert Preisoptimierer)",
           "fr": "Se déclenche lorsque le coût énergétique total d'aujourd'hui dépasse le montant spécifié (nécessite l'optimiseur de prix)"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -2100,6 +2103,7 @@
           "de": "Wird ausgelöst, wenn die Vorlauftemperatur einen angegebenen Schwellenwert über- oder unterschreitet",
           "fr": "Se déclenche lorsque la température d'entrée d'eau dépasse ou descend en dessous d'un niveau spécifié"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -2380,6 +2384,7 @@
           "de": "Wird ausgelöst, wenn die Rücklauftemperatur einen angegebenen Schwellenwert über- oder unterschreitet",
           "fr": "Se déclenche lorsque la température de sortie d'eau dépasse ou descend en dessous d'un niveau spécifié"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -2551,6 +2556,7 @@
           "de": "Wird ausgelöst, wenn die Leistungsaufnahme den angegebenen Schwellenwert überschreitet (erfordert Leistungsüberwachung)",
           "fr": "Se déclenche lorsque la consommation dépasse le seuil spécifié (nécessite la surveillance de la puissance)"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -2703,6 +2709,7 @@
           "de": "Wird ausgelöst, wenn sich die Energiepreis-Kategorie ändert (very_low, low, normal, high, very_high)",
           "fr": "Se déclenche lorsque la catégorie de prix de l'énergie change (very_low, low, normal, high, very_high)"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -2932,6 +2939,7 @@
           "de": "Wird ausgelöst, wenn die Warmwasser-Temperatur einen angegebenen Schwellenwert über- oder unterschreitet",
           "fr": "Se déclenche lorsque la température du ballon dépasse ou descend en dessous d'un niveau spécifié"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -3215,6 +3223,7 @@
           "de": "Wird ausgelöst, wenn der Wasserdurchfluss einen angegebenen Schwellenwert über- oder unterschreitet. Erfordert 'Expertenfunktionskarten aktivieren' in den Geräteeinstellungen.",
           "fr": "Se déclenche lorsque le débit d'eau dépasse ou descend en dessous d'un niveau spécifié. Nécessite 'Activer les cartes de fonctionnalités d'expert' dans les paramètres de l'appareil."
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -3542,6 +3551,7 @@
           "de": "Prüfen Sie, ob der Geräteleistungsstatus mit dem ausgewählten Status übereinstimmt",
           "fr": "Vérifier si l'état d'alimentation de l'appareil correspond à l'état sélectionné"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -3629,6 +3639,7 @@
           "de": "Prüfen Sie, ob der Heizmodus mit dem ausgewählten Modus übereinstimmt",
           "fr": "Vérifier si le mode de chauffage correspond au mode sélectionné"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -3705,6 +3716,7 @@
           "de": "Prüfen Sie, ob die Warmwassertemperatur der angegebenen Bedingung entspricht",
           "fr": "Vérifier si la température de l'eau chaude correspond à la condition spécifiée"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -3917,6 +3929,7 @@
           "de": "Prüfen Sie, ob der aktuelle Stromverbrauch über oder unter einem Schwellenwert liegt (erfordert Leistungsüberwachung)",
           "fr": "Vérifier si la consommation électrique actuelle est au-dessus ou en dessous d'un seuil (nécessite le support de surveillance de puissance)"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -4237,6 +4250,7 @@
           "de": "Prüfen Sie, ob die Zieltemperatur (Sollwert) der angegebenen Bedingung entspricht",
           "fr": "Vérifier si la température cible (consigne) correspond à la condition spécifiée"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -4421,6 +4435,7 @@
           "de": "Prüfen Sie, ob der gesamte Stromverbrauch über oder unter einem Schwellenwert liegt",
           "fr": "Vérifier si la consommation électrique totale est au-dessus ou en dessous d'un seuil"
         },
+        "highlight": true,
         "args": [
           {
             "type": "device",
@@ -8144,6 +8159,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "EEV Opening Steps",
+        "nl": "EEV-openingsstappen",
+        "de": "Haupt-EEV-Position",
+        "fr": "Position EEV principale"
+      },
       "units": "steps",
       "decimals": 0,
       "min": 0,
@@ -8347,6 +8369,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "EVI Opening Steps",
+        "nl": "EVI-openingsstappen",
+        "de": "Hilfs-EEV-Position",
+        "fr": "Position EEV auxiliaire"
+      },
       "units": "steps",
       "decimals": 0,
       "min": 0,
@@ -8686,6 +8715,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "Fan Speed",
+        "nl": "Ventilatorsnelheid",
+        "de": "Lüfterdrehzahl",
+        "fr": "Vitesse du ventilateur"
+      },
       "units": "RPM",
       "decimals": 0,
       "min": 0,
@@ -8848,6 +8884,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "High Pressure",
+        "nl": "Hogedruk",
+        "de": "Hochdruck",
+        "fr": "Haute pression"
+      },
       "units": "kPa",
       "decimals": 0,
       "min": 0,
@@ -8972,6 +9015,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "Low Pressure",
+        "nl": "Lagedruk",
+        "de": "Niederdruck",
+        "fr": "Basse pression"
+      },
       "units": "kPa",
       "decimals": 0,
       "min": 0,
@@ -9257,6 +9307,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "Pump PWM",
+        "nl": "Pomp PWM",
+        "de": "Wasserpumpen-PWM",
+        "fr": "PWM pompe à eau"
+      },
       "units": "%",
       "decimals": 0,
       "min": 0,
@@ -9509,6 +9566,13 @@
       "uiComponent": "sensor",
       "getable": true,
       "setable": false,
+      "insights": true,
+      "insightsTitle": {
+        "en": "Water Flow",
+        "nl": "Waterdebiet",
+        "de": "Wasserdurchfluss",
+        "fr": "Débit d'eau"
+      },
       "units": "L/min",
       "decimals": 1,
       "min": 0,

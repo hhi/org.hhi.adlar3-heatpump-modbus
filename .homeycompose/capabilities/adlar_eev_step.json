@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "EEV Opening Steps",
+    "nl": "EEV-openingsstappen",
+    "de": "Haupt-EEV-Position",
+    "fr": "Position EEV principale"
+  },
   "units": "steps",
   "decimals": 0,
   "min": 0,

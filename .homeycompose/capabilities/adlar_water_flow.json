@@ -11,6 +11,13 @@
   "uiComponent": "sensor",
   "getable": true,
   "setable": false,
+  "insights": true,
+  "insightsTitle": {
+    "en": "Water Flow",
+    "nl": "Waterdebiet",
+    "de": "Wasserdurchfluss",
+    "fr": "Débit d'eau"
+  },
   "units": "L/min",
   "decimals": 1,
   "min": 0,

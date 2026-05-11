@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn die Leistungsaufnahme den angegebenen Schwellenwert überschreitet (erfordert Leistungsüberwachung)",
     "fr": "Se déclenche lorsque la consommation dépasse le seuil spécifié (nécessite la surveillance de la puissance)"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",

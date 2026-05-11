@@ -18,6 +18,7 @@
     "de": "Wird ausgelöst, wenn sich die Energiepreis-Kategorie ändert (very_low, low, normal, high, very_high)",
     "fr": "Se déclenche lorsque la catégorie de prix de l'énergie change (very_low, low, normal, high, very_high)"
   },
+  "highlight": true,
   "args": [
     {
       "type": "device",
