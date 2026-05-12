@@ -35,7 +35,7 @@
     "adlar_eev_step",
     "adlar_evi_step",
     "adlar_pump_pwm",
-    "adlar_water_flow",
+    "measure_water",
     "adlar_defrosting",
     "adlar_defrost_count_24h",
     "adlar_defrost_minutes_24h",
@@ -285,6 +285,29 @@
     "measure_power": {
       "min": 0,
       "max": 20000
+    },
+    "measure_water": {
+      "title": {
+        "en": "Water flow",
+        "nl": "Waterdebiet",
+        "de": "Wasserdurchfluss",
+        "fr": "Débit d'eau"
+      },
+      "units": {
+        "en": "L/min",
+        "nl": "L/min",
+        "de": "L/min",
+        "fr": "L/min"
+      },
+      "insights": true,
+      "insightsTitle": {
+        "en": "Water Flow Rate",
+        "nl": "Waterdebiet",
+        "de": "Wasserdurchflussrate",
+        "fr": "Débit d'eau"
+      },
+      "min": 0,
+      "max": 100
     }
   },
   "images": {
