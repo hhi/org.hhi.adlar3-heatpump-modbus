@@ -723,7 +723,12 @@ export class PerformanceReportService {
     }
 
     // Connection status
-    if (connectionStatus && connectionStatus !== 'connected' && connectionStatus !== 'online') {
+    const normalizedConnectionStatus = connectionStatus?.trim().toLowerCase() ?? '';
+    const isConnectedStatus = normalizedConnectionStatus === ''
+      || normalizedConnectionStatus === 'connected'
+      || normalizedConnectionStatus === 'online'
+      || normalizedConnectionStatus.startsWith('connected:');
+    if (!isConnectedStatus) {
       score -= 20;
     }
 

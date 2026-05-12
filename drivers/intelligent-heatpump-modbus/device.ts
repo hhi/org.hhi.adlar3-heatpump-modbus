@@ -33,6 +33,7 @@ interface DeviceSettings {
   modbus_host: string;
   modbus_port: number;
   modbus_unit_id: number;
+  modbus_timeout_s: number;
   poll_superfast_s: number;
   poll_superfast_adaptive: boolean;
   poll_fast_s: number;
@@ -104,6 +105,7 @@ class AdlarModbusDevice extends Homey.Device {
       host: settings.modbus_host,
       port: settings.modbus_port ?? 502,
       unitId: settings.modbus_unit_id ?? 1,
+      timeoutMs: (settings.modbus_timeout_s ?? 10) * 1000,
       pollSuperfastMs: (settings.poll_superfast_s ?? 5) * 1000,
       pollSuperfastAdaptive: settings.poll_superfast_adaptive ?? true,
       pollSuperfastAdaptiveMs: 2_000,
@@ -169,6 +171,7 @@ class AdlarModbusDevice extends Homey.Device {
       'modbus_host',
       'modbus_port',
       'modbus_unit_id',
+      'modbus_timeout_s',
       'poll_superfast_s',
       'poll_superfast_adaptive',
       'poll_fast_s',
@@ -280,6 +283,7 @@ class AdlarModbusDevice extends Homey.Device {
       host: settings.modbus_host,
       port: settings.modbus_port ?? 502,
       unitId: settings.modbus_unit_id ?? 1,
+      timeoutMs: (settings.modbus_timeout_s ?? 10) * 1000,
       pollSuperfastMs: (settings.poll_superfast_s ?? 5) * 1000,
       pollSuperfastAdaptive: settings.poll_superfast_adaptive ?? true,
       pollSuperfastAdaptiveMs: 2_000,

@@ -1,7 +1,7 @@
 {
   "_comment": "This file is generated. Please edit .homeycompose/app.json instead.",
   "id": "org.hhi.adlar3-heatpump-modbus",
-  "version": "1.1.4",
+  "version": "1.1.5",
   "compatibility": ">=12.2.0",
   "sdk": 3,
   "platforms": [
@@ -6118,6 +6118,27 @@
               "attr": {
                 "min": 1,
                 "max": 247
+              }
+            },
+            {
+              "id": "modbus_timeout_s",
+              "type": "number",
+              "label": {
+                "en": "TCP timeout (seconds)",
+                "nl": "TCP-timeout (seconden)",
+                "de": "TCP-Timeout (Sekunden)",
+                "fr": "Delai TCP (secondes)"
+              },
+              "hint": {
+                "en": "Maximum time to wait for a Modbus TCP response before treating the request as timed out. Default is 10 seconds.",
+                "nl": "Maximale wachttijd op een Modbus TCP-antwoord voordat de aanvraag als timeout telt. Standaard is 10 seconden.",
+                "de": "Maximale Wartezeit auf eine Modbus-TCP-Antwort, bevor die Anfrage als Timeout gilt. Standard ist 10 Sekunden.",
+                "fr": "Temps d'attente maximal pour une reponse Modbus TCP avant de considerer la requete en delai depasse. Par defaut 10 secondes."
+              },
+              "value": 10,
+              "attr": {
+                "min": 3,
+                "max": 30
               }
             }
           ]

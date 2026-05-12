@@ -14,6 +14,7 @@ export interface ModbusConnectionConfig {
   host: string;
   port?: number;
   unitId?: number;
+  timeoutMs?: number;
   pollSuperfastMs?: number;
   pollSuperfastAdaptive?: boolean;
   pollSuperfastAdaptiveMs?: number;
