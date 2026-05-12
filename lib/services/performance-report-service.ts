@@ -553,7 +553,7 @@ export class PerformanceReportService {
     const discharge = this.getCapNum('measure_temperature.exhaust');
     const ambient = this.getCapNum('measure_temperature.ambient');
     const compressorFreq = this.getCapNum('measure_frequency.compressor_freq');
-    const flow = this.getCapNum('adlar_water_flow');
+    const flow = this.getCapNum('measure_water');
     const compressorState = this.device.getCapabilityValue('adlar_state_compressor_state') as boolean | null;
 
     const isCompressorActive = compressorState === true || (compressorFreq !== null && compressorFreq > 0);

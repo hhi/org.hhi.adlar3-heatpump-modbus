@@ -1,4 +1,11 @@
 {
+  "1.1.4": {
+    "en": "Power measurement (measure_power) now always comes directly from Modbus (voltage × current). External power values set via flow cards no longer overwrite measure_power; they are used exclusively by the COP calculation.",
+    "nl": "Vermogensmeting (measure_power) komt nu altijd rechtstreeks uit Modbus (spanning × stroom). Externe vermogenswaarden ingesteld via flowkaarten overschrijven measure_power niet langer; ze worden uitsluitend gebruikt door de COP-berekening.",
+    "de": "Die Leistungsmessung (measure_power) stammt jetzt immer direkt aus Modbus (Spannung × Strom). Externe Leistungswerte, die über Flow-Karten gesetzt werden, überschreiben measure_power nicht mehr; sie werden ausschließlich für die COP-Berechnung verwendet.",
+    "fr": "La mesure de puissance (measure_power) provient désormais toujours directement de Modbus (tension × courant). Les valeurs de puissance externes définies via les cartes Flow n'écrasent plus measure_power ; elles sont utilisées exclusivement par le calcul COP.",
+    "es": "La medición de potencia (measure_power) ahora proviene siempre directamente de Modbus (tensión × corriente). Los valores de potencia externos establecidos mediante tarjetas Flow ya no sobrescriben measure_power; se usan exclusivamente en el cálculo COP."
+  },
   "1.1.3": {
     "en": "External values (ambient temperature, water flow, power) now expire after 1 hour without a new flow-card update. When the value expires, Modbus takes over automatically. A restored ambient temperature after an app restart retains its TTL from the original update.",
     "nl": "Externe waarden (buitentemperatuur, waterdebiet, vermogen) vervallen nu na 1 uur zonder nieuwe flowkaart-update. Bij vervallen neemt Modbus automatisch weer over. Een herstelde buitentemperatuur na een herstart behoudt de TTL van de originele update.",

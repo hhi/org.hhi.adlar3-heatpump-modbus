@@ -217,6 +217,7 @@ class AdlarModbusDevice extends Homey.Device {
   private async _ensureCapabilities(): Promise<void> {
     const requiredCapabilities = [
       'measure_temperature.outlet',
+      'measure_water',
     ];
 
     for (const capability of requiredCapabilities) {
@@ -238,6 +239,16 @@ class AdlarModbusDevice extends Homey.Device {
         this.logger.info('Removed legacy capability: measure_temperature');
       } catch (error) {
         this.logger.warn('Failed to remove legacy capability measure_temperature:', error);
+      }
+    }
+
+    // adlar_water_flow replaced by system capability measure_water.
+    if (this.hasCapability('adlar_water_flow')) {
+      try {
+        await this.removeCapability('adlar_water_flow');
+        this.logger.info('Removed legacy capability: adlar_water_flow');
+      } catch (error) {
+        this.logger.warn('Failed to remove legacy capability adlar_water_flow:', error);
       }
     }
   }
@@ -327,6 +338,19 @@ class AdlarModbusDevice extends Homey.Device {
       return flow.unit === 'm³/h' ? (flow.value * 1000) / 60 : flow.value;
     };
 
+    // Wist externalCap als de TTL verstreken is, zodat de COP-berekening terugvalt op Modbus.
+    const clearIfStale = (externalCap: string) => {
+      if (!this.hasCapability(externalCap)) return;
+      const val = this.getCapabilityValue(externalCap);
+      if (val === null || val === undefined) return;
+      const ts = this.externalDataTimestamps.get(externalCap) ?? 0;
+      if (Date.now() - ts > DeviceConstants.EXTERNAL_DATA_TTL_MS) {
+        this.setCapabilityValue(externalCap, null).catch(() => {});
+        this.externalDataTimestamps.delete(externalCap);
+        this.logger.info(`External value for ${externalCap} expired (TTL 1h)`);
+      }
+    };
+
     // Schrijft modbusVal alleen als er geen actieve externe waarde beschikbaar is.
     // Als de externe waarde ouder is dan EXTERNAL_DATA_TTL_MS wordt deze gewist en neemt Modbus over.
     const setWithExternalPriority = (cap: string, externalCap: string, modbusVal: unknown) => {
@@ -379,8 +403,8 @@ class AdlarModbusDevice extends Homey.Device {
     set('measure_temperature.total_outlet', s.totalOutlet?.value);
     set('measure_temperature.zone2', s.zone2Temp?.value);
 
-    // Power
-    setWithExternalPriority('measure_power', 'adlar_external_power', snap.power.derivedPowerKw * 1000);
+    // Power — altijd Modbus (voltage × current), nooit externe prioriteit
+    set('measure_power', snap.power.derivedPowerKw * 1000);
     // meter_power is written exclusively by EnergyTrackingService (ETS).
     // ETS abstracts internal/external power sources and handles hardware that lacks register 0x005D.
     set('measure_voltage', snap.power.inputVoltageV);
@@ -396,7 +420,8 @@ class AdlarModbusDevice extends Homey.Device {
     set('adlar_eev_step', s.eevStep?.value);
     set('adlar_evi_step', s.eviStep?.value);
     set('adlar_pump_pwm', s.pumpPwm?.value);
-    setWithExternalPriority('adlar_water_flow', 'adlar_external_flow', flowLitersPerMinute(s.waterFlow));
+    set('measure_water', flowLitersPerMinute(s.waterFlow));
+    clearIfStale('adlar_external_flow');
 
     // Additional currents
     set('measure_current.comp_phase', s.compPhaseI?.value);
