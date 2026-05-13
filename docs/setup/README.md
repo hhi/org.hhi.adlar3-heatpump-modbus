@@ -1,6 +1,6 @@
 # Elfin EW11 setup voor Adlar Castra Aurora III / Pro
 
-*De app werkt met elke gateway die RS485 (Modbus RTU) naar Modbus TCP vertaalt — zoals de Elfin EW11A, USR-W610 of een Raspberry Pi met `mbusd`. Vereisten: TCP Server mode, poort `502`, half-duplex serieel op `9600 8N2` and parity `None`.*
+*De app werkt met elke gateway die RS485 (Modbus RTU) naar Modbus TCP vertaalt — zoals de Elfin EW11A, USR-W610 of een Raspberry Pi met `mbusd`. Vereisten: TCP Server mode, poort `502`, half-duplex serieel op `9600 8N2` en parity `None`.*
 
 Deze map bevat screenshots en aansluitbeelden voor het koppelen van een Elfin EW11A Modbus TCP naar RS485 gateway aan een Adlar Castra Aurora III / PRO warmtepomp serie.
 
@@ -10,14 +10,14 @@ Schakel de warmtepomp spanningsloos voordat je de RS485-draden aansluit.
 
 Gebruik de aansluitbeelden:
 
-- [Elfin EW11 aansluiting zijkant](<Elfin EW11 - Adlar Aurora series/Elfin EW11 aansluiting zijkant.pdf>)
-- [Elfin EW11 aansluiting boven](<Elfin EW11 - Adlar Aurora series/Elfin EW11 aansluting boven.pdf>)
+- [Elfin EW11 overzicht](<Elfin EW11 - Adlar Aurora series/elfin-ew11a-485-rs485-naar-ethernet-wifi.jpg>)
 - [USB 5V voeding rood/zwart](<Elfin EW11 - Adlar Aurora series/usb2-5v-rood-zwart.pdf>)
+- [Elfin EW11 aansluiting zijkant](<Elfin EW11 - Adlar Aurora series/Elfin EW11 aansluiting zijkant.pdf>)
 
 Algemene RS485-regel:
 
-- RS485 `A/+` van de warmtepomp naar `A/+` op de EW11A
-- RS485 `B/-` van de warmtepomp naar `B/-` op de EW11A
+- RS485 `A/+` van de warmtepomp naar `A/+` op de EW11A (linker connector op afbeelding)
+- RS485 `B/-` van de warmtepomp naar `B/-` op de EW11A (rechter connector op afbeelding)
 - gebruik bij voorkeur een getwist aderpaar
 - houd de RS485-kabel weg van 230V-bekabeling
 - sluit `GND` alleen aan als de warmtepompdocumentatie of gateway dit voorschrijft
@@ -29,7 +29,7 @@ Als er geen Modbus-verbinding komt, controleer dan eerst of `A/B` niet omgewisse
 Gebruik de screenshots als referentie:
 
 - [Serial Port Settings](<Elfin EW11 - Adlar Aurora series/EW11 - serial port settings - Aurora III.png>)
-- [Communication Settings](<Elfin EW11 - Adlar Aurora series/EW11 - communication settings - Aurora III.png>)
+- [Communication Settings](<Elfin EW11 - Adlar Aurora series/EW11 - communication settngs - Aurora III.png>)
 - [System Settings](<Elfin EW11 - Adlar Aurora series/EW11 - system settings - Aurora III.png>)
 
 ## Wifi-verbinding
