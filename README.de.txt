@@ -8,6 +8,7 @@ Aktueller Stand der Implementierung
 - Alte Tuya-Felder wie Device ID, Local Key und Protokollversion werden in dieser Modbus-App nicht verwendet.
 - Die Polling-Intervalle sind in den Geraeteeinstellungen konfigurierbar (Standard superschnell/schnell/mittel/langsam: 5 s / 10 s / 30 s / 300 s). Superschnelles Polling kann nach Live-Wertaenderungen kurz auf 2 s beschleunigen.
 - Das aktuelle Register-Mapping ist auf Adlar Castra / Aurora III Geraete ausgerichtet.
+- Der Dashboard-Server enthaelt Read-only-, interaktive, Live-Capability-, Expertenregister- und Register-Change-Log-Dashboards.
 - Das Experten-Dashboard enthaelt die Aurora III Input- und Holding-Registerkarte, nach Funktion gruppiert.
 - Aurora III Temperaturregister verwenden x10-Skalierung (Dezi-°C).
 
@@ -24,7 +25,7 @@ Auslesen
 - Auslass-, Einlass-, Aussen-, Verdampfer-, Saug-, Verdichterauslass-, Warmwasser-, Economizer-, Saettigungs-, Puffer- und Zonentemperaturen
 - Leistung, Energie, Spannung, Strom, Verdichterfrequenz, Ventilatordrehzahl, EEV-Schritt, Pumpen-PWM und Wasserdurchfluss
 - Betriebszustand, Abtauung, Frostschutz, Sterilisation und decodierte Stoerungsinformationen
-- Lokale Dashboards standardmaessig unter http://<homey-ip>:8090/, inklusive Experten-Dashboard mit Modbus-Adressen und P/L-Parameter-IDs wie P88 und L28
+- Lokale Dashboards standardmaessig unter http://<homey-ip>:8090/, inklusive Live-Capability-Kacheln, interaktiver Sollwertbedienung, Experten-Modbus-Werkzeugen und Registeraenderungsstatistiken
 
 Steuerung aus Homey
 - Haupt-Ein/Aus lesen; Schreiben ist blockiert, bis Aurora III Register 4-2100 = 0 auf Hardware bestaetigt ist
@@ -65,10 +66,11 @@ Lokale Dashboards
 
 Oeffnen Sie die Dashboards mit einem Browser im selben lokalen Netzwerk wie Homey:
 
-- http://<homey-ip>:8090/ - Live-Dashboard nur zum Lesen mit aktuellen Waermepumpenwerten
-- http://<homey-ip>:8090/interactive - interaktives Dashboard fuer haeufige Bedienung
+- http://<homey-ip>:8090/ - Read-only-Registerdashboard mit aktuellen Waermepumpenwerten
+- http://<homey-ip>:8090/interactive - interaktives Dashboard mit Live-Uebersicht, Sparklines und sicherer Sollwertbedienung
+- http://<homey-ip>:8090/live - Live-Capability-Dashboard, gruppiert nach Status, Sollwerten, Sensoren, Leistung, Performance und Diagnostik
 - http://<homey-ip>:8090/expert - Experten-Dashboard mit Modbus-Adressen, P/L-Parameter-IDs und Live-Lese-/Schreibwerkzeugen
-- http://<homey-ip>:8090/heating-curve - generischer Heizkurven-Helfer
+- http://<homey-ip>:8090/changelog - Register Change Log mit Aenderungszaehlern, Intervallen und Pollgruppen-Empfehlungen pro Register
 
 Ersetzen Sie <homey-ip> durch die IP-Adresse Ihres Homey Pro. Verwenden Sie das Experten-Dashboard vorsichtig: schreibbare Modbus-Register koennen das Verhalten der Waermepumpe aendern.
 Der Standard-Dashboard-Port ist 8090; wenn Sie die Einstellung Dashboard-Port geaendert haben, verwenden Sie diesen Port in der URL.

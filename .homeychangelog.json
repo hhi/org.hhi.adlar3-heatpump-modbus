@@ -1,4 +1,8 @@
 {
+  "1.2.0": {
+    "en": "Dashboard update: added Live and Register Change Log dashboards, aligned dashboard navigation order, added a live overview with sparklines to the interactive dashboard, and added automatic refresh for live capability and register-change data.",
+    "nl": "Dashboard-update: Live- en Register Change Log-dashboards toegevoegd, dashboardnavigatie gelijkgetrokken, live overzicht met sparklines toegevoegd aan het interactieve dashboard en automatische refresh toegevoegd voor live capability- en registerwijzigingsdata."
+  },
   "1.1.5": {
     "en": "Improved Modbus connection stability reporting. The daily disconnect counter now only counts a visible connected-to-disconnected transition after the grace period, the Modbus TCP timeout is configurable and defaults to 10 seconds, and performance reports now correctly treat timestamped Connected statuses as online.",
     "nl": "Verbeterde rapportage van Modbus-verbindingsstabiliteit. De dagelijkse disconnect-teller telt nu alleen een zichtbare overgang van verbonden naar verbroken na de grace-periode, de Modbus TCP-timeout is instelbaar en staat standaard op 10 seconden, en prestatierapporten herkennen Connected-statussen met tijdstempel nu correct als online.",
@@ -82,5 +86,8 @@
     "de": "Hinzufügen: Erste Version der Adlar Castra Heatpump (Modbus) Homey App, die lokalen Modbus TCP Zugriff auf das Wärmepumpengerät bietet.",
     "fr": "Ajout : première version de l'application Homey Adlar Castra Heatpump (Modbus), offrant un accès local Modbus TCP à l'appareil de pompe à chaleur.",
     "es": "Agregado: primera versión de la aplicación Homey Adlar Castra Heatpump (Modbus), que proporciona acceso local Modbus TCP al dispositivo de bomba de calor."
+  },
+  "1.1.6": {
+    "en": "readme pointing to modbus setup"
   }
 }

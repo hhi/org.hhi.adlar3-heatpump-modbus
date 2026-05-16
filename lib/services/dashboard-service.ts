@@ -6,6 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { DataSnapshot } from '../modbus/adlar3-modbus-service';
+import { RegisterChangeEntry } from '../modbus/modbus-tcp-service';
 import {
   ALL_HOLDING_REGISTERS,
   ALL_INPUT_REGISTERS,
@@ -94,17 +95,22 @@ export class DashboardService {
   private snapshot: DataSnapshot | null = null;
   private server: http.Server | null = null;
   private readonly port: number;
+  private readonly appDir: string;
   private readonly publicDir: string;
   private readonly logger: (msg: string, ...args: unknown[]) => void;
+  private capabilityMeta: Map<string, { title: string; unit: string; icon: string; type: string }> | null = null;
 
   // Callbacks — worden laat gebonden vanuit device.ts
   private onWriteRegister: ((address: number, rawValue: number) => Promise<void>) | null = null;
   private onReadRegister: ((address: number, isCoil: boolean, isInput: boolean) => Promise<number>) | null = null;
   private onWriteExpert: ((address: number, rawValue: number, isCoil: boolean) => Promise<void>) | null = null;
   private getTemperatureScale: (() => TemperatureRegisterScale) | null = null;
+  private getChangeLog: (() => Map<number, RegisterChangeEntry>) | null = null;
+  private getCapabilityValues: (() => Record<string, unknown>) | null = null;
 
   constructor(options: DashboardServiceOptions) {
     this.port = options.port ?? 8090;
+    this.appDir = options.appDir;
     this.publicDir = path.join(options.appDir, 'public');
     this.logger = options.logger;
   }
@@ -125,6 +131,14 @@ export class DashboardService {
 
   setGetTemperatureScaleCallback(fn: () => TemperatureRegisterScale): void {
     this.getTemperatureScale = fn;
+  }
+
+  setGetChangeLogCallback(fn: () => Map<number, RegisterChangeEntry>): void {
+    this.getChangeLog = fn;
+  }
+
+  setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void {
+    this.getCapabilityValues = fn;
   }
 
   /** Sla de meest recente snapshot op (overschrijft de vorige). */
@@ -227,6 +241,30 @@ export class DashboardService {
       return;
     }
 
+    // ADR-051: visueel live dashboard
+    if (method === 'GET' && (url === '/live' || url === '/live.html')) {
+      await this._serveFile(res, 'dashboard-live.html');
+      return;
+    }
+    if (method === 'GET' && url === '/api/capabilities') {
+      this._serveCapabilities(res);
+      return;
+    }
+    if (method === 'GET' && url.startsWith('/assets/')) {
+      this._serveAsset(res, url.slice('/assets/'.length));
+      return;
+    }
+
+    // Register change log
+    if (method === 'GET' && (url === '/changelog' || url === '/changelog.html')) {
+      await this._serveFile(res, 'dashboard-changelog.html');
+      return;
+    }
+    if (method === 'GET' && url === '/api/register-changelog') {
+      this._serveChangeLog(res);
+      return;
+    }
+
     res.writeHead(404, { 'Content-Type': 'text/plain' });
     res.end('Not Found');
   }
@@ -295,6 +333,195 @@ export class DashboardService {
   private _jsonError(res: http.ServerResponse, status: number, message: string): void {
     res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(JSON.stringify({ ok: false, error: message }));
+  }
+
+  private _serveCapabilities(res: http.ServerResponse): void {
+    if (!this.getCapabilityValues) {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Not connected' }));
+      return;
+    }
+
+    const meta = this._getCapabilityMeta();
+    const values = this.getCapabilityValues();
+    const entries: object[] = [];
+
+    for (const [id, value] of Object.entries(values)) {
+      if (value === null || value === undefined) continue;
+      const m = meta.get(id) ?? { title: id, unit: '', icon: '', type: 'string' };
+      entries.push({ id, title: m.title, unit: m.unit, icon: m.icon, type: m.type, value });
+    }
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(entries));
+  }
+
+  private _serveAsset(res: http.ServerResponse, filename: string): void {
+    const safe = path.basename(filename);
+    const filePath = path.join(this.appDir, 'assets', safe);
+    fs.readFile(filePath, (err, content) => {
+      if (err) {
+        res.writeHead(404, { 'Content-Type': 'text/plain' });
+        res.end('Not found');
+        return;
+      }
+      res.writeHead(200, { 'Content-Type': 'image/svg+xml; charset=utf-8' });
+      res.end(content);
+    });
+  }
+
+  private _getCapabilityMeta(): Map<string, { title: string; unit: string; icon: string; type: string }> {
+    if (this.capabilityMeta) return this.capabilityMeta;
+
+    const map = new Map<string, { title: string; unit: string; icon: string; type: string }>();
+    const appJsonPath = path.join(this.appDir, 'app.json');
+
+    try {
+      const appJson = JSON.parse(fs.readFileSync(appJsonPath, 'utf-8')) as Record<string, unknown>;
+      const caps = (appJson.capabilities ?? {}) as Record<string, Record<string, unknown>>;
+      for (const [id, def] of Object.entries(caps)) {
+        const title = (def.title as Record<string, string>)?.en
+          || (def.title as Record<string, string>)?.nl
+          || id;
+        const unit = (def.units as Record<string, string>)?.en
+          || (def.units as Record<string, string>)?.nl
+          || '';
+        const icon = (def.icon as string) || '';
+        const type = (def.type as string) || 'string';
+        map.set(id, { title, unit, icon, type });
+      }
+
+      const drivers = (appJson.drivers ?? []) as Array<Record<string, unknown>>;
+      for (const driver of drivers) {
+        const opts = (driver.capabilitiesOptions ?? {}) as Record<string, Record<string, unknown>>;
+        for (const [id, opt] of Object.entries(opts)) {
+          const existing = map.get(id) ?? { title: id, unit: '', icon: '', type: 'number' };
+          const title = (opt.title as Record<string, string>)?.en
+            || (opt.title as Record<string, string>)?.nl
+            || existing.title;
+          const unit = (opt.units as Record<string, string>)?.en
+            || (opt.units as Record<string, string>)?.nl
+            || existing.unit;
+          map.set(id, { ...existing, title, unit });
+        }
+      }
+    } catch { /* app.json niet beschikbaar */ }
+
+    const defaults: Record<string, { title: string; unit: string; type: string }> = {
+      onoff: { title: 'On/Off', unit: '', type: 'boolean' },
+      alarm_generic: { title: 'Alarm', unit: '', type: 'boolean' },
+      measure_power: { title: 'Power', unit: 'W', type: 'number' },
+      measure_voltage: { title: 'Voltage', unit: 'V', type: 'number' },
+      measure_current: { title: 'Current', unit: 'A', type: 'number' },
+      meter_power: { title: 'Energy', unit: 'kWh', type: 'number' },
+      measure_water: { title: 'Water Flow', unit: 'L/min', type: 'number' },
+      target_temperature: { title: 'Heating Setpoint', unit: '°C', type: 'number' },
+      'target_temperature.cooling': { title: 'Cooling Setpoint', unit: '°C', type: 'number' },
+      'target_temperature.dhw': { title: 'DHW Setpoint', unit: '°C', type: 'number' },
+      'target_temperature.floor': { title: 'Floor Heating Setpoint', unit: '°C', type: 'number' },
+      'target_temperature.indoor': { title: 'Desired Indoor Temp', unit: '°C', type: 'number' },
+      'measure_temperature.outlet': { title: 'Water Outlet Temp (T7)', unit: '°C', type: 'number' },
+      'measure_temperature.inlet': { title: 'Water Inlet Temp (T6)', unit: '°C', type: 'number' },
+      'measure_temperature.ambient': { title: 'Ambient Temp (T1)', unit: '°C', type: 'number' },
+    };
+    for (const [id, def] of Object.entries(defaults)) {
+      if (!map.has(id)) map.set(id, { icon: '', ...def });
+    }
+
+    for (const [id, meta] of map.entries()) {
+      if (meta.title === id) {
+        const readable = id.replace(/[._]/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+        map.set(id, { ...meta, title: readable });
+      }
+    }
+
+    this.capabilityMeta = map;
+    return map;
+  }
+
+  private _serveChangeLog(res: http.ServerResponse): void {
+    if (!this.getChangeLog) {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Not connected' }));
+      return;
+    }
+
+    const pollGroupMap = this._buildPollGroupMap();
+    const nameMap = this._buildNameMap();
+    const entries: object[] = [];
+
+    for (const [addr, entry] of this.getChangeLog()) {
+      const intervals = entry.intervals;
+      const avgInterval = intervals.length > 0
+        ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
+        : null;
+      const minInterval = intervals.length > 0 ? Math.min(...intervals) : null;
+      const maxInterval = intervals.length > 0 ? Math.max(...intervals) : null;
+
+      entries.push({
+        address: addr,
+        addressHex: `0x${addr.toString(16).toUpperCase().padStart(4, '0')}`,
+        name: nameMap.get(addr) ?? '',
+        pollGroup: pollGroupMap.get(addr) ?? 'manual',
+        firstSeen: entry.firstSeen,
+        lastChanged: entry.lastChanged,
+        changeCount: entry.changeCount,
+        avgInterval,
+        minInterval,
+        maxInterval,
+        recommendedGroup: this._recommendPollGroup(avgInterval),
+        lastValue: entry.lastValue,
+        previousValue: entry.previousValue,
+      });
+    }
+
+    entries.sort((a, b) => (a as { address: number }).address - (b as { address: number }).address);
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(entries));
+  }
+
+  private _buildNameMap(): Map<number, string> {
+    const map = new Map<number, string>();
+    const named = [
+      ...Object.values(SENSOR_REGISTERS),
+      ...Object.values(CONTROL_REGISTERS),
+      ...Object.values(ALL_HOLDING_REGISTERS),
+      ...Object.values(ALL_INPUT_REGISTERS),
+    ];
+    for (const def of named) {
+      const d = def as { address?: number; name?: string };
+      if (d.address !== undefined && d.name) map.set(d.address, d.name);
+    }
+    return map;
+  }
+
+  private _buildPollGroupMap(): Map<number, string> {
+    const map = new Map<number, string>();
+    const groups = [
+      { name: 'superfast', reads: [{ start: 38, count: 2 }, { start: 43, count: 1 }, { start: 64, count: 1 }, { start: 79, count: 1 }] },
+      { name: 'fast', reads: [{ start: 40, count: 17 }, { start: 62, count: 3 }, { start: 70, count: 10 }, { start: 80, count: 2 }, { start: 2100, count: 15 }] },
+      { name: 'medium', reads: [{ start: 60, count: 2 }, { start: 86, count: 18 }] },
+      { name: 'slow', reads: [{ start: 10, count: 22 }] },
+      { name: 'once', reads: [{ start: 2100, count: 15 }] },
+    ];
+    for (const group of groups) {
+      for (const block of group.reads) {
+        for (let i = 0; i < block.count; i++) {
+          const addr = block.start + i;
+          if (!map.has(addr)) map.set(addr, group.name);
+        }
+      }
+    }
+    return map;
+  }
+
+  private _recommendPollGroup(avgInterval: number | null): string {
+    if (avgInterval === null) return '?';
+    if (avgInterval <= 5_000) return 'superfast';
+    if (avgInterval <= 15_000) return 'fast';
+    if (avgInterval <= 60_000) return 'medium';
+    if (avgInterval <= 600_000) return 'slow';
+    return 'once';
   }
 
   // ── ADR-044: POST /api/write ──────────────────────────────────────────────────

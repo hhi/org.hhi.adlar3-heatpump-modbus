@@ -8,6 +8,7 @@ Etat actuel de l'implementation
 - Les anciens champs Tuya comme Device ID, Local Key et version de protocole ne sont pas utilises dans cette application Modbus.
 - Les intervalles de polling sont configurables dans les parametres du peripherique (super rapide/rapide/moyen/lent par defaut : 5 s / 10 s / 30 s / 300 s). Le polling super rapide peut accelerer temporairement a 2 s apres un changement de valeur live.
 - La cartographie actuelle des registres vise les unites Adlar Castra / Aurora III.
+- Le serveur de tableaux de bord inclut les tableaux lecture seule, interactif, live capacites, expert registres et journal des changements de registres.
 - Le tableau expert inclut la carte des registres d'entree et holding Aurora III, regroupee par fonction.
 - Les registres de temperature Aurora III utilisent l'echelle x10 (deci-°C).
 
@@ -24,7 +25,7 @@ Lecture
 - Temperatures de sortie, d'entree, ambiante, serpentins, aspiration, refoulement, ECS, economiseur, saturation, ballon tampon et zones
 - Puissance, energie, tension, courant, frequence compresseur, vitesse ventilateur, pas EEV, PWM pompe et debit d'eau
 - Etat de marche, degivrage, antigel, sterilisation et informations de defaut decodees
-- Tableaux de bord locaux sur http://<homey-ip>:8090/ par defaut, avec un tableau expert qui affiche les adresses Modbus et les identifiants de parametres P/L comme P88 et L28
+- Tableaux de bord locaux sur http://<homey-ip>:8090/ par defaut, avec tuiles de capacites live, commandes interactives de consignes, outils Modbus experts et statistiques de changements de registres
 
 Commande depuis Homey
 - Lecture marche/arret principal ; l'ecriture est bloquee jusqu'a confirmation materielle du registre Aurora III 4-2100 = 0
@@ -65,10 +66,11 @@ Tableaux de bord locaux
 
 Ouvrez les tableaux de bord avec un navigateur sur le meme reseau local que Homey :
 
-- http://<homey-ip>:8090/ - tableau live en lecture seule avec les valeurs actuelles de la pompe a chaleur
-- http://<homey-ip>:8090/interactive - tableau interactif pour les commandes courantes
+- http://<homey-ip>:8090/ - tableau de registres en lecture seule avec les valeurs actuelles de la pompe a chaleur
+- http://<homey-ip>:8090/interactive - tableau interactif avec vue live, sparklines et commandes de consignes securisees
+- http://<homey-ip>:8090/live - tableau live des capacites, groupe par statut, consignes, capteurs, puissance, performance et diagnostic
 - http://<homey-ip>:8090/expert - tableau expert avec adresses Modbus, identifiants de parametres P/L et outils de lecture/ecriture live
-- http://<homey-ip>:8090/heating-curve - assistant generique de courbe de chauffe
+- http://<homey-ip>:8090/changelog - journal des changements de registres avec compteurs, intervalles et recommandations de groupe de polling par registre
 
 Remplacez <homey-ip> par l'adresse IP de votre Homey Pro. Utilisez le tableau expert avec prudence : les registres Modbus modifiables peuvent changer le comportement de la pompe a chaleur.
 Le port par defaut des tableaux de bord est 8090 ; si vous avez modifie le parametre Port des tableaux de bord, utilisez ce port dans l'URL.

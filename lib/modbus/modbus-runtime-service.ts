@@ -10,6 +10,8 @@
  * code zonder type-argument ongewijzigd blijft.
  */
 
+import { RegisterChangeEntry } from './modbus-tcp-service';
+
 export interface ModbusRuntimeService<TSnapshot> {
   // ── Verbinding ──────────────────────────────────────────────────────────────
   connect(): Promise<void>;
@@ -28,6 +30,7 @@ export interface ModbusRuntimeService<TSnapshot> {
   setMainSwitch(value: boolean): Promise<void>;
   setMode(mode: number): Promise<void>;
   setExternalFlow(lpm: number | null): void;
+  getChangeLog?(): Map<number, RegisterChangeEntry>;
 
   // ── Events ──────────────────────────────────────────────────────────────────
   on(event: 'connected', cb: () => void): this;

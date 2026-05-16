@@ -8,6 +8,7 @@ Huidige status van de implementatie
 - Oude Tuya-velden zoals Device ID, Local Key en protocolversie worden in deze Modbus-app niet gebruikt.
 - Poll-intervallen zijn configureerbaar in de apparaatinstellingen (standaard supersnel/snel/medium/langzaam: 5 s / 10 s / 30 s / 300 s). Supersnel pollen kan na live waardewijzigingen tijdelijk naar 2 s versnellen.
 - De huidige registermapping is gericht op Adlar Castra / Aurora III-units.
+- De dashboardserver bevat read-only, interactieve, live capability-, expertregister- en register change log-dashboards.
 - Het expertdashboard bevat de Aurora III input- en holdingregistermap, gegroepeerd per functie.
 - Aurora III temperatuurregisters gebruiken x10-schaal (deci-°C).
 
@@ -24,7 +25,7 @@ Uitlezen
 - Uitlaat-, inlaat-, omgevings-, spoel-, zuig-, uitlaat-, DHW-, economizer-, verzadigings-, buffer- en zonetemperaturen
 - Vermogen, energie, spanning, stroom, compressorfrequentie, ventilatorsnelheid, EEV-stap, pomp-PWM en waterdebiet
 - Bedrijfsstatus, ontdooien, antivries, sterilisatie en gedecodeerde storingsinformatie
-- Lokale dashboards standaard op http://<homey-ip>:8090/, inclusief een expertdashboard dat Modbus-adressen plus P/L-parameter-ID's zoals P88 en L28 toont
+- Lokale dashboards standaard op http://<homey-ip>:8090/, inclusief live capability-tegels, interactieve setpointbediening, expert Modbus-tools en registerwijzigingsstatistieken
 
 Bediening vanuit Homey
 - Hoofd aan/uit uitlezen; schrijven is geblokkeerd totdat Aurora III register 4-2100 = 0 op hardware bevestigd is
@@ -65,10 +66,11 @@ Lokale dashboards
 
 Open de dashboards met een browser op hetzelfde lokale netwerk als Homey:
 
-- http://<homey-ip>:8090/ - live read-only dashboard met actuele warmtepompwaarden
-- http://<homey-ip>:8090/interactive - interactief dashboard voor veelgebruikte bediening
+- http://<homey-ip>:8090/ - read-only registerdashboard met actuele warmtepompwaarden
+- http://<homey-ip>:8090/interactive - interactief dashboard met live overzicht, sparklines en veilige setpointbediening
+- http://<homey-ip>:8090/live - live capability-dashboard gegroepeerd op status, setpoints, sensoren, vermogen, prestaties en diagnostiek
 - http://<homey-ip>:8090/expert - expertdashboard met Modbus-adressen, P/L-parameter-ID's en live lees-/schrijftools
-- http://<homey-ip>:8090/heating-curve - generieke stooklijn-helper
+- http://<homey-ip>:8090/changelog - register change log met wijzigingsteller, intervallen en pollgroepadvies per register
 
 Vervang <homey-ip> door het IP-adres van je Homey Pro. Gebruik het expertdashboard zorgvuldig: schrijfbare Modbus-registers kunnen het gedrag van de warmtepomp wijzigen.
 De standaard dashboardpoort is 8090; als je de instelling Dashboardpoort hebt aangepast, gebruik dan die poort in de URL.
