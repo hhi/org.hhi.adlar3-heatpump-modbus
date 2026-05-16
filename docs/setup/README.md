@@ -89,7 +89,9 @@ Open vanaf een apparaat op hetzelfde lokale netwerk:
 |---|---|
 | `http://<homey-ip>:8090/` | Live read-only dashboard met actuele warmtepompwaarden |
 | `http://<homey-ip>:8090/interactive` | Interactief dashboard voor veelgebruikte bediening |
+| `http://<homey-ip>:8090/live` | Live capability-dashboard met status, setpoints, sensoren en diagnostiek |
 | `http://<homey-ip>:8090/expert` | Expertdashboard met Modbus-adressen, P/L-parameter-ID's en live lees-/schrijftools |
+| `http://<homey-ip>:8090/changelog` | Register Change Log met wijzigingsstatistieken per Modbus-register |
 
 Vervang `<homey-ip>` door het IP-adres van je Homey Pro.
 Als je de dashboardpoort hebt aangepast, vervang `8090` door de ingestelde poort.

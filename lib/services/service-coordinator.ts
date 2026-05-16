@@ -12,7 +12,7 @@ import { AdaptiveControlService } from './adaptive-control-service';
 import { BuildingInsightsService } from './building-insights-service';
 import { SnapshotTriggerService } from './snapshot-trigger-service';
 import { Adlar3ModbusService, DataSnapshot } from '../modbus/adlar3-modbus-service';
-import { ModbusBlockError } from '../modbus/modbus-tcp-service';
+import { ModbusBlockError, RegisterChangeEntry } from '../modbus/modbus-tcp-service';
 import { RollingCOPCalculator } from './rolling-cop-calculator';
 
 type TemperatureRegisterScale = 'x1' | 'x10';
@@ -752,6 +752,10 @@ export class ServiceCoordinator {
       modbus: this.modbusConnection.getDiagnostics(),
       capabilityHealth: this.capabilityHealth.generateDiagnosticsReport(),
     };
+  }
+
+  getChangeLog(): Map<number, RegisterChangeEntry> {
+    return this.modbusConnection.getChangeLog();
   }
 
   // ── Destroy ────────────────────────────────────────────────────────────────

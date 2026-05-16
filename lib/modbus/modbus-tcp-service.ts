@@ -143,6 +143,15 @@ export interface PollGroup {
   };
 }
 
+export interface RegisterChangeEntry {
+  firstSeen: number;
+  lastChanged: number;
+  changeCount: number;
+  intervals: number[];
+  previousValue: number | null;
+  lastValue: number;
+}
+
 // ============================================================================
 // RECONNECT CONSTANTEN
 // ============================================================================
@@ -174,6 +183,7 @@ export class ModbusTcpService extends EventEmitter {
 
   /** Holding register cache: adres → unsigned 16-bit */
   private readonly cache = new Map<number, number>();
+  private readonly changeLog = new Map<number, RegisterChangeEntry>();
 
   private _connected = false;
   private _destroyed = false;
@@ -399,7 +409,7 @@ export class ModbusTcpService extends EventEmitter {
         } else {
           throw new Error(`Onverwacht response type: ${typeof values}`);
         }
-        this.cache.set(startAddr + i, val);
+        this._recordCacheValue(startAddr + i, val);
       }
 
       if (this._debug) {
@@ -441,7 +451,7 @@ export class ModbusTcpService extends EventEmitter {
         } else {
           throw new Error(`Onverwacht response type: ${typeof values}`);
         }
-        this.cache.set(startAddr + i, val);
+        this._recordCacheValue(startAddr + i, val);
       }
 
       if (this._debug) {
@@ -485,7 +495,7 @@ export class ModbusTcpService extends EventEmitter {
 
     try {
       await this.client.writeSingleRegister(addr, raw);
-      this.cache.set(addr, raw);
+      this._recordCacheValue(addr, raw);
       this._log('  → OK');
       await this._batchDelay();
     } catch (err) {
@@ -573,6 +583,39 @@ export class ModbusTcpService extends EventEmitter {
   /** Heeft de cache een waarde voor dit adres? */
   has(addr: number): boolean {
     return this.cache.has(addr);
+  }
+
+  getChangeLog(): Map<number, RegisterChangeEntry> {
+    return this.changeLog;
+  }
+
+  private _recordCacheValue(addr: number, value: number): void {
+    const now = Date.now();
+    const previous = this.cache.get(addr);
+    this.cache.set(addr, value);
+
+    let entry = this.changeLog.get(addr);
+    if (!entry) {
+      entry = {
+        firstSeen: now,
+        lastChanged: now,
+        changeCount: 0,
+        intervals: [],
+        previousValue: null,
+        lastValue: value,
+      };
+      this.changeLog.set(addr, entry);
+      return;
+    }
+
+    if (previous !== value) {
+      entry.previousValue = previous ?? null;
+      entry.lastValue = value;
+      entry.changeCount += 1;
+      entry.intervals.push(now - entry.lastChanged);
+      if (entry.intervals.length > 100) entry.intervals.shift();
+      entry.lastChanged = now;
+    }
   }
 
   // ── Poll-engine ────────────────────────────────────────────────────────────

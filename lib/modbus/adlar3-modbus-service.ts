@@ -12,7 +12,7 @@
 import { EventEmitter } from 'events';
 
 import {
-  ModbusTcpConfig, ModbusTcpService, PollBlock, PollGroup, TimerProvider,
+  ModbusTcpConfig, ModbusTcpService, PollBlock, PollGroup, RegisterChangeEntry, TimerProvider,
 } from './modbus-tcp-service';
 import {
   CONTROL_REGISTERS,
@@ -419,6 +419,10 @@ export class Adlar3ModbusService extends EventEmitter {
 
   setExternalFlow(lpm: number | null): void {
     this.externalFlowLpm = lpm;
+  }
+
+  getChangeLog(): Map<number, RegisterChangeEntry> {
+    return this.tcp.getChangeLog();
   }
 
   private buildSnapshot(): DataSnapshot {

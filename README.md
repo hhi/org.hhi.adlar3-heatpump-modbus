@@ -8,6 +8,7 @@ This app gives Homey Pro local Modbus TCP access to an Adlar Castra / Aurora III
 - The old Tuya fields such as Device ID, Local Key and protocol version are not used in this Modbus app.
 - Polling intervals are configurable in the device settings (default superfast/fast/medium/slow: `5 s / 10 s / 30 s / 300 s`). Superfast polling can adapt to `2 s` after live value changes.
 - The current register mapping is aimed at Adlar Castra / Aurora III units.
+- The dashboard server includes read-only, interactive, live capability, expert register and register change log dashboards.
 - The expert dashboard includes the Aurora III input and holding register map, grouped by function.
 - Aurora III temperature registers use x10 scaling (deci-°C).
 
@@ -25,7 +26,7 @@ This app gives Homey Pro local Modbus TCP access to an Adlar Castra / Aurora III
 - Outlet, inlet, ambient, coil, suction, exhaust, DHW, economizer, saturation, buffer and zone temperatures
 - Power, energy, voltage, current, compressor frequency, fan speed, EEV step, pump PWM and water flow
 - Running state, defrost, antifreeze, sterilization and decoded fault information
-- Local dashboards at `http://<homey-ip>:8090/` by default, including an expert register dashboard that shows Modbus addresses plus P/L parameter IDs such as `P88` and `L28`
+- Local dashboards at `http://<homey-ip>:8090/` by default, including live capability tiles, interactive setpoint controls, expert Modbus tools and register change statistics
 
 ### Control From Homey
 
@@ -68,10 +69,11 @@ For EW11A wiring and configuration screenshots, see [docs/setup](docs/setup/READ
 
 Open the dashboards from a browser on the same local network as Homey:
 
-- `http://<homey-ip>:8090/` — live read-only dashboard with current heat pump values
-- `http://<homey-ip>:8090/interactive` — interactive dashboard for common controls
+- `http://<homey-ip>:8090/` — read-only register dashboard with current heat pump values
+- `http://<homey-ip>:8090/interactive` — interactive dashboard with live overview, sparklines and safe setpoint controls
+- `http://<homey-ip>:8090/live` — live capability dashboard grouped by status, setpoints, sensors, power, performance and diagnostics
 - `http://<homey-ip>:8090/expert` — expert register dashboard with Modbus addresses, P/L parameter IDs and live read/write tools
-- `http://<homey-ip>:8090/heating-curve` — generic heating curve helper
+- `http://<homey-ip>:8090/changelog` — register change log with per-register change counts, intervals and poll-group recommendations
 
 Replace `<homey-ip>` with the IP address of your Homey Pro. Use the expert dashboard with care: writable Modbus registers can change heat pump behaviour.
 The default dashboard port is `8090`; if you changed the Dashboard port setting, use that port in the URL instead.

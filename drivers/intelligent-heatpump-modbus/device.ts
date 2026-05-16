@@ -9,6 +9,7 @@ import { ServiceCoordinator } from '../../lib/services/service-coordinator';
 import { ModbusCOPService } from '../../lib/services/modbus-cop-service';
 import { RollingCOPCalculator } from '../../lib/services/rolling-cop-calculator';
 import { DeviceConstants } from '../../lib/constants';
+import { RegisterChangeEntry } from '../../lib/modbus/modbus-tcp-service';
 
 // ============================================================================
 // CONSTANTS
@@ -303,6 +304,8 @@ class AdlarModbusDevice extends Homey.Device {
         setReadRegisterCallback(fn: (addr: number, isCoil: boolean, isInput: boolean) => Promise<number>): void;
         setWriteExpertCallback(fn: (addr: number, rawValue: number, isCoil: boolean) => Promise<void>): void;
         setGetTemperatureScaleCallback(fn: () => 'x1' | 'x10'): void;
+        setGetChangeLogCallback(fn: () => Map<number, RegisterChangeEntry>): void;
+        setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void;
       } | null;
     };
     const app = this.homey.app as unknown as DashboardApp;
@@ -323,6 +326,14 @@ class AdlarModbusDevice extends Homey.Device {
     });
 
     app.dashboard.setGetTemperatureScaleCallback(() => this.coordinator!.getTemperatureScale());
+    app.dashboard.setGetChangeLogCallback(() => this.coordinator!.getChangeLog());
+    app.dashboard.setGetCapabilityValuesCallback(() => {
+      const result: Record<string, unknown> = {};
+      for (const id of this.getCapabilities()) {
+        result[id] = this.getCapabilityValue(id);
+      }
+      return result;
+    });
   }
 
   // ── Snapshot → Capabilities (called by ServiceCoordinator) ────────────────
