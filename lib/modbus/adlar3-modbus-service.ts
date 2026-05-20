@@ -195,6 +195,7 @@ export interface DiagnosticsSnapshot {
 
 export interface DataSnapshot {
   ts: number;
+  sourcePollGroup?: 'superfast' | 'fast' | 'medium' | 'slow' | 'once' | 'manual';
   status: StatusSnapshot;
   control: ControlSnapshot;
   power: PowerSnapshot;
@@ -292,12 +293,12 @@ export class Adlar3ModbusService extends EventEmitter {
     this.tcp.on('poll-complete', (groupName) => {
       if (groupName === ADLAR3_POLL_FAST.name) {
         this.hasBaseSnapshot = true;
-        const snapshot = this.buildSnapshot();
+        const snapshot = this.buildSnapshot('fast');
         this.emit('data', snapshot);
         this.checkFaults(snapshot.status.activeFaults);
       } else if (groupName === ADLAR3_POLL_SUPERFAST.name) {
         if (this.hasBaseSnapshot) {
-          const snapshot = this.buildSnapshot();
+          const snapshot = this.buildSnapshot('superfast');
           this.emit('data', snapshot);
           this.checkFaults(snapshot.status.activeFaults);
         }
@@ -369,7 +370,11 @@ export class Adlar3ModbusService extends EventEmitter {
   }
 
   getSnapshot(): DataSnapshot {
-    return this.buildSnapshot();
+    return this.buildSnapshot('manual');
+  }
+
+  getRegisterCache(): Map<number, number> {
+    return this.tcp.getRegisterCache();
   }
 
   async readRegister(addr: number): Promise<number> {
@@ -425,9 +430,10 @@ export class Adlar3ModbusService extends EventEmitter {
     return this.tcp.getChangeLog();
   }
 
-  private buildSnapshot(): DataSnapshot {
+  private buildSnapshot(sourcePollGroup?: DataSnapshot['sourcePollGroup']): DataSnapshot {
     return {
       ts: Date.now(),
+      sourcePollGroup,
       status: this.buildStatus(),
       control: this.buildControl(),
       power: this.buildPower(),

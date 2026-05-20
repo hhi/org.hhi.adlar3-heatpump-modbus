@@ -758,6 +758,14 @@ export class ServiceCoordinator {
     return this.modbusConnection.getChangeLog();
   }
 
+  getCurrentSnapshot(): DataSnapshot | null {
+    return this.modbusConnection.getSnapshot();
+  }
+
+  getRegisterCache(): Map<number, number> {
+    return this.modbusConnection.getRegisterCache();
+  }
+
   // ── Destroy ────────────────────────────────────────────────────────────────
 
   async destroy(): Promise<void> {

@@ -1,4 +1,8 @@
 {
+  "1.3.0": {
+    "en": "Two new trigger flow cards: 'Inlet temperature is changed' and 'Outlet temperature is changed' fire when the water temperature shifts by at least 0.5°C and provide the previous temperature and the delta as flow tokens. All device capabilities are now automatically restored on restart if missing. Expert dashboard pre-fills register values from the Modbus cache on load and refreshes automatically every 5 seconds; each value shows a cache or direct badge.",
+    "nl": "Twee nieuwe trigger-flowkaarten: 'Water intrede temperatuur is veranderd' en 'Water uittrede temperatuur is veranderd' activeren wanneer de watertemperatuur minimaal 0,5°C wijzigt en leveren de vorige temperatuur en het verschil als flow-tokens. Alle apparaatcapabilities worden nu automatisch hersteld bij herstart als ze ontbreken. Het expertdashboard vult registerwaarden bij het laden direct uit de Modbus-cache en ververst automatisch elke 5 seconden; elke waarde toont een cache- of direct-badge."
+  },
   "1.2.0": {
     "en": "Dashboard update: added Live and Register Change Log dashboards, aligned dashboard navigation order, added a live overview with sparklines to the interactive dashboard, and added automatic refresh for live capability and register-change data.",
     "nl": "Dashboard-update: Live- en Register Change Log-dashboards toegevoegd, dashboardnavigatie gelijkgetrokken, live overzicht met sparklines toegevoegd aan het interactieve dashboard en automatische refresh toegevoegd voor live capability- en registerwijzigingsdata."
