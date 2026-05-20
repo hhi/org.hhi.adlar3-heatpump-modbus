@@ -15,6 +15,105 @@ import { RegisterChangeEntry } from '../../lib/modbus/modbus-tcp-service';
 // CONSTANTS
 // ============================================================================
 
+const DRIVER_COMPOSE_CAPABILITIES = [
+  'target_temperature',
+  'target_temperature.cooling',
+  'target_temperature.dhw',
+  'target_temperature.floor',
+  'onoff',
+  'measure_temperature.outlet',
+  'measure_temperature.inlet',
+  'measure_temperature.ambient',
+  'measure_temperature.outer_coil',
+  'measure_temperature.suction',
+  'measure_temperature.exhaust',
+  'measure_temperature.dhw',
+  'measure_temperature.buffer_tank',
+  'measure_temperature.total_outlet',
+  'measure_temperature.zone2',
+  'adlar_high_pressure',
+  'adlar_low_pressure',
+  'adlar_running',
+  'adlar_compressor_on',
+  'adlar_mode',
+  'adlar_state_compressor_state',
+  'adlar_state_defrost_state',
+  'adlar_antifreeze',
+  'adlar_sterilization',
+  'measure_frequency.compressor_freq',
+  'measure_frequency.comp_target_freq',
+  'adlar_fan_speed',
+  'adlar_eev_step',
+  'adlar_evi_step',
+  'adlar_pump_pwm',
+  'measure_water',
+  'adlar_defrosting',
+  'adlar_defrost_count_24h',
+  'adlar_defrost_minutes_24h',
+  'defrost_active_power',
+  'alarm_generic',
+  'adlar_fault',
+  'adlar_fault_shutdown',
+  'adlar_fault_active',
+  'adlar_cop',
+  'adlar_cop_method',
+  'adlar_cop_daily',
+  'adlar_cop_weekly',
+  'adlar_cop_monthly',
+  'adlar_cop_trend',
+  'adlar_scop',
+  'adlar_scop_quality',
+  'measure_temperature.indoor',
+  'target_temperature.indoor',
+  'adlar_external_power',
+  'adlar_external_flow',
+  'adlar_external_ambient',
+  'adlar_external_solar_power',
+  'adlar_external_solar_radiation',
+  'adlar_external_wind_speed',
+  'adlar_external_indoor_temperature',
+  'adlar_last_indoor_temp_received',
+  'adlar_last_outdoor_temp_received',
+  'adlar_last_solar_power_received',
+  'adlar_last_solar_radiation_received',
+  'adlar_last_wind_received',
+  'adlar_energy_price_current',
+  'adlar_energy_price_next',
+  'adlar_energy_price_category',
+  'adlar_price_forecast_4h',
+  'adlar_price_forecast_24h',
+  'energy_prices_data',
+  'adlar_cheapest_block_start',
+  'adlar_price_savings_potential',
+  'adlar_energy_cost_daily',
+  'adlar_energy_cost_hourly',
+  'adlar_external_energy_daily',
+  'adlar_external_energy_total',
+  'adlar_simulated_target',
+  'adaptive_control_diagnostics',
+  'cop_optimizer_diagnostics',
+  'adlar_optimal_delay',
+  'adlar_building_ua',
+  'adlar_building_tau',
+  'adlar_building_g',
+  'adlar_building_c',
+  'adlar_building_pint',
+  'building_model_diagnostics',
+  'building_insight_insulation',
+  'building_insight_preheating',
+  'building_insight_profile',
+  'building_insight_thermal_storage',
+  'building_insights_diagnostics',
+  'adlar_forecast_advice',
+  'adlar_forecast_cop_correction',
+  'adlar_performance_report',
+  'adlar_performance_score',
+  'adlar_connection_status',
+  'adlar_connection_active',
+  'adlar_daily_disconnect_count',
+  'adlar_openmeteo_last_fetch',
+] as const;
+
 const INTERNAL_POWER_CAPABILITIES = [
   'measure_power',
   'meter_power',
@@ -219,18 +318,13 @@ class AdlarModbusDevice extends Homey.Device {
   }
 
   private async _ensureCapabilities(): Promise<void> {
-    const requiredCapabilities = [
-      'measure_temperature.outlet',
-      'measure_water',
-    ];
-
-    for (const capability of requiredCapabilities) {
+    for (const capability of DRIVER_COMPOSE_CAPABILITIES) {
       if (!this.hasCapability(capability)) {
         try {
           await this.addCapability(capability);
-          this.logger.info(`Added missing capability: ${capability}`);
+          this.logger.info(`Migration: added missing capability ${capability}`);
         } catch (error) {
-          this.logger.warn(`Failed to add missing capability ${capability}:`, error);
+          this.logger.warn(`Migration: failed to add missing capability ${capability}:`, error);
         }
       }
     }
@@ -305,6 +399,8 @@ class AdlarModbusDevice extends Homey.Device {
         setWriteExpertCallback(fn: (addr: number, rawValue: number, isCoil: boolean) => Promise<void>): void;
         setGetTemperatureScaleCallback(fn: () => 'x1' | 'x10'): void;
         setGetChangeLogCallback(fn: () => Map<number, RegisterChangeEntry>): void;
+        setGetSnapshotCallback(fn: () => DataSnapshot | null): void;
+        setGetRegisterCacheCallback(fn: () => Map<number, number>): void;
         setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void;
       } | null;
     };
@@ -327,6 +423,8 @@ class AdlarModbusDevice extends Homey.Device {
 
     app.dashboard.setGetTemperatureScaleCallback(() => this.coordinator!.getTemperatureScale());
     app.dashboard.setGetChangeLogCallback(() => this.coordinator!.getChangeLog());
+    app.dashboard.setGetSnapshotCallback(() => this.coordinator!.getCurrentSnapshot());
+    app.dashboard.setGetRegisterCacheCallback(() => this.coordinator!.getRegisterCache());
     app.dashboard.setGetCapabilityValuesCallback(() => {
       const result: Record<string, unknown> = {};
       for (const id of this.getCapabilities()) {
@@ -343,6 +441,12 @@ class AdlarModbusDevice extends Homey.Device {
    * Called by ServiceCoordinator._handleModbusData() when new data arrives.
    */
   applyModbusSnapshot(snap: DataSnapshot): void {
+    const source = snap.sourcePollGroup;
+    const syncAll = source === undefined || source === 'manual';
+    const from = (...groups: Array<NonNullable<DataSnapshot['sourcePollGroup']>>) => (
+      syncAll || (source !== undefined && groups.includes(source))
+    );
+
     const set = (cap: string, val: unknown) => {
       if (this.hasCapability(cap)) {
         this.setCapabilityValue(cap, val).catch((e: Error) => this.logger.debug(`setCapabilityValue(${cap}) failed:`, e.message));
@@ -384,73 +488,103 @@ class AdlarModbusDevice extends Homey.Device {
     };
 
     // Control
-    set('onoff', snap.control.on);
-    set('target_temperature', snap.control.heatingSetpointC);
-    set('target_temperature.cooling', snap.control.coolingSetpointC);
-    set('target_temperature.dhw', snap.control.dhwSetpointC);
-
-    set('target_temperature.floor', snap.control.floorSetpointC);
-    set('adlar_mode', String(snap.control.mode));
+    if (from('medium')) {
+      set('onoff', snap.control.on);
+      set('target_temperature', snap.control.heatingSetpointC);
+      set('target_temperature.cooling', snap.control.coolingSetpointC);
+      set('target_temperature.dhw', snap.control.dhwSetpointC);
+      set('target_temperature.floor', snap.control.floorSetpointC);
+      set('adlar_mode', String(snap.control.mode));
+    }
 
     // Status
-    set('adlar_defrosting', snap.status.defrosting);
-    set('adlar_running', snap.status.running);
-    set('adlar_compressor_on', snap.status.compressorOn);
-    set('adlar_antifreeze', snap.status.antifreeze);
-    set('adlar_sterilization', snap.status.sterilization);
-    set('adlar_fault_shutdown', snap.status.activeFaults.length > 0);
-    set('adlar_state_compressor_state', snap.status.compressorOn);
-    set('adlar_state_defrost_state', snap.status.defrosting);
-    set('alarm_generic', snap.status.activeFaults.length > 0);
+    if (from('superfast', 'fast')) {
+      set('adlar_defrosting', snap.status.defrosting);
+      set('adlar_running', snap.status.running);
+      set('adlar_compressor_on', snap.status.compressorOn);
+      set('adlar_antifreeze', snap.status.antifreeze);
+      set('adlar_sterilization', snap.status.sterilization);
+      set('adlar_state_compressor_state', snap.status.compressorOn);
+      set('adlar_state_defrost_state', snap.status.defrosting);
+    }
+
+    // adlar_fault_shutdown en alarm_generic zijn gebaseerd op faultregisters (adr. 90-101),
+    // die alleen bij de medium-poll worden ingelezen.
+    if (from('medium')) {
+      set('adlar_fault_shutdown', snap.status.activeFaults.length > 0);
+      set('alarm_generic', snap.status.activeFaults.length > 0);
+    }
 
     // Temperatures
     const s = snap.sensors;
-    set('measure_temperature.outlet', s.outletT7?.value);
-    set('measure_temperature.inlet', s.inletT6?.value);
-    setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT1?.value);
-    set('measure_temperature.outer_coil', s.outerCoilT3?.value);
-    set('measure_temperature.suction', s.suctionT4?.value);
-    set('measure_temperature.exhaust', s.exhaustT5?.value);
-    set('measure_temperature.dhw', s.dhwTankTemp?.value);
-    set('adlar_high_pressure', s.highPressure?.value);
-    set('adlar_low_pressure', s.lowPressure?.value);
-    set('measure_temperature.buffer_tank', s.bufferTankTemp?.value);
-    set('measure_temperature.total_outlet', s.totalOutlet?.value);
-    set('measure_temperature.zone2', s.zone2Temp?.value);
+    if (from('superfast', 'fast')) {
+      set('measure_temperature.outlet', s.outletT7?.value);
+      set('measure_temperature.inlet', s.inletT6?.value);
+    }
+    if (from('fast')) {
+      setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT1?.value);
+      set('measure_temperature.outer_coil', s.outerCoilT3?.value);
+      set('measure_temperature.suction', s.suctionT4?.value);
+      set('measure_temperature.exhaust', s.exhaustT5?.value);
+      set('measure_temperature.dhw', s.dhwTankTemp?.value);
+      set('adlar_high_pressure', s.highPressure?.value);
+      set('adlar_low_pressure', s.lowPressure?.value);
+    }
+    if (from('medium')) {
+      set('measure_temperature.buffer_tank', s.bufferTankTemp?.value);
+      set('measure_temperature.total_outlet', s.totalOutlet?.value);
+      set('measure_temperature.zone2', s.zone2Temp?.value);
+    }
 
     // Power — altijd Modbus (voltage × current), nooit externe prioriteit
-    set('measure_power', snap.power.derivedPowerKw * 1000);
+    if (from('superfast', 'fast')) {
+      set('measure_power', snap.power.derivedPowerKw * 1000);
+    }
     // meter_power is written exclusively by EnergyTrackingService (ETS).
-    // ETS abstracts internal/external power sources and handles hardware that lacks register 0x005D.
-    set('measure_voltage', snap.power.inputVoltageV);
-    set('measure_current', snap.power.inputCurrentA);
+    if (from('fast')) {
+      set('measure_voltage', snap.power.inputVoltageV);
+      set('measure_current', snap.power.inputCurrentA);
+    }
 
     // COP
-    this.copService?.processSnapshot(snap, set);
+    if (from('superfast', 'fast')) {
+      this.copService?.processSnapshot(snap, set);
+    }
 
     // Mechanical sensors
-    set('measure_frequency.compressor_freq', s.compRunningFreq?.value);
-    set('measure_frequency.comp_target_freq', s.compTargetFreq?.value);
-    set('adlar_fan_speed', s.fanSpeed?.value);
-    set('adlar_eev_step', s.eevStep?.value);
-    set('adlar_evi_step', s.eviStep?.value);
-    set('adlar_pump_pwm', s.pumpPwm?.value);
-    set('measure_water', flowLitersPerMinute(s.waterFlow));
-    clearIfStale('adlar_external_flow');
+    if (from('superfast', 'fast')) {
+      set('measure_frequency.compressor_freq', s.compRunningFreq?.value);
+      set('measure_frequency.comp_target_freq', s.compTargetFreq?.value);
+      set('adlar_pump_pwm', s.pumpPwm?.value);
+      set('measure_water', flowLitersPerMinute(s.waterFlow));
+    }
+    if (from('fast')) {
+      set('adlar_fan_speed', s.fanSpeed?.value);
+      set('adlar_eev_step', s.eevStep?.value);
+      set('adlar_evi_step', s.eviStep?.value);
+    }
+    if (from('superfast', 'fast')) {
+      clearIfStale('adlar_external_flow');
+    }
 
     // Additional currents
-    set('measure_current.comp_phase', s.compPhaseI?.value);
-    set('measure_current.b_phase', s.bPhaseCurrent?.value);
-    set('measure_current.c_phase', s.cPhaseCurrent?.value);
+    if (from('fast')) {
+      set('measure_current.comp_phase', s.compPhaseI?.value);
+    }
+    if (from('medium')) {
+      set('measure_current.b_phase', s.bPhaseCurrent?.value);
+      set('measure_current.c_phase', s.cPhaseCurrent?.value);
+    }
 
     // Fault register aggregation
-    const faults = snap.status.activeFaults;
-    set('adlar_fault', faults.length);
-    set(
-      'adlar_fault_active',
-      faults.length > 0 ? faults.join('; ') : '',
-    );
-
+    if (from('medium')) {
+      const faults = snap.status.activeFaults;
+      set('adlar_fault', faults.length);
+      set(
+        'adlar_fault_active',
+        faults.length > 0 ? faults.join('; ') : '',
+      );
+    }
   }
 
   // ── COP Calculators ────────────────────────────────────────────────────────

@@ -589,6 +589,10 @@ export class ModbusTcpService extends EventEmitter {
     return this.changeLog;
   }
 
+  getRegisterCache(): Map<number, number> {
+    return this.cache;
+  }
+
   private _recordCacheValue(addr: number, value: number): void {
     const now = Date.now();
     const previous = this.cache.get(addr);

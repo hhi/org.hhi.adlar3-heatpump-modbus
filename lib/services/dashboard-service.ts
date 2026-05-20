@@ -107,6 +107,8 @@ export class DashboardService {
   private getTemperatureScale: (() => TemperatureRegisterScale) | null = null;
   private getChangeLog: (() => Map<number, RegisterChangeEntry>) | null = null;
   private getCapabilityValues: (() => Record<string, unknown>) | null = null;
+  private getSnapshotCallback: (() => DataSnapshot | null) | null = null;
+  private getRegisterCache: (() => Map<number, number>) | null = null;
 
   constructor(options: DashboardServiceOptions) {
     this.port = options.port ?? 8090;
@@ -139,6 +141,14 @@ export class DashboardService {
 
   setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void {
     this.getCapabilityValues = fn;
+  }
+
+  setGetSnapshotCallback(fn: () => DataSnapshot | null): void {
+    this.getSnapshotCallback = fn;
+  }
+
+  setGetRegisterCacheCallback(fn: () => Map<number, number>): void {
+    this.getRegisterCache = fn;
   }
 
   /** Sla de meest recente snapshot op (overschrijft de vorige). */
@@ -232,6 +242,10 @@ export class DashboardService {
       res.end(JSON.stringify(buildRegisterBlocks(tempScale)));
       return;
     }
+    if (method === 'GET' && url === '/api/register-cache') {
+      this._serveRegisterCache(res);
+      return;
+    }
     if (method === 'POST' && url === '/api/expert/read') {
       await this._handleExpertRead(req, res);
       return;
@@ -295,21 +309,22 @@ export class DashboardService {
   }
 
   private _serveSnapshot(res: http.ServerResponse): void {
-    if (!this.snapshot) {
+    const snapshot = this.snapshot ?? this.getSnapshotCallback?.() ?? null;
+    if (!snapshot) {
       res.writeHead(204);
       res.end();
       return;
     }
+    this.snapshot = snapshot;
     // ADR-041b: JSON-replacer om floating point-getallen af te ronden.
     // Dit voorkomt weergaveproblemen zoals 1.2000000000000002 op het dashboard.
     const replacer = (key: string, value: unknown): unknown => {
       if (typeof value === 'number' && !Number.isInteger(value)) {
-        // Rond af op 4 decimalen om onnodige precisie te verwijderen.
         return Math.round(value * 10000) / 10000;
       }
       return value;
     };
-    const json = JSON.stringify(this.snapshot, replacer);
+    const json = JSON.stringify(snapshot, replacer);
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
     res.end(json);
   }
@@ -436,6 +451,61 @@ export class DashboardService {
     }
 
     this.capabilityMeta = map;
+    return map;
+  }
+
+  private _serveRegisterCache(res: http.ServerResponse): void {
+    if (!this.getRegisterCache) {
+      res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
+      res.end(JSON.stringify({ error: 'Not connected' }));
+      return;
+    }
+
+    const tempScale = this.getTemperatureScale?.() ?? 'x10';
+    const registerMeta = this._buildRegisterMetaMap(tempScale);
+    const changeLog = this.getChangeLog?.() ?? new Map();
+    const entries: object[] = [];
+
+    for (const [address, wireRawValue] of this.getRegisterCache()) {
+      const meta = registerMeta.get(address);
+      const rawValue = meta?.isTemperatureRegister && wireRawValue > 0x7FFF
+        ? wireRawValue - 0x10000
+        : wireRawValue;
+      const scaleMultiply = meta?.scaleMultiply ?? (meta?.multiply ?? 1);
+      const scaledValue = meta?.isCoil
+        ? null
+        : Math.round(rawValue * scaleMultiply * 10) / 10;
+      const change = changeLog.get(address);
+
+      entries.push({
+        address,
+        wireRawValue,
+        rawValue,
+        scaledValue,
+        isCoil: meta?.isCoil ?? false,
+        unit: meta?.unit ?? '',
+        lastChanged: change?.lastChanged ?? null,
+        firstSeen: change?.firstSeen ?? null,
+        changeCount: change?.changeCount ?? null,
+        source: 'cache',
+      });
+    }
+
+    entries.sort((a, b) => (a as { address: number }).address - (b as { address: number }).address);
+
+    res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+    res.end(JSON.stringify(entries));
+  }
+
+  private _buildRegisterMetaMap(tempScale: TemperatureRegisterScale): Map<number, RegisterMeta> {
+    const map = new Map<number, RegisterMeta>();
+    for (const block of buildRegisterBlocks(tempScale)) {
+      for (const register of block.registers) {
+        if (!map.has(register.address)) {
+          map.set(register.address, register);
+        }
+      }
+    }
     return map;
   }
 

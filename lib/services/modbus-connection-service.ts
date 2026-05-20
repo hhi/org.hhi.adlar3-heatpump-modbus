@@ -197,6 +197,14 @@ export class ModbusConnectionService<TSnapshot = DataSnapshot> extends EventEmit
     return (this.service as unknown as { getChangeLog(): Map<number, RegisterChangeEntry> } | null)?.getChangeLog() ?? new Map();
   }
 
+  getSnapshot(): TSnapshot | null {
+    return (this.service as unknown as { getSnapshot(): TSnapshot } | null)?.getSnapshot() ?? null;
+  }
+
+  getRegisterCache(): Map<number, number> {
+    return (this.service as unknown as { getRegisterCache(): Map<number, number> } | null)?.getRegisterCache() ?? new Map();
+  }
+
   /** FC03 — lees één holding register; retourneert de ruwe unsigned waarde. */
   async readRegister(addr: number): Promise<number> {
     if (!this.service) throw new Error('Niet verbonden');
