@@ -124,6 +124,18 @@
   .filter-writable input { accent-color: #3b82f6; cursor: pointer; }
   .filter-out-of-range { display: flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #f59e0b; cursor: pointer; white-space: nowrap; }
   .filter-out-of-range input { accent-color: #f59e0b; cursor: pointer; }
+  .toolbar-switch { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.78rem; color: #94a3b8; cursor: pointer; white-space: nowrap; }
+  .toolbar-switch input { position: absolute; opacity: 0; pointer-events: none; }
+  .switch-track { position: relative; width: 34px; height: 18px; border: 1px solid #334155; border-radius: 999px; background: #111827; transition: background 0.15s, border-color 0.15s; flex-shrink: 0; }
+  .switch-track::after { content: ""; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: #64748b; transition: transform 0.15s, background 0.15s; }
+  .toolbar-switch input:checked + .switch-track { background: #075985; border-color: #38bdf8; }
+  .toolbar-switch input:checked + .switch-track::after { transform: translateX(16px); background: #e0f2fe; }
+  .toolbar-switch:hover { color: #f8fafc; }
+  .toolbar-switch:hover .switch-track { background: #1e293b; }
+  .toolbar-switch input:checked ~ .switch-icon,
+  .toolbar-switch input:checked ~ .switch-label { color: #dbeafe; }
+  .switch-icon { font-size: 0.85rem; line-height: 1; color: inherit; }
+  .switch-label { color: inherit; }
   .filter-count { font-size: 0.75rem; color: #475569; white-space: nowrap; margin-left: auto; }
   .range-summary { min-height: 1rem; margin: -0.55rem 0 1rem; font-size: 0.75rem; color: #64748b; text-align: right; }
   .range-summary strong { color: #f59e0b; font-weight: 700; }
@@ -180,6 +192,12 @@
   </div>
   <button type="button" class="btn-read btn-expand" onclick="expandAll()">&#9660; Alles uitklappen</button>
   <button type="button" class="btn-read btn-expand" onclick="collapseAll()">&#9650; Alles inklappen</button>
+  <label class="toolbar-switch" data-tip="Uit: toon cache bij uitklappen. Aan: lees geopende registers live via Modbus.">
+    <input type="checkbox" id="force-direct-on-expand">
+    <span class="switch-track" aria-hidden="true"></span>
+    <span class="switch-icon" aria-hidden="true">&#8635;</span>
+    <span class="switch-label">Lezen bij uitklappen</span>
+  </label>
   <button type="button" class="btn-read btn-expand" id="report-btn" onclick="openReportDialog()" disabled title="Lees eerst een blok of gebruik Alles uitklappen">Markdown rapport</button>
 </div>
 
@@ -255,6 +273,11 @@ let readProgressClearTimer = null;
 let cacheRefreshTimer = null;
 let cacheRefreshInFlight = false;
 const CACHE_REFRESH_MS = 5000;
+
+function shouldForceDirectOnExpand() {
+  const el = document.getElementById('force-direct-on-expand');
+  return !!el && el.checked;
+}
 
 // ── Init ───────────────────────────────────────────────────────────────────────
 async function init() {
@@ -513,18 +536,24 @@ function toggleBlock(id) {
   const wasOpen = el.classList.contains('open');
   el.classList.toggle('open');
   applyRegisterCacheToVisibleRows();
-  if (!wasOpen) readBlock(id);
+  if (!wasOpen && shouldForceDirectOnExpand()) readBlock(id);
 }
 
 async function expandAll() {
   const blocksToRead = [];
+  const forceDirect = shouldForceDirectOnExpand();
   visibleBlocks.forEach(block => {
     const el = document.getElementById('block-' + block.id);
     if (el && !el.classList.contains('open')) {
       el.classList.add('open');
+      if (forceDirect) blocksToRead.push(block);
+    } else if (el && forceDirect) {
       blocksToRead.push(block);
     }
   });
+
+  applyRegisterCacheToVisibleRows();
+  if (!forceDirect) return;
 
   const total = blocksToRead.reduce((sum, block) => sum + block.registers.length, 0);
   if (total === 0) return;
@@ -616,11 +645,11 @@ async function readRow(addr, isCoil, multiply, fc = 'holding') {
         const r = await fetch('/api/expert/read', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ address: addr, isCoil, isInput: fc === 'input', fc, multiply }),
+          body: JSON.stringify({ address: addr, isCoil, isInput: fc === 'input', fc }),
         });
         const j = await r.json();
         if (j.ok) {
-          cachedRegisters.set(addr, { address: addr, rawValue: j.rawValue, scaledValue: isCoil ? null : j.scaledValue, isCoil, fc: fc || 'holding', source: 'direct' });
+          cachedRegisters.set(addr, { address: addr, wireRawValue: j.wireRawValue, rawValue: j.rawValue, scaledValue: isCoil ? null : j.scaledValue, isCoil, fc: fc || 'holding', source: 'direct' });
           applyRegisterValue(addr, j.rawValue, isCoil ? null : j.scaledValue, isCoil, fc, 'direct');
           flashRow(addr);
           return;
