@@ -42,6 +42,7 @@ interface RegisterMeta {
   address: number;
   name: string;
   unit?: string;
+  dataType?: 'U16' | 'S16';
   multiply?: number;
   scaleMultiply?: number;
   isTemperatureRegister?: boolean;
@@ -468,13 +469,8 @@ export class DashboardService {
 
     for (const [address, wireRawValue] of this.getRegisterCache()) {
       const meta = registerMeta.get(address);
-      const rawValue = meta?.isTemperatureRegister && wireRawValue > 0x7FFF
-        ? wireRawValue - 0x10000
-        : wireRawValue;
-      const scaleMultiply = meta?.scaleMultiply ?? (meta?.multiply ?? 1);
-      const scaledValue = meta?.isCoil
-        ? null
-        : Math.round(rawValue * scaleMultiply * 10) / 10;
+      const rawValue = decodeRegisterRawValue(wireRawValue, meta);
+      const scaledValue = scaleRegisterValue(rawValue, meta);
       const change = changeLog.get(address);
 
       entries.push({
@@ -651,7 +647,7 @@ export class DashboardService {
       return;
     }
 
-    const { address, isCoil, isInput, fc, multiply } = body as Record<string, unknown>;
+    const { address, isCoil, isInput, fc } = body as Record<string, unknown>;
     if (typeof address !== 'number' || address < 0 || address > 0xFFFF) {
       this._jsonError(res, 400, 'Verplicht veld: address (number 0–65535)');
       return;
@@ -659,14 +655,15 @@ export class DashboardService {
 
     const coil = isCoil === true;
     const input = isInput === true || fc === 'input';
-    const multiplyFactor = typeof multiply === 'number' ? multiply : 1;
     const tempScale = this.getTemperatureScale?.() ?? 'x10';
+    const registerMeta = this._buildRegisterMetaMap(tempScale);
+    const meta = registerMeta.get(address);
 
     try {
-      const rawValue = await this.onReadRegister(address, coil, input);
-      const signedRaw = rawValue > 0x7FFF ? rawValue - 0x10000 : rawValue;
-      const scaledValue = Math.round((tempScale === 'x10' ? signedRaw * multiplyFactor : rawValue * multiplyFactor) * 10) / 10;
-      this._jsonOk(res, { ok: true, rawValue, scaledValue });
+      const wireRawValue = await this.onReadRegister(address, coil, input);
+      const rawValue = decodeRegisterRawValue(wireRawValue, meta);
+      const scaledValue = scaleRegisterValue(rawValue, meta);
+      this._jsonOk(res, { ok: true, wireRawValue, rawValue, scaledValue });
     } catch (err) {
       const msg = (err as Error).message;
       const status = msg === 'Niet verbonden' ? 503 : 500;
@@ -728,6 +725,7 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
         address: (def as { address: number }).address,
         name: (def as { name: string }).name,
         unit: (def as { unit?: string }).unit,
+        dataType: (def as { dataType?: 'U16' | 'S16' }).dataType,
         multiply: (def as { multiply?: number }).multiply,
         scaleMultiply: _scaleMultiplyForDef(def, tempScale),
         isTemperatureRegister: _isTemperatureDef(def),
@@ -746,6 +744,7 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
         address: (def as { address: number }).address,
         name: (def as { name: string }).name,
         unit: (def as { unit?: string }).unit,
+        dataType: (def as { dataType?: 'U16' | 'S16' }).dataType,
         multiply: (def as { multiply?: number }).multiply,
         scaleMultiply: _scaleMultiplyForDef(def, tempScale),
         isTemperatureRegister: _isTemperatureDef(def),
@@ -811,6 +810,20 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
 function _isTemperatureDef(def: unknown): boolean {
   const register = def as { unit?: string };
   return register.unit === '°C';
+}
+
+function decodeRegisterRawValue(wireRawValue: number, meta?: RegisterMeta): number {
+  const uint16 = Math.round(wireRawValue) & 0xFFFF;
+  if (meta?.dataType === 'S16') {
+    return uint16 > 0x7FFF ? uint16 - 0x10000 : uint16;
+  }
+  return uint16;
+}
+
+function scaleRegisterValue(rawValue: number, meta?: RegisterMeta): number | null {
+  if (meta?.isCoil) return null;
+  const scaleMultiply = meta?.scaleMultiply ?? (meta?.multiply ?? 1);
+  return Math.round(rawValue * scaleMultiply * 10) / 10;
 }
 
 function _scaleMultiplyForDef(def: unknown, tempScale: TemperatureRegisterScale): number {
