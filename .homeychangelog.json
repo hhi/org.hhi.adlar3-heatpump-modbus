@@ -1,4 +1,8 @@
 {
+  "1.3.2": {
+    "en": "Expert dashboard now follows the same automatic light/dark theme handling as the other dashboards, including light-mode styling for navigation, filters, register blocks, tables, badges, dialogs, tooltips, and the direct-read switch.",
+    "nl": "Het expertdashboard volgt nu dezelfde automatische light/dark thema-afhandeling als de andere dashboards, inclusief light-mode styling voor navigatie, filters, registerblokken, tabellen, badges, dialogen, tooltips en de direct-lezen-schakelaar."
+  },
   "1.3.1": {
     "en": "Dashboard register values now handle cache and direct fetches more broadly, including signed and unsigned values. The expert dashboard includes a switch to control whether expanding a section or all sections forces direct Modbus fetches.",
     "nl": "Dashboardregisterwaarden gaan breder om met cache- en directe fetches, inclusief signed en unsigned waarden. Het expertdashboard bevat een schakelaar om te bepalen of het uitklappen van een sectie of alles directe Modbus-fetches afdwingt."
