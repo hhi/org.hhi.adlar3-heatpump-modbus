@@ -51,6 +51,14 @@
   .unknown { color: #64748b; }
   .no-data { color: #64748b; font-style: italic; }
   .empty { text-align: center; padding: 3rem; color: #475569; }
+  details { margin-bottom: 1.25rem; }
+  details summary { list-style: none; display: flex; align-items: center; gap: 0.5rem; cursor: pointer; padding: 0.55rem 0.75rem; background: #1e293b; border: 1px solid #334155; border-radius: 0.5rem; font-size: 0.82rem; font-weight: 600; color: #cbd5e1; -webkit-user-select: none; user-select: none; }
+  details summary::-webkit-details-marker { display: none; }
+  details[open] summary { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom-color: #0f172a; }
+  details summary .chevron { font-size: 0.65rem; color: #64748b; transition: transform 0.15s; }
+  details[open] summary .chevron { transform: rotate(90deg); }
+  details summary .section-count { font-size: 0.72rem; color: #64748b; font-weight: 400; }
+  details .table-wrap { border: 1px solid #334155; border-top: none; border-radius: 0 0 0.5rem 0.5rem; overflow: hidden; }
   @media (prefers-color-scheme: light) {
     body { background: #f8fafc; color: #0f172a; }
     h1 { color: #0f172a; }
@@ -85,6 +93,9 @@
     nav a { color: #475569; border-color: #e2e8f0; }
     nav a:hover { background: #e2e8f0; color: #0f172a; }
     nav a.active { background: #e0f2fe; color: #0284c7; border-color: #0284c7; }
+    details summary { background: #f1f5f9; border-color: #e2e8f0; color: #1e293b; }
+    details[open] summary { border-bottom-color: #f8fafc; }
+    details .table-wrap { border-color: #e2e8f0; }
   }
 </style>
 </head>
@@ -110,24 +121,7 @@
   <span class="stats" id="stats"></span>
 </div>
 
-<table id="tbl">
-  <thead>
-    <tr>
-      <th onclick="sortBy('addressHex')" data-col="addressHex">Adres / Naam<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('pollGroup')" data-col="pollGroup">Huidig<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('recommendedGroup')" data-col="recommendedGroup">Aanbevolen<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('changeCount')" data-col="changeCount">Wijzigingen<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('avgInterval')" data-col="avgInterval">Gem. interval<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('minInterval')" data-col="minInterval">Min<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('maxInterval')" data-col="maxInterval">Max<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('previousValue')" data-col="previousValue">Vorige waarde<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('lastValue')" data-col="lastValue">Laatste waarde<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('firstSeen')" data-col="firstSeen">Eerste gezien<span class="sort-icon">&#9650;</span></th>
-      <th onclick="sortBy('lastChanged')" data-col="lastChanged">Laatste wijziging<span class="sort-icon">&#9650;</span></th>
-    </tr>
-  </thead>
-  <tbody id="tbody"></tbody>
-</table>
+<div id="sections"></div>
 
 <script>
   const GROUPS = ['superfast','fast','medium','slow','once','manual'];
@@ -135,6 +129,17 @@
   let sortCol = 'address';
   let sortAsc = true;
   let activeGroups = new Set(GROUPS);
+  let prevHashRo = '';
+  let prevHashRw = '';
+
+  function hashOf(rows) {
+    return JSON.stringify(rows.map(r => [r.address, r.changeCount, r.lastValue]));
+  }
+
+  function flashSection(id) {
+    const el = document.getElementById(id);
+    if (el) { el.classList.add('flash'); setTimeout(() => el.classList.remove('flash'), 400); }
+  }
 
   function load() {
     const btn = document.querySelector('button.btn-primary');
@@ -143,15 +148,19 @@
     fetch('/api/register-changelog')
       .then(r => r.json())
       .then(d => {
+        const newHashRo = hashOf(d.filter(r => !r.writable));
+        const newHashRw = hashOf(d.filter(r =>  r.writable));
         data = d;
         render();
-        const tbl = document.getElementById('tbl');
-        if (tbl) { tbl.classList.add('flash'); setTimeout(() => tbl.classList.remove('flash'), 400); }
+        if (prevHashRo && newHashRo !== prevHashRo) flashSection('sec-ro');
+        if (prevHashRw && newHashRw !== prevHashRw) flashSection('sec-rw');
+        prevHashRo = newHashRo;
+        prevHashRw = newHashRw;
         const ts = new Date().toLocaleTimeString('nl-NL', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
         document.getElementById('last-load').textContent = `Bijgewerkt om ${ts}`;
       })
       .catch(e => {
-        document.getElementById('tbody').innerHTML = `<tr><td colspan="11" class="empty">Fout: ${e.message}</td></tr>`;
+        document.getElementById('sections').innerHTML = `<p class="empty">Fout: ${e.message}</p>`;
         document.getElementById('last-load').textContent = 'Laden mislukt';
       })
       .finally(() => {
@@ -175,12 +184,6 @@
   function sortBy(col) {
     if (sortCol === col) sortAsc = !sortAsc;
     else { sortCol = col; sortAsc = col === 'addressHex'; }
-    document.querySelectorAll('thead th').forEach(th => {
-      th.classList.toggle('sorted', th.dataset.col === col);
-      const icon = th.querySelector('.sort-icon');
-      if (th.dataset.col === col) icon.innerHTML = sortAsc ? '&#9650;' : '&#9660;';
-      else icon.innerHTML = '&#9650;';
-    });
     render();
   }
 
@@ -207,6 +210,69 @@
     return 'mismatch';
   }
 
+  const COLS = [
+    { col: 'addressHex',       label: 'Adres / Naam' },
+    { col: 'pollGroup',        label: 'Huidig' },
+    { col: 'recommendedGroup', label: 'Aanbevolen' },
+    { col: 'changeCount',      label: 'Wijzigingen' },
+    { col: 'avgInterval',      label: 'Gem. interval' },
+    { col: 'minInterval',      label: 'Min' },
+    { col: 'maxInterval',      label: 'Max' },
+    { col: 'previousValue',    label: 'Vorige waarde' },
+    { col: 'lastValue',        label: 'Laatste waarde' },
+    { col: 'firstSeen',        label: 'Eerste gezien' },
+    { col: 'lastChanged',      label: 'Laatste wijziging' },
+  ];
+
+  function theadHtml() {
+    return '<thead><tr>' + COLS.map(c => {
+      const active = sortCol === c.col;
+      const icon = active ? (sortAsc ? '&#9650;' : '&#9660;') : '&#9650;';
+      return `<th onclick="sortBy('${c.col}')" data-col="${c.col}"${active ? ' class="sorted"' : ''}>${c.label}<span class="sort-icon">${icon}</span></th>`;
+    }).join('') + '</tr></thead>';
+  }
+
+  function rowsHtml(rows) {
+    if (rows.length === 0) return `<tr><td colspan="${COLS.length}" class="empty">Geen registers in deze sectie.</td></tr>`;
+    return rows.map(e => {
+      const rc = recClass(e.pollGroup, e.recommendedGroup);
+      const recPill = e.recommendedGroup === '?' ? `<span class="unknown">?</span>` : pillHtml(e.recommendedGroup);
+      return `<tr>
+        <td class="addr">${e.addressHex}${e.name ? `<br><span style="font-family:system-ui;font-size:0.7rem;color:#64748b">${e.name}</span>` : ''}</td>
+        <td>${pillHtml(e.pollGroup)}</td>
+        <td class="${rc}">${recPill}</td>
+        <td>${e.changeCount === 0 ? '<span class="zero">0</span>' : e.changeCount}</td>
+        <td>${fmtMs(e.avgInterval)}</td>
+        <td>${fmtMs(e.minInterval)}</td>
+        <td>${fmtMs(e.maxInterval)}</td>
+        <td class="addr">${e.previousValue !== null ? e.previousValue : '<span class="no-data">—</span>'}</td>
+        <td class="addr">${e.lastValue}</td>
+        <td>${fmtTime(e.firstSeen)}</td>
+        <td>${e.changeCount > 0 ? fmtTime(e.lastChanged) : '<span class="no-data">—</span>'}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  function sectionHtml(title, icon, rows, openAttr) {
+    const changed = rows.filter(r => r.changeCount > 0).length;
+    const countLabel = changed > 0
+      ? `${rows.length} registers · ${changed} gewijzigd`
+      : `${rows.length} registers`;
+    return `<details${openAttr}>
+      <summary>
+        <span class="chevron">&#9654;</span>
+        ${icon} ${title}
+        <span class="section-count">${countLabel}</span>
+      </summary>
+      <div class="table-wrap">
+        <table style="width:100%;border-collapse:collapse;font-size:0.78rem">
+          ${theadHtml()}
+          <tbody>${rowsHtml(rows)}</tbody>
+        </table>
+      </div>
+    </details>`;
+  }
+
   function render() {
     const q = document.getElementById('search').value.toLowerCase();
     const onlyChanged = document.getElementById('only-changed').checked;
@@ -226,9 +292,9 @@
       return sortAsc ? av - bv : bv - av;
     });
 
-    const tbody = document.getElementById('tbody');
+    const el = document.getElementById('sections');
     if (rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="10" class="empty">Geen registers gevonden. Wacht tot de app Modbus-data heeft ontvangen.</td></tr>';
+      el.innerHTML = `<p class="empty">Geen registers gevonden. Wacht tot de app Modbus-data heeft ontvangen.</p>`;
       document.getElementById('stats').textContent = '';
       return;
     }
@@ -236,23 +302,15 @@
     const changed = rows.filter(r => r.changeCount > 0).length;
     document.getElementById('stats').textContent = `${rows.length} registers · ${changed} gewijzigd`;
 
-    tbody.innerHTML = rows.map(e => {
-      const rc = recClass(e.pollGroup, e.recommendedGroup);
-      const recPill = e.recommendedGroup === '?' ? `<span class="unknown">?</span>` : pillHtml(e.recommendedGroup);
-      return `<tr>
-        <td class="addr">${e.addressHex}${e.name ? `<br><span style="font-family:system-ui;font-size:0.7rem;color:#64748b">${e.name}</span>` : ''}</td>
-        <td>${pillHtml(e.pollGroup)}</td>
-        <td class="${rc}">${recPill}</td>
-        <td>${e.changeCount === 0 ? '<span class="zero">0</span>' : e.changeCount}</td>
-        <td>${fmtMs(e.avgInterval)}</td>
-        <td>${fmtMs(e.minInterval)}</td>
-        <td>${fmtMs(e.maxInterval)}</td>
-        <td class="addr">${e.previousValue !== null ? e.previousValue : '<span class="no-data">—</span>'}</td>
-        <td class="addr">${e.lastValue}</td>
-        <td>${fmtTime(e.firstSeen)}</td>
-        <td>${e.changeCount > 0 ? fmtTime(e.lastChanged) : '<span class="no-data">—</span>'}</td>
-      </tr>`;
-    }).join('');
+    const readOnly = rows.filter(r => !r.writable);
+    const readWrite = rows.filter(r => r.writable);
+
+    const roOpen = document.querySelector('#sec-ro') ? document.querySelector('#sec-ro').open : true;
+    const rwOpen = document.querySelector('#sec-rw') ? document.querySelector('#sec-rw').open : true;
+
+    el.innerHTML =
+      sectionHtml('Read-only registers', '&#128274;', readOnly,  ' id="sec-ro"' + (roOpen ? ' open' : '')) +
+      sectionHtml('Read/Write registers', '&#9998;',  readWrite, ' id="sec-rw"' + (rwOpen ? ' open' : ''));
   }
 
   buildGroupFilters();
