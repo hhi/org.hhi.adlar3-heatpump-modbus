@@ -514,6 +514,9 @@ export class DashboardService {
 
     const pollGroupMap = this._buildPollGroupMap();
     const nameMap = this._buildNameMap();
+    const writableAddresses = new Set(
+      Object.values(ALL_HOLDING_REGISTERS).map((r) => (r as { address: number }).address),
+    );
     const entries: object[] = [];
 
     for (const [addr, entry] of this.getChangeLog()) {
@@ -529,6 +532,7 @@ export class DashboardService {
         addressHex: `0x${addr.toString(16).toUpperCase().padStart(4, '0')}`,
         name: nameMap.get(addr) ?? '',
         pollGroup: pollGroupMap.get(addr) ?? 'manual',
+        writable: writableAddresses.has(addr),
         firstSeen: entry.firstSeen,
         lastChanged: entry.lastChanged,
         changeCount: entry.changeCount,

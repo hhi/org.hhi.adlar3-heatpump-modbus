@@ -1,4 +1,8 @@
 {
+  "1.4.0": {
+    "en": "Register Change Log dashboard now splits registers into two collapsible sections: read-only and read/write. Both sections start expanded. Each section header shows the total register count and the number of changed registers (e.g. '12 registers · 3 changed'). The flash animation on data refresh now fires per section and only for the section whose data actually changed.",
+    "nl": "Het Register Change Log-dashboard toont registers nu in twee uitklapbare secties: read-only en read/write. Beide secties starten uitgeklapt. De sectiekoptekst toont het totaal aantal registers en het aantal gewijzigde registers (bijv. '12 registers · 3 gewijzigd'). De flash-animatie bij verversing werkt nu per sectie en flitst alleen de sectie waarvan de data daadwerkelijk is veranderd."
+  },
   "1.3.3": {
     "en": "Poll groups now start with a 300 ms stagger on first connect, spreading the initial Modbus reads instead of firing all groups at once. A 'partial Modbus communication error' warning is now automatically cleared when the connection returns to full quality.",
     "nl": "Poll-groepen starten nu met 300 ms spreiding bij de eerste verbinding, zodat de initiële Modbus-lezingen gespreid worden in plaats van allemaal tegelijk. Een waarschuwing 'Gedeeltelijke Modbus-communicatiefout' wordt nu automatisch gewist zodra de verbinding weer volledig functioneert."
