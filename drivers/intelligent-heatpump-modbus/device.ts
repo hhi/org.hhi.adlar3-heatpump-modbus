@@ -10,6 +10,10 @@ import { ModbusCOPService } from '../../lib/services/modbus-cop-service';
 import { RollingCOPCalculator } from '../../lib/services/rolling-cop-calculator';
 import { DeviceConstants } from '../../lib/constants';
 import { RegisterChangeEntry } from '../../lib/modbus/modbus-tcp-service';
+import {
+  LiveOperationWidgetState,
+  buildLiveOperationWidgetState,
+} from '../../lib/services/widget-state-service';
 
 // ============================================================================
 // CONSTANTS
@@ -153,13 +157,27 @@ class AdlarModbusDevice extends Homey.Device {
 
   private coordinator: ServiceCoordinator | null = null;
   // Exposed as serviceCoordinator for shared services (e.g. FlowCardManagerService) that access it via duck-typing
-  get serviceCoordinator(): ServiceCoordinator | null { return this.coordinator; }
+  get serviceCoordinator(): ServiceCoordinator | null {
+    return this.coordinator;
+  }
+
   private logger!: Logger;
   private copService: ModbusCOPService | null = null;
   private readonly externalDataTimestamps = new Map<string, number>();
 
   public registerExternalDataReceived(cap: string): void {
     this.externalDataTimestamps.set(cap, Date.now());
+  }
+
+  public getLiveOperationWidgetState(): LiveOperationWidgetState {
+    return buildLiveOperationWidgetState({
+      device: this,
+      snapshot: this.coordinator?.getCurrentSnapshot() ?? null,
+      isExternalCapabilityFresh: (capabilityId) => {
+        const timestamp = this.externalDataTimestamps.get(capabilityId) ?? 0;
+        return timestamp > 0 && Date.now() - timestamp <= DeviceConstants.EXTERNAL_DATA_TTL_MS;
+      },
+    });
   }
 
   // ── Lifecycle ──────────────────────────────────────────────────────────────
@@ -436,7 +454,6 @@ class AdlarModbusDevice extends Homey.Device {
 
   // ── Snapshot → Capabilities (called by ServiceCoordinator) ────────────────
 
-
   /**
    * Called by ServiceCoordinator._handleModbusData() when new data arrives.
    */
@@ -614,9 +631,12 @@ class AdlarModbusDevice extends Homey.Device {
     for (const [key, description] of Object.entries(storeKeys)) {
       const value = await this.getStoreValue(key);
       const present = value !== null && value !== undefined;
-      const summary = present
-        ? (typeof value === 'object' ? `{present, ${JSON.stringify(value).length} chars}` : String(value))
-        : 'absent';
+      let summary = 'absent';
+      if (present) {
+        summary = typeof value === 'object'
+          ? `{present, ${JSON.stringify(value).length} chars}`
+          : String(value);
+      }
       lines.push(`  ${present ? '✓' : '○'} ${key} → ${summary} (${description})`);
     }
     this.logger.info(lines.join('\n'));

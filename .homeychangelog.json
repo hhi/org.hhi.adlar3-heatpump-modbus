@@ -1,4 +1,8 @@
 {
+  "1.5.0": {
+    "en": "Added a Homey Dashboard widget 'Adlar Live Operation'. The widget shows whether the heat pump is active, current mode and connection status, water ΔT, water flow, electrical input, estimated thermal output, compressor frequency, live COP, and key temperatures. Homey 12.3 or newer is now required.",
+    "nl": "Homey Dashboard-widget 'Adlar Live Bedrijf' toegevoegd. De widget toont of de warmtepomp actief is, de huidige modus en verbindingsstatus, water-ΔT, waterdebiet, elektrisch ingangsvermogen, geschatte thermische output, compressorfrequentie, live COP en belangrijke temperaturen. Homey 12.3 of nieuwer is nu vereist."
+  },
   "1.4.0": {
     "en": "Register Change Log dashboard now splits registers into two collapsible sections: read-only and read/write. Both sections start expanded. Each section header shows the total register count and the number of changed registers (e.g. '12 registers · 3 changed'). The flash animation on data refresh now fires per section and only for the section whose data actually changed.",
     "nl": "Het Register Change Log-dashboard toont registers nu in twee uitklapbare secties: read-only en read/write. Beide secties starten uitgeklapt. De sectiekoptekst toont het totaal aantal registers en het aantal gewijzigde registers (bijv. '12 registers · 3 gewijzigd'). De flash-animatie bij verversing werkt nu per sectie en flitst alleen de sectie waarvan de data daadwerkelijk is veranderd."
