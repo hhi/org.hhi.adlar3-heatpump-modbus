@@ -535,14 +535,14 @@ class AdlarModbusDevice extends Homey.Device {
     // Temperatures
     const s = snap.sensors;
     if (from('superfast', 'fast')) {
-      set('measure_temperature.outlet', s.outletT7?.value);
-      set('measure_temperature.inlet', s.inletT6?.value);
+      set('measure_temperature.outlet', s.retourTE1?.value);
+      set('measure_temperature.inlet', s.aanvoerTA?.value);
     }
     if (from('fast')) {
-      setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT1?.value);
+      setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT4?.value);
       set('measure_temperature.outer_coil', s.outerCoilT3?.value);
-      set('measure_temperature.suction', s.suctionT4?.value);
-      set('measure_temperature.exhaust', s.exhaustT5?.value);
+      set('measure_temperature.suction', s.suctionTH?.value);
+      set('measure_temperature.exhaust', s.dischargeTP?.value);
       set('measure_temperature.dhw', s.dhwTankTemp?.value);
       set('adlar_high_pressure', s.highPressure?.value);
       set('adlar_low_pressure', s.lowPressure?.value);

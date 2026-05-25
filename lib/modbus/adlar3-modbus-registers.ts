@@ -222,13 +222,13 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   inletWaterTemp: {
     address: 42, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
-    name: 'Inlet Water Temperature (TA)',
-    desc: 'Return water from installation. II ≈ 0x004F (T6).',
+    name: 'Aanvoer Water Temperature (TA)',
+    desc: 'Supply water to installation (Temperatuur Aanvoer). II ≈ 0x004F.',
   },
   outletWaterTemp: {
     address: 43, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
-    name: 'Leaving Water Temperature (TE1)',
-    desc: 'Supply water to installation. II ≈ 0x0050 (T7). Used as climate.current_temperature.',
+    name: 'Retour Water Temperature (TE1)',
+    desc: 'Return water from installation. II ≈ 0x0050. Used as climate.current_temperature.',
   },
   bufferTankUpperTemp: {
     address: 44, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
@@ -593,8 +593,6 @@ export const LIMIT_REGISTERS: Record<string, InputRegister> = {
   zone2CoolingLowerLimit: { address: 21, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Cooling Lower Limit' },
   zone2HeatingUpperLimit: { address: 22, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Heating Upper Limit' },
   zone2HeatingLowerLimit: { address: 23, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Heating Lower Limit' },
-  reserved24: { address: 24, fc: 'input', dataType: 'U16', name: 'Reserved' },
-  reserved25: { address: 25, fc: 'input', dataType: 'U16', name: 'Reserved' },
   zone2AutoCoolingUpperLimit: { address: 26, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY, name: 'Z2 Auto Cooling Upper Limit' },
   zone2AutoCoolingLowerLimit: {
     address: 27, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
@@ -634,8 +632,6 @@ export const CONFIG_REGISTERS: Record<string, InputRegister> = {
     name: 'Effective Mode',
     desc: 'Bit field: bit0=cooling effective, bit1=heating effective, bit2=DHW effective.',
   },
-  reserved32: { address: 32, fc: 'input', dataType: 'U16', name: 'Reserved' },
-  reserved33: { address: 33, fc: 'input', dataType: 'U16', name: 'Reserved' },
   zone1TerminalCooling: {
     address: 34, fc: 'input', dataType: 'U16',
     name: 'Zone 1 Terminal Type for Cooling',
@@ -659,6 +655,10 @@ export const CONFIG_REGISTERS: Record<string, InputRegister> = {
 } as const;
 
 export const RESERVED_INPUT_REGISTERS: Record<string, InputRegister> = {
+  reserved24: { address: 24, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved25: { address: 25, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved32: { address: 32, fc: 'input', dataType: 'U16', name: 'Reserved' },
+  reserved33: { address: 33, fc: 'input', dataType: 'U16', name: 'Reserved' },
   reserved54: { address: 54, fc: 'input', dataType: 'S16', name: 'Reserved' },
   reserved55: { address: 55, fc: 'input', dataType: 'S16', name: 'Reserved' },
   reserved57: { address: 57, fc: 'input', dataType: 'U16', name: 'Reserved' },

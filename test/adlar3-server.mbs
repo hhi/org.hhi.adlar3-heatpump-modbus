@@ -476,7 +476,7 @@
     {
       "modbusData": {
         "address": 43,
-        "registerValue": 350,
+        "registerValue": 290,
         "title": "3-0043 Leaving Water Temperature (TE1)",
         "dataSize": 16,
         "displayFormat": {

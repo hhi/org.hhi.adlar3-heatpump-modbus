@@ -77,7 +77,6 @@ const ADLAR3_POLL_FAST_DEF: RegisterPollGroupDefinition = {
     { start: 62, count: 3, label: 'AIII pump/flow 3-62..3-64', fc: 'input' },
     { start: 70, count: 10, label: 'AIII compressor/electric 3-70..3-79', fc: 'input' },
     { start: 80, count: 2, label: 'AIII outputs 3-80..3-81', fc: 'input' },
-    { start: 2100, count: 15, label: 'AIII controls 4-2100..4-2114', fc: 'holding' },
   ],
 };
 
@@ -87,6 +86,7 @@ const ADLAR3_POLL_MEDIUM_DEF: RegisterPollGroupDefinition = {
   reads: [
     { start: 60, count: 2, label: 'AIII pressures 3-60..3-61', fc: 'input', optional: true },
     { start: 86, count: 18, label: 'AIII pressure/fault/opmode 3-86..3-103', fc: 'input', optional: true },
+    { start: 2100, count: 15, label: 'AIII controls 4-2100..4-2114', fc: 'holding' },
   ],
 };
 
@@ -102,22 +102,24 @@ const ADLAR3_POLL_ONCE_DEF: RegisterPollGroupDefinition = {
   name: 'once',
   interval: 0,
   reads: [
-    { start: 2100, count: 15, label: 'AIII initial controls 4-2100..4-2114', fc: 'holding' },
+    { start: 0,  count: 10, label: 'AIII config 3-0..3-9',                   fc: 'input' },
+    { start: 34, count: 4,  label: 'AIII zone terminal types 3-34..3-37',     fc: 'input' },
+    { start: 66, count: 4,  label: 'AIII climate curve outputs 3-66..3-69',   fc: 'input' },
   ],
 };
 
 const SENSOR_DESCRIPTORS: readonly SensorDescriptor[] = [
   { key: 'roomTemp', def: SENSOR_REGISTERS.roomTemperature, signed: true },
   { key: 'totalOutlet', def: SENSOR_REGISTERS.totalLeavingWaterTemp, signed: true },
-  { key: 'inletT6', def: SENSOR_REGISTERS.inletWaterTemp, signed: true },
-  { key: 'outletT7', def: SENSOR_REGISTERS.outletWaterTemp, signed: true },
+  { key: 'aanvoerTA', def: SENSOR_REGISTERS.inletWaterTemp, signed: true },
+  { key: 'retourTE1', def: SENSOR_REGISTERS.outletWaterTemp, signed: true },
   { key: 'bufferTankTemp', def: SENSOR_REGISTERS.bufferTankLowerTemp, signed: true },
   { key: 'dhwTankTemp', def: SENSOR_REGISTERS.dhwTankTemp, signed: true },
   { key: 'zone2Temp', def: SENSOR_REGISTERS.zone2MixingInletTemp, signed: true },
   { key: 'outerCoilT3', def: SENSOR_REGISTERS.outdoorCoilTemp, signed: true },
-  { key: 'ambientT1', def: SENSOR_REGISTERS.ambientTemp, signed: true },
-  { key: 'suctionT4', def: SENSOR_REGISTERS.suctionTemp, signed: true },
-  { key: 'exhaustT5', def: SENSOR_REGISTERS.dischargeTemp, signed: true },
+  { key: 'ambientT4', def: SENSOR_REGISTERS.ambientTemp, signed: true },
+  { key: 'suctionTH', def: SENSOR_REGISTERS.suctionTemp, signed: true },
+  { key: 'dischargeTP', def: SENSOR_REGISTERS.dischargeTemp, signed: true },
   { key: 'pumpPwm', def: SENSOR_REGISTERS.pumpPwmOutput },
   { key: 'waterFlow', def: SENSOR_REGISTERS.waterFlow },
   { key: 'eevStep', def: SENSOR_REGISTERS.mainEevOpenDegree },
@@ -485,10 +487,10 @@ export class Adlar3ModbusService extends EventEmitter {
   }
 
   private buildCop(): CopSnapshot {
-    const inletTemp = this.readScaledValue(SENSOR_REGISTERS.inletWaterTemp, true);
-    const outletTemp = this.readScaledValue(SENSOR_REGISTERS.outletWaterTemp, true);
+    const aanvoerTemp = this.readScaledValue(SENSOR_REGISTERS.inletWaterTemp, true);
+    const retourTemp = this.readScaledValue(SENSOR_REGISTERS.outletWaterTemp, true);
     const ambientTemp = this.readScaledValue(SENSOR_REGISTERS.ambientTemp, true);
-    const deltaT = outletTemp - inletTemp;
+    const deltaT = aanvoerTemp - retourTemp;
     const internalFlowM3h = this.readScaledValue(SENSOR_REGISTERS.waterFlow);
     const flowM3h = this.externalFlowLpm !== null && this.externalFlowLpm > 0
       ? (this.externalFlowLpm * 60) / 1000

@@ -39,6 +39,7 @@ export interface LiveOperationWidgetState {
     ambientC: number | null;
     dhwC: number | null;
     bufferC: number | null;
+    setpointC: number | null;
   };
   process: {
     deltaTC: number | null;
@@ -168,9 +169,9 @@ function dataSource<T extends string>(
 export function buildLiveOperationWidgetState(context: WidgetStateContext): LiveOperationWidgetState {
   const { device, snapshot, isExternalCapabilityFresh } = context;
 
-  const outletC = capNumber(device, 'measure_temperature.outlet') ?? sensorValue(snapshot, 'outletT7');
-  const inletC = capNumber(device, 'measure_temperature.inlet') ?? sensorValue(snapshot, 'inletT6');
-  const ambientC = capNumber(device, 'measure_temperature.ambient') ?? sensorValue(snapshot, 'ambientT1');
+  const outletC = capNumber(device, 'measure_temperature.outlet') ?? sensorValue(snapshot, 'retourTE1');
+  const inletC = capNumber(device, 'measure_temperature.inlet') ?? sensorValue(snapshot, 'aanvoerTA');
+  const ambientC = capNumber(device, 'measure_temperature.ambient') ?? sensorValue(snapshot, 'ambientT4');
   const dhwC = capNumber(device, 'measure_temperature.dhw') ?? sensorValue(snapshot, 'dhwTankTemp');
   const bufferC = capNumber(device, 'measure_temperature.buffer_tank') ?? sensorValue(snapshot, 'bufferTankTemp');
 
@@ -186,7 +187,7 @@ export function buildLiveOperationWidgetState(context: WidgetStateContext): Live
 
   const compressorHz = capNumber(device, 'measure_frequency.compressor_freq')
     ?? sensorValue(snapshot, 'compRunningFreq');
-  const deltaTC = outletC !== null && inletC !== null ? outletC - inletC : null;
+  const deltaTC = outletC !== null && inletC !== null ? inletC - outletC : null;
   const thermalPowerKw = flowLpm !== null && deltaTC !== null
     ? Math.abs(flowLpm * deltaTC * THERMAL_POWER_FACTOR_KW_PER_LPM_PER_C)
     : null;
@@ -234,6 +235,10 @@ export function buildLiveOperationWidgetState(context: WidgetStateContext): Live
       ambientC: round(ambientC, 1),
       dhwC: round(dhwC, 1),
       bufferC: round(bufferC, 1),
+      setpointC: round(
+        capNumber(device, 'target_temperature') ?? snapshot?.control.heatingSetpointC ?? null,
+        1,
+      ),
     },
     process: {
       deltaTC: round(deltaTC, 1),

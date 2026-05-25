@@ -53,6 +53,7 @@ class MyApp extends App {
           ambientC: null,
           dhwC: null,
           bufferC: null,
+          setpointC: null,
         },
         process: {
           deltaTC: null,

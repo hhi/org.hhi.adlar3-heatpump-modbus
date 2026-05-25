@@ -374,7 +374,7 @@ function buildRows(snap) {
       { address: '—', name: 'COP snapshot ≠ adlar_cop', value: copValue, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: !snap.cop.valid },
       { address: '—', name: 'Thermisch vermogen',        value: `${snap.cop.thermalPowerKw.toFixed(2)} kW`,   raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
       { address: '—', name: 'Elektrisch vermogen',       value: `${snap.cop.electricalPowerKw.toFixed(2)} kW`, raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
-      { address: '—', name: 'ΔT water (3-43 − 3-42)',   value: `${snap.cop.deltaTc.toFixed(1)} °C`,           raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
+      { address: '—', name: 'ΔT water (3-42 − 3-43 / TA − TE1)',   value: `${snap.cop.deltaTc.toFixed(1)} °C`,           raw: '—', category: 'COP', pollGroup: 'Afgeleid', fault: false },
       { address: '3-64', name: 'Debiet',                 value: `${snap.cop.flowLpm} L/min`,                   raw: '—', category: 'COP', pollGroup: 'SUPERFAST', fault: false },
     ];
     sections.push({ label: 'COP snapshot', rows: copRows });
