@@ -1,5 +1,5 @@
 {
-  "1.6.0": {
+  "1.6.1": {
     "en": "Corrected Aurora III temperature sensor labels throughout the app: supply (TA), return (TE1), ambient (T4), suction (TH), discharge (TP). Capability titles, dashboards, and widget now all use consistent Aurora III designations. ΔT calculation corrected to TA − TE1 (positive in heating). Expert dashboard: registers now sorted by address, holding registers moved to medium poll group, config and climate-curve registers added to once group, reserved registers grouped separately and shown as manual, new Temperature functional category, 4-2104 moved to Smart Grid. Widget footer now shows the active heating setpoint (4-2107).",
     "nl": "Aurora III temperatuursensorlabels gecorrigeerd door de hele app: aanvoer (TA), retour (TE1), buiten (T4), zuiging (TH), persing (TP). Capability-titels, dashboards en widget hanteren nu consequent Aurora III-aanduidingen. ΔT-berekening gecorrigeerd naar TA − TE1 (positief in verwarming). Expert dashboard: registers gesorteerd op adres, holding-registers naar medium-pollgroep, configuratie- en klimaatcurve-registers toegevoegd aan once-groep, gereserveerde registers apart gegroepeerd en als manual weergegeven, nieuwe functionele categorie Temperatuur, 4-2104 verplaatst naar Smart Grid. Widget-footer toont nu het actieve verwarmingssetpoint (4-2107)."
   },

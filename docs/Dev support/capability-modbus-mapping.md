@@ -39,8 +39,8 @@ Temperatuurwaarden met x10-schaal worden als raw registerwaarde `temperatuur_C *
 | `target_temperature.dhw` | `4-2105` | FC03/FC06 holding | raw = C x10 | `20-75 C` |
 | `target_temperature.floor` | `4-2114` | FC03/FC06 holding | raw = C x10 | gebruikt als room temperature setpoint; listener accepteert `20-60 C` |
 | `target_temperature.indoor` | geen Modbus-write | n.v.t. | n.v.t. | alleen lokale/adaptieve-control waarde; listener accepteert `15-25 C` |
-| `measure_temperature.outlet` | `3-43` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
-| `measure_temperature.inlet` | `3-42` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
+| `measure_temperature.outlet` | `3-43` | FC04 input | x0.1 C | aanvoertemperatuur (TA); geen harde min/max in registermetadata |
+| `measure_temperature.inlet` | `3-42` | FC04 input | x0.1 C | retourtemperatuur (TE1); geen harde min/max in registermetadata |
 | `measure_temperature.ambient` | `3-50` | FC04 input | x0.1 C | overschreven door `adlar_external_ambient` als die gevuld is |
 | `measure_temperature.outer_coil` | `3-49` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
 | `measure_temperature.suction` | `3-53` | FC04 input | x0.1 C | geen harde min/max in registermetadata |

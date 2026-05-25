@@ -436,8 +436,8 @@ export class DashboardService {
       'target_temperature.dhw': { title: 'DHW Setpoint', unit: '°C', type: 'number' },
       'target_temperature.floor': { title: 'Floor Heating Setpoint', unit: '°C', type: 'number' },
       'target_temperature.indoor': { title: 'Desired Indoor Temp', unit: '°C', type: 'number' },
-      'measure_temperature.outlet': { title: 'Water Outlet Temp (T7)', unit: '°C', type: 'number' },
-      'measure_temperature.inlet': { title: 'Water Inlet Temp (T6)', unit: '°C', type: 'number' },
+      'measure_temperature.outlet': { title: 'Supply Water Temp (TA)', unit: '°C', type: 'number' },
+      'measure_temperature.inlet': { title: 'Return Water Temp (TE1)', unit: '°C', type: 'number' },
       'measure_temperature.ambient': { title: 'Ambient Temp (T1)', unit: '°C', type: 'number' },
     };
     for (const [id, def] of Object.entries(defaults)) {
@@ -568,7 +568,7 @@ export class DashboardService {
   private _buildPollGroupMap(): Map<number, string> {
     const map = new Map<number, string>();
     const groups = [
-      { name: 'superfast', reads: [{ start: 38, count: 2 }, { start: 43, count: 1 }, { start: 64, count: 1 }, { start: 79, count: 1 }] },
+      { name: 'superfast', reads: [{ start: 38, count: 2 }, { start: 42, count: 2 }, { start: 64, count: 1 }, { start: 79, count: 1 }] },
       { name: 'fast', reads: [{ start: 40, count: 17 }, { start: 62, count: 3 }, { start: 70, count: 10 }, { start: 80, count: 2 }, { start: 2100, count: 15 }] },
       { name: 'medium', reads: [{ start: 60, count: 2 }, { start: 86, count: 18 }] },
       { name: 'slow', reads: [{ start: 10, count: 22 }] },
@@ -772,7 +772,7 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
       name: 'superfast',
       reads: [
         { start: 38, count: 2, fc: 'input' },
-        { start: 43, count: 1, fc: 'input' },
+        { start: 42, count: 2, fc: 'input' },
         { start: 64, count: 1, fc: 'input' },
         { start: 79, count: 1, fc: 'input' },
       ],

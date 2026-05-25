@@ -222,13 +222,13 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   inletWaterTemp: {
     address: 42, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
-    name: 'Aanvoer Water Temperature (TA)',
-    desc: 'Supply water to installation (Temperatuur Aanvoer). II ≈ 0x004F.',
+    name: 'Retour Water Temperature (TE1)',
+    desc: 'Return water from installation. II ≈ 0x004F.',
   },
   outletWaterTemp: {
     address: 43, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
-    name: 'Retour Water Temperature (TE1)',
-    desc: 'Return water from installation. II ≈ 0x0050. Used as climate.current_temperature.',
+    name: 'Aanvoer Water Temperature (TA)',
+    desc: 'Supply water to installation (Temperatuur Aanvoer). II ≈ 0x0050. Used as climate.current_temperature.',
   },
   bufferTankUpperTemp: {
     address: 44, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,

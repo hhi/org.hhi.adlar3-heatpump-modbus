@@ -416,7 +416,7 @@ export class ServiceCoordinator {
     }
 
     // Update capability health for key sensors
-    this.capabilityHealth.updateCapabilityHealth('measure_temperature.outlet', snapshot.sensors.retourTE1?.value);
+    this.capabilityHealth.updateCapabilityHealth('measure_temperature.outlet', snapshot.sensors.aanvoerTA?.value);
     this.capabilityHealth.updateCapabilityHealth('measure_power', snapshot.power.derivedPowerKw * 1000);
     this.capabilityHealth.updateCapabilityHealth('onoff', snapshot.control.on);
 

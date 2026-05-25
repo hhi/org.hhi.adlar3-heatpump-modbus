@@ -535,8 +535,8 @@ class AdlarModbusDevice extends Homey.Device {
     // Temperatures
     const s = snap.sensors;
     if (from('superfast', 'fast')) {
-      set('measure_temperature.outlet', s.retourTE1?.value);
-      set('measure_temperature.inlet', s.aanvoerTA?.value);
+      set('measure_temperature.outlet', s.aanvoerTA?.value);
+      set('measure_temperature.inlet', s.retourTE1?.value);
     }
     if (from('fast')) {
       setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT4?.value);
