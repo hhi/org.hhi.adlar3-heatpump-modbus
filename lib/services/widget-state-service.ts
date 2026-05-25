@@ -169,8 +169,8 @@ function dataSource<T extends string>(
 export function buildLiveOperationWidgetState(context: WidgetStateContext): LiveOperationWidgetState {
   const { device, snapshot, isExternalCapabilityFresh } = context;
 
-  const outletC = capNumber(device, 'measure_temperature.outlet') ?? sensorValue(snapshot, 'retourTE1');
-  const inletC = capNumber(device, 'measure_temperature.inlet') ?? sensorValue(snapshot, 'aanvoerTA');
+  const outletC = capNumber(device, 'measure_temperature.outlet') ?? sensorValue(snapshot, 'aanvoerTA');
+  const inletC = capNumber(device, 'measure_temperature.inlet') ?? sensorValue(snapshot, 'retourTE1');
   const ambientC = capNumber(device, 'measure_temperature.ambient') ?? sensorValue(snapshot, 'ambientT4');
   const dhwC = capNumber(device, 'measure_temperature.dhw') ?? sensorValue(snapshot, 'dhwTankTemp');
   const bufferC = capNumber(device, 'measure_temperature.buffer_tank') ?? sensorValue(snapshot, 'bufferTankTemp');
@@ -187,7 +187,7 @@ export function buildLiveOperationWidgetState(context: WidgetStateContext): Live
 
   const compressorHz = capNumber(device, 'measure_frequency.compressor_freq')
     ?? sensorValue(snapshot, 'compRunningFreq');
-  const deltaTC = outletC !== null && inletC !== null ? inletC - outletC : null;
+  const deltaTC = outletC !== null && inletC !== null ? outletC - inletC : null;
   const thermalPowerKw = flowLpm !== null && deltaTC !== null
     ? Math.abs(flowLpm * deltaTC * THERMAL_POWER_FACTOR_KW_PER_LPM_PER_C)
     : null;

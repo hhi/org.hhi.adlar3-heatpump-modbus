@@ -465,8 +465,8 @@
     {
       "modbusData": {
         "address": 42,
-        "registerValue": 300,
-        "title": "3-0042 Inlet Water Temperature (TA)",
+        "registerValue": 290,
+        "title": "3-0042 Return Water Temperature (TE1)",
         "dataSize": 16,
         "displayFormat": {
           "Decimal": {}
@@ -476,8 +476,8 @@
     {
       "modbusData": {
         "address": 43,
-        "registerValue": 290,
-        "title": "3-0043 Leaving Water Temperature (TE1)",
+        "registerValue": 310,
+        "title": "3-0043 Supply Water Temperature (TA)",
         "dataSize": 16,
         "displayFormat": {
           "Decimal": {}

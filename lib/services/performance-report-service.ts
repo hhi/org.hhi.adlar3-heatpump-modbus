@@ -563,7 +563,7 @@ export class PerformanceReportService {
     let deltaVsCompressorCheck: TelemetryCheck & { correlation?: number };
 
     if (inlet !== null && outlet !== null && isCompressorActive) {
-      const deltaT = outlet - inlet; // Heating mode: outlet > inlet
+      const deltaT = outlet - inlet; // Heating mode: supply/outlet > return/inlet
       const absDelta = Math.abs(deltaT);
 
       let deltaOk: boolean;

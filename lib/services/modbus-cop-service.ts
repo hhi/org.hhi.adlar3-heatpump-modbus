@@ -147,8 +147,8 @@ export class ModbusCOPService {
     return {
       electricalPower: this.firstPositive(externalPower, internalPowerW),
       waterFlowRate: this.firstPositive(externalFlow, this.toLitersPerMinute(sensors.waterFlow)),
-      inletTemperature: sensors.aanvoerTA?.value,
-      outletTemperature: sensors.retourTE1?.value,
+      inletTemperature: sensors.retourTE1?.value,
+      outletTemperature: sensors.aanvoerTA?.value,
       compressorFrequency: sensors.compRunningFreq?.value,
       ambientTemperature: this.firstDefined(externalAmbient, sensors.ambientT4?.value),
       fanMotorFrequency: sensors.fanSpeed?.value !== undefined

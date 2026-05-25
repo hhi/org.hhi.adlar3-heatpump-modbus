@@ -166,6 +166,24 @@
       font-weight: 700;
     }
 
+    .regulation {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      min-width: 0;
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.15;
+    }
+
+    .regulation-value {
+      color: var(--text);
+      font-size: 14px;
+      font-weight: 800;
+    }
+
     .power-line {
       display: grid;
       grid-template-columns: 1fr 1fr;
@@ -292,6 +310,12 @@
         return Number(value).toFixed(decimals);
       }
 
+      function formatSignedValue(value, suffix, decimals) {
+        if (value === null || value === undefined || Number.isNaN(Number(value))) return '-';
+        var number = Number(value);
+        return (number > 0 ? '+' : '') + number.toFixed(decimals) + suffix;
+      }
+
       function formatAge(ageMs) {
         if (ageMs === null || ageMs === undefined) return '-';
         var seconds = Math.max(0, Math.round(ageMs / 1000));
@@ -339,6 +363,9 @@
         var cop = state.process.liveCopEstimate !== null
           ? state.process.liveCopEstimate
           : state.process.capabilityCop;
+        var setpointDeviation = state.temperatures.outletC !== null && state.temperatures.setpointC !== null
+          ? state.temperatures.outletC - state.temperatures.setpointC
+          : null;
 
         root.className = 'widget';
         root.innerHTML = [
@@ -355,6 +382,7 @@
           '<div>',
           '<div class="hero-label">Aanvoer - retour</div>',
           '<div class="delta"><span class="delta-value">' + formatValue(state.process.deltaTC, '', 1) + '</span><span class="delta-unit">C</span></div>',
+          '<div class="regulation"><span>Setpoint-afwijking</span><span class="regulation-value">' + formatSignedValue(setpointDeviation, ' C', 1) + '</span></div>',
           '</div>',
           '<div class="power-line">',
           metricBox('Input', formatNumber(state.process.electricalPowerKw, 2), 'kW'),
@@ -369,8 +397,8 @@
           '</div>',
           '</section>',
           '<section class="footer">',
-          footerItem('Retour (TE1)', formatValue(state.temperatures.outletC, ' C', 1)),
-          footerItem('Aanvoer (TA)', formatValue(state.temperatures.inletC, ' C', 1)),
+          footerItem('Aanvoer (TA)', formatValue(state.temperatures.outletC, ' C', 1)),
+          footerItem('Retour (TE1)', formatValue(state.temperatures.inletC, ' C', 1)),
           footerItem('Setpoint', formatValue(state.temperatures.setpointC, ' C', 1)),
           footerItem('Buiten (T4)', formatValue(state.temperatures.ambientC, ' C', 1)),
           footerItem('Laatste poll', formatPoll(state.data.timestamp, state.data.ageMs)),

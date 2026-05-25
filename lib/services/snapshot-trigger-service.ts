@@ -54,8 +54,8 @@ export class SnapshotTriggerService {
     this._detectNumericChange('ambient', snap.sensors.ambientT4?.value, 'ambient_temperature_changed', trigger, (value) => ({
       current_temperature: this._round1(value),
     }));
-    this._detectInletOutletChange('inlet', snap.sensors.aanvoerTA?.value, 'inlet_temperature_changed', 'inlet_temperature_value_changed', trigger);
-    this._detectInletOutletChange('outlet', snap.sensors.retourTE1?.value, 'outlet_temperature_changed', 'outlet_temperature_value_changed', trigger);
+    this._detectInletOutletChange('inlet', snap.sensors.retourTE1?.value, 'inlet_temperature_changed', 'inlet_temperature_value_changed', trigger);
+    this._detectInletOutletChange('outlet', snap.sensors.aanvoerTA?.value, 'outlet_temperature_changed', 'outlet_temperature_value_changed', trigger);
 
     const mode = snap.control.mode;
     if (this._lastHeatingMode !== null && mode !== this._lastHeatingMode) {

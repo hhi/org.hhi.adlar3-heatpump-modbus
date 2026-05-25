@@ -63,7 +63,7 @@ const ADLAR3_POLL_SUPERFAST_DEF: RegisterPollGroupDefinition = {
   interval: 5_000,
   reads: [
     { start: 38, count: 2, label: 'AIII status 3-38..3-39', fc: 'input' },
-    { start: 43, count: 1, label: 'AIII outlet temp 3-43', fc: 'input' },
+    { start: 42, count: 2, label: 'AIII return/supply temps 3-42..3-43', fc: 'input' },
     { start: 64, count: 1, label: 'AIII water flow 3-64', fc: 'input' },
     { start: 79, count: 1, label: 'AIII compressor actual freq 3-79', fc: 'input' },
   ],
@@ -111,8 +111,8 @@ const ADLAR3_POLL_ONCE_DEF: RegisterPollGroupDefinition = {
 const SENSOR_DESCRIPTORS: readonly SensorDescriptor[] = [
   { key: 'roomTemp', def: SENSOR_REGISTERS.roomTemperature, signed: true },
   { key: 'totalOutlet', def: SENSOR_REGISTERS.totalLeavingWaterTemp, signed: true },
-  { key: 'aanvoerTA', def: SENSOR_REGISTERS.inletWaterTemp, signed: true },
-  { key: 'retourTE1', def: SENSOR_REGISTERS.outletWaterTemp, signed: true },
+  { key: 'retourTE1', def: SENSOR_REGISTERS.inletWaterTemp, signed: true },
+  { key: 'aanvoerTA', def: SENSOR_REGISTERS.outletWaterTemp, signed: true },
   { key: 'bufferTankTemp', def: SENSOR_REGISTERS.bufferTankLowerTemp, signed: true },
   { key: 'dhwTankTemp', def: SENSOR_REGISTERS.dhwTankTemp, signed: true },
   { key: 'zone2Temp', def: SENSOR_REGISTERS.zone2MixingInletTemp, signed: true },
@@ -487,8 +487,8 @@ export class Adlar3ModbusService extends EventEmitter {
   }
 
   private buildCop(): CopSnapshot {
-    const aanvoerTemp = this.readScaledValue(SENSOR_REGISTERS.inletWaterTemp, true);
-    const retourTemp = this.readScaledValue(SENSOR_REGISTERS.outletWaterTemp, true);
+    const aanvoerTemp = this.readScaledValue(SENSOR_REGISTERS.outletWaterTemp, true);
+    const retourTemp = this.readScaledValue(SENSOR_REGISTERS.inletWaterTemp, true);
     const ambientTemp = this.readScaledValue(SENSOR_REGISTERS.ambientTemp, true);
     const deltaT = aanvoerTemp - retourTemp;
     const internalFlowM3h = this.readScaledValue(SENSOR_REGISTERS.waterFlow);

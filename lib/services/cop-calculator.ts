@@ -13,8 +13,8 @@ export interface COPDataSources {
 
   // For Method 1: Direct Thermal Calculation
   waterFlowRate?: number; // L/min
-  inletTemperature?: number; // °C
-  outletTemperature?: number; // °C
+  inletTemperature?: number; // °C, return/retour water
+  outletTemperature?: number; // °C, supply/aanvoer water
 
   // For Method 2: Compressor Correlation
   compressorFrequency?: number; // Hz
@@ -107,6 +107,9 @@ export interface COPCalculationConfig {
  * COP Calculator Service - implements all three calculation methods from documentation
  */
 export class COPCalculator {
+  private static waterDeltaT(outletTempC: number, inletTempC: number): number {
+    return outletTempC - inletTempC;
+  }
 
   /**
    * Calculate COP using the best available method based on data availability
@@ -242,7 +245,7 @@ export class COPCalculator {
         dataSources: {
           electricalPower: { value: electricalPower, source: 'device' },
           waterFlowRate: { value: waterFlowRate, source: 'device' },
-          temperatureDifference: { value: outletTemp - inletTemp, source: 'device' },
+          temperatureDifference: { value: this.waterDeltaT(outletTemp, inletTemp), source: 'device' },
           compressorFrequency: { value: compressorFreq, source: data.compressorFrequency ? 'device' : 'estimated' },
         },
         outlierReason: 'Compressor not running - detecting backup heater operation, not heat pump',
@@ -256,7 +259,7 @@ export class COPCalculator {
     const massFlowRate = waterFlowRate / 60; // kg/s (density of water ≈ 1 kg/L)
 
     // Calculate temperature difference
-    const temperatureDifference = outletTemp - inletTemp; // °C or K
+    const temperatureDifference = this.waterDeltaT(outletTemp, inletTemp); // °C or K
 
     // Calculate thermal output: Q_thermal = ṁ × Cp × ΔT
     const thermalOutput = massFlowRate * DeviceConstants.WATER_SPECIFIC_HEAT_CAPACITY * temperatureDifference; // W
@@ -350,7 +353,7 @@ export class COPCalculator {
   private static calculateTemperatureDifference(data: COPDataSources): COPCalculationResult {
     const inletTemp = data.inletTemperature!; // °C
     const outletTemp = data.outletTemperature!; // °C
-    const temperatureDifference = outletTemp - inletTemp; // °C
+    const temperatureDifference = this.waterDeltaT(outletTemp, inletTemp); // °C
 
     // Get additional data for enhanced calculation
     const ambientTemp = data.ambientTemperature || 10; // Default 10°C if unknown
@@ -583,7 +586,7 @@ export class COPCalculator {
       };
     }
 
-    const temperatureDifference = outletTemp - inletTemp;
+    const temperatureDifference = this.waterDeltaT(outletTemp, inletTemp);
 
     // Calculate valve efficiency factor based on positions
     // EEV optimal range: 200-400 pulse-steps, EVI optimal range: 100-300 pulse-steps
@@ -692,7 +695,7 @@ export class COPCalculator {
     const massFlowRate = waterFlowRate / 60; // kg/s
 
     // Calculate temperature difference
-    const temperatureDifference = outletTemp - inletTemp;
+    const temperatureDifference = this.waterDeltaT(outletTemp, inletTemp);
 
     // Calculate thermal output: Q_thermal = ṁ × Cp × ΔT
     const thermalOutput = massFlowRate * DeviceConstants.WATER_SPECIFIC_HEAT_CAPACITY * temperatureDifference;
@@ -769,7 +772,7 @@ export class COPCalculator {
 
     // Calculate thermal output using standard direct thermal method
     const massFlowRate = waterFlowRate / 60; // kg/s
-    const temperatureDifference = outletTemp - inletTemp; // °C
+    const temperatureDifference = this.waterDeltaT(outletTemp, inletTemp); // °C
     const thermalOutput = massFlowRate * DeviceConstants.WATER_SPECIFIC_HEAT_CAPACITY * temperatureDifference; // W
 
     // Calculate COP

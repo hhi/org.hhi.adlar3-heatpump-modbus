@@ -206,14 +206,14 @@
     },
     "measure_temperature.outlet": {
       "title": {
-        "en": "Return temperature (TE1)",
-        "nl": "Retourtemperatuur (TE1)"
+        "en": "Supply temperature (TA)",
+        "nl": "Aanvoertemperatuur (TA)"
       }
     },
     "measure_temperature.inlet": {
       "title": {
-        "en": "Supply temperature (TA)",
-        "nl": "Aanvoertemperatuur (TA)"
+        "en": "Return temperature (TE1)",
+        "nl": "Retourtemperatuur (TE1)"
       }
     },
     "measure_temperature.ambient": {
