@@ -117,19 +117,19 @@
     <div class="live-card-unit">kW</div>
   </div>
   <div class="live-card" id="lc-outlet">
-    <div class="live-card-label">Aanvoer (T7)</div>
+    <div class="live-card-label">Retour (TE1)</div>
     <div class="live-card-value" id="lv-outlet">—</div>
     <div class="live-card-unit">°C</div>
     <svg class="live-card-spark" id="sp-outlet" viewBox="0 0 120 24" preserveAspectRatio="none"></svg>
   </div>
   <div class="live-card" id="lc-inlet">
-    <div class="live-card-label">Retour (T6)</div>
+    <div class="live-card-label">Aanvoer (TA)</div>
     <div class="live-card-value" id="lv-inlet">—</div>
     <div class="live-card-unit">°C</div>
     <svg class="live-card-spark" id="sp-inlet" viewBox="0 0 120 24" preserveAspectRatio="none"></svg>
   </div>
   <div class="live-card" id="lc-ambient">
-    <div class="live-card-label">Buiten (T1)</div>
+    <div class="live-card-label">Buiten (T4)</div>
     <div class="live-card-value" id="lv-ambient">—</div>
     <div class="live-card-unit">°C</div>
     <svg class="live-card-spark" id="sp-ambient" viewBox="0 0 120 24" preserveAspectRatio="none"></svg>
@@ -294,17 +294,17 @@ function updateLiveOverview(d) {
   if (pwEl) pwEl.textContent = Number.isFinite(power.derivedPowerKw) ? power.derivedPowerKw.toFixed(2) : '—';
 
   // Temperaturen
-  setLiveCard('lc-outlet',  'lv-outlet',  'sp-outlet',  'outlet',  sensors.outletT7?.value);
-  setLiveCard('lc-inlet',   'lv-inlet',   'sp-inlet',   'inlet',   sensors.inletT6?.value);
-  setLiveCard('lc-ambient', 'lv-ambient', 'sp-ambient', 'ambient', sensors.ambientT1?.value);
+  setLiveCard('lc-outlet',  'lv-outlet',  'sp-outlet',  'outlet',  sensors.retourTE1?.value);
+  setLiveCard('lc-inlet',   'lv-inlet',   'sp-inlet',   'inlet',   sensors.aanvoerTA?.value);
+  setLiveCard('lc-ambient', 'lv-ambient', 'sp-ambient', 'ambient', sensors.ambientT4?.value);
   setLiveCard('lc-dhw',     'lv-dhw',     'sp-dhw',     'dhw',     sensors.dhwTankTemp?.value);
 
   // Machine
   const freq = sensors.compRunningFreq?.value;
   const flow = sensors.waterFlow?.value;
   const fan  = sensors.fanSpeed?.value;
-  const inlet = sensors.inletT6?.value;
-  const outlet = sensors.outletT7?.value;
+  const inlet = sensors.aanvoerTA?.value;
+  const outlet = sensors.retourTE1?.value;
 
   const compEl = document.getElementById('lv-comp');
   if (compEl) compEl.textContent = Number.isFinite(freq) ? Math.round(freq) : '—';

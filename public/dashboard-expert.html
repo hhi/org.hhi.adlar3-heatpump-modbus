@@ -267,6 +267,7 @@
   <div class="view-toggle" aria-label="Dashboard weergave">
     <button type="button" id="view-address" class="active" onclick="setViewMode('address')">Adresweergave</button>
     <button type="button" id="view-functional" onclick="setViewMode('functional')">Functioneel</button>
+    <button type="button" id="view-unit" onclick="setViewMode('unit')">Eenheid</button>
   </div>
   <button type="button" class="btn-read btn-expand" onclick="expandAll()">&#9660; Alles uitklappen</button>
   <button type="button" class="btn-read btn-expand" onclick="collapseAll()">&#9650; Alles inklappen</button>
@@ -332,6 +333,7 @@
 // ── State ──────────────────────────────────────────────────────────────────────
 let blocks = [];
 let functionalBlocks = [];
+let unitBlocks = [];
 let visibleBlocks = [];
 let viewMode = 'address';
 let pendingWrite = null; // { reg, rowEl }
@@ -364,6 +366,7 @@ async function init() {
     if (!r.ok) throw new Error(r.statusText);
     blocks = await r.json();
     functionalBlocks = buildFunctionalBlocks(blocks);
+    unitBlocks = buildUnitBlocks(blocks);
     visibleBlocks = blocks;
     renderBlocks();
     await loadRegisterCache();
@@ -405,7 +408,7 @@ function applyFilters(sourceBlocks) {
         const addrHex = '0x' + reg.address.toString(16).padStart(4, '0');
         const addrHexShort = '0x' + reg.address.toString(16);
         const modiconId = `${reg.fc === 'input' ? '3' : '4'}-${reg.address}`;
-        const haystack = `${reg.key || ''} ${reg.registerId || ''} ${modiconId} ${reg.name || ''} ${reg.desc || ''} ${addrHex} ${addrHexShort} ${reg.address}`.toLowerCase();
+        const haystack = `${reg.key || ''} ${reg.registerId || ''} ${modiconId} ${reg.name || ''} ${reg.desc || ''} ${reg.unit || ''} ${addrHex} ${addrHexShort} ${reg.address}`.toLowerCase();
         if (!haystack.includes(filterText)) return false;
       }
       if (filterPollGroups.size > 0) {
@@ -434,7 +437,7 @@ function hasActiveFilters() {
 function renderBlocks() {
   const container = document.getElementById('blocks-container');
   container.innerHTML = '';
-  const source = viewMode === 'functional' ? functionalBlocks : blocks;
+  const source = getViewBlocks();
   visibleBlocks = applyFilters(source);
   const isFiltered = hasActiveFilters();
   for (const block of visibleBlocks) {
@@ -467,7 +470,14 @@ function setViewMode(mode) {
   viewMode = mode;
   document.getElementById('view-address').classList.toggle('active', mode === 'address');
   document.getElementById('view-functional').classList.toggle('active', mode === 'functional');
+  document.getElementById('view-unit').classList.toggle('active', mode === 'unit');
   renderBlocks();
+}
+
+function getViewBlocks() {
+  if (viewMode === 'functional') return functionalBlocks;
+  if (viewMode === 'unit') return unitBlocks;
+  return blocks;
 }
 
 function buildFunctionalBlocks(sourceBlocks) {
@@ -480,8 +490,10 @@ function buildFunctionalBlocks(sourceBlocks) {
     { id: 'func_compressor', label: 'Compressor & ventilator', match: r => hasAny(r, ['compressor', 'fan', 'frequency', 'freq', 'ipm', 'eev', 'evi']) || inAddress(r, 0x0040, 0x0048) },
     { id: 'func_water', label: 'Watercircuit', match: r => hasAny(r, ['water', 'flow', 'pump', 'pressure', 'mixing', 'buffer']) },
     { id: 'func_energy', label: 'Energie & COP', match: r => hasAny(r, ['energy', 'power', 'current', 'voltage', 'consumption', 'cop']) },
-    { id: 'func_smartgrid', label: "Smart Grid & commando's", match: r => hasAny(r, ['smart grid', 'command', 'mode']) || inAddress(r, 0x0330, 0x0345) || !!r.isCoil },
+    { id: 'func_smartgrid', label: "Smart Grid & commando's", match: r => hasAny(r, ['smart grid', 'command', 'mode']) || inAddress(r, 0x0330, 0x0345) || !!r.isCoil || (r.fc === 'holding' && r.address === 2104) },
+    { id: 'func_temperature', label: 'Temperatuur', match: r => r.unit === '°C' },
     { id: 'func_service', label: 'Service & firmware', match: r => hasAny(r, ['version', 'firmware', 'protocol', 'manufacturer', 'protection']) || inAddress(r, 0x0360, 0x0363) || !!r.serviceOnly },
+    { id: 'func_reserved', label: 'Gereserveerd', match: r => (r.name || '').toLowerCase().startsWith('reserved') },
   ];
 
   const flat = [];
@@ -518,6 +530,66 @@ function buildFunctionalBlocks(sourceBlocks) {
   }
 
   return result;
+}
+
+function buildUnitBlocks(sourceBlocks) {
+  const flat = [];
+  for (const block of sourceBlocks) {
+    for (const reg of block.registers) {
+      flat.push({ ...reg, sourceBlockId: block.id, sourceBlockLabel: block.label, readOnly: reg.readOnly || block.readOnly });
+    }
+  }
+
+  const groups = new Map();
+  for (const reg of flat) {
+    const key = unitGroupKey(reg);
+    if (!groups.has(key)) {
+      groups.set(key, {
+        id: 'unit_' + sanitizeBlockId(key),
+        label: unitGroupLabel(reg),
+        sortKey: unitSortKey(key),
+        registers: [],
+      });
+    }
+    groups.get(key).registers.push(reg);
+  }
+
+  return Array.from(groups.values())
+    .sort((a, b) => a.sortKey.localeCompare(b.sortKey, 'nl'))
+    .map(group => ({
+      id: group.id,
+      label: group.label,
+      readOnly: group.registers.every(reg => reg.readOnly),
+      registers: group.registers.sort((a, b) => (a.fc || '').localeCompare(b.fc || '') || a.address - b.address),
+    }));
+}
+
+function unitGroupKey(reg) {
+  if (reg.isCoil) return '__coil__';
+  const unit = String(reg.unit || '').trim();
+  return unit || '__none__';
+}
+
+function unitGroupLabel(reg) {
+  const key = unitGroupKey(reg);
+  if (key === '__coil__') return 'Coils / bitwaarden';
+  if (key === '__none__') return 'Zonder eenheid';
+  return `Eenheid: ${key}`;
+}
+
+function unitSortKey(key) {
+  const order = ['°C', 'W', 'kW', 'V', 'A', 'Hz', 'RPM', '%', 'L/min', 'm³/h', 'P', 'bar'];
+  const index = order.indexOf(key);
+  if (index >= 0) return String(index).padStart(3, '0') + '_' + key;
+  if (key === '__none__') return '998_Zonder eenheid';
+  if (key === '__coil__') return '999_Coils';
+  return '500_' + key;
+}
+
+function sanitizeBlockId(value) {
+  return Array.from(String(value))
+    .map(char => char.charCodeAt(0).toString(16))
+    .join('_') || 'none';
 }
 
 function hasAny(reg, terms) {
@@ -844,7 +916,7 @@ function renderReadProgress(progress, finished = false) {
 
 function getRangeEligibleRegisterCount() {
   const seen = new Set();
-  const source = viewMode === 'functional' ? functionalBlocks : blocks;
+  const source = getViewBlocks();
   source.forEach(block => {
     block.registers.forEach(reg => {
       if (!reg.isCoil && (reg.min != null || reg.max != null)) seen.add(registerKey(reg));
@@ -991,7 +1063,7 @@ function buildMarkdownReport() {
   lines.push('# Modbus3 Expert Dashboard Rapport');
   lines.push('');
   lines.push(`Datum: ${formatDateTime(now)}`);
-  lines.push(`Weergave: ${viewMode === 'functional' ? 'Functioneel' : 'Adresweergave'}`);
+  lines.push(`Weergave: ${viewModeLabel()}`);
   lines.push(`Filters: ${activeFilterDescription()}`);
   lines.push('');
   lines.push('## Samenvatting');
@@ -1042,6 +1114,12 @@ function buildMarkdownReport() {
   }
 
   return lines.join('\n');
+}
+
+function viewModeLabel() {
+  if (viewMode === 'functional') return 'Functioneel';
+  if (viewMode === 'unit') return 'Eenheid';
+  return 'Adresweergave';
 }
 
 function getVisibleReadRows() {

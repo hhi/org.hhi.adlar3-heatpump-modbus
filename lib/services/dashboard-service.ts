@@ -734,10 +734,12 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
         scaleMultiply: _scaleMultiplyForDef(def, tempScale),
         isTemperatureRegister: _isTemperatureDef(def),
         readOnly: true,
-        fc: 'input',
+        fc: 'input' as const,
         bits: key === 'systemStatus' ? STATUS_BITS : undefined,
-        pollGroups: _pollGroupsForAddress((def as { address: number }).address, 'input'),
-      })),
+        pollGroups: (def as { name: string }).name === 'Reserved'
+          ? []
+          : _pollGroupsForAddress((def as { address: number }).address, 'input'),
+      })).sort((a, b) => a.address - b.address),
     },
     {
       id: 'blok2_control',
@@ -782,7 +784,6 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
         { start: 62, count: 3, fc: 'input' },
         { start: 70, count: 10, fc: 'input' },
         { start: 80, count: 2, fc: 'input' },
-        { start: 2100, count: 15, fc: 'holding' },
       ],
     },
     {
@@ -790,6 +791,7 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
       reads: [
         { start: 60, count: 2, fc: 'input' },
         { start: 86, count: 18, fc: 'input' },
+        { start: 2100, count: 15, fc: 'holding' },
       ],
     },
     {
@@ -801,7 +803,9 @@ function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string
     {
       name: 'once',
       reads: [
-        { start: 2100, count: 15, fc: 'holding' },
+        { start: 0,  count: 10, fc: 'input' },
+        { start: 34, count: 4,  fc: 'input' },
+        { start: 66, count: 4,  fc: 'input' },
       ],
     },
   ];

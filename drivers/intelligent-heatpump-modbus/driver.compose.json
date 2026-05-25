@@ -206,20 +206,20 @@
     },
     "measure_temperature.outlet": {
       "title": {
-        "en": "Outlet temperature (T7)",
-        "nl": "Uitlaattemperatuur (T7)"
+        "en": "Return temperature (TE1)",
+        "nl": "Retourtemperatuur (TE1)"
       }
     },
     "measure_temperature.inlet": {
       "title": {
-        "en": "Inlet temperature (T6)",
-        "nl": "Inlaattemperatuur (T6)"
+        "en": "Supply temperature (TA)",
+        "nl": "Aanvoertemperatuur (TA)"
       }
     },
     "measure_temperature.ambient": {
       "title": {
-        "en": "Ambient temperature (T1)",
-        "nl": "Buitentemperatuur (T1)"
+        "en": "Ambient temperature (T4)",
+        "nl": "Buitentemperatuur (T4)"
       }
     },
     "measure_temperature.outer_coil": {
@@ -230,38 +230,38 @@
     },
     "measure_temperature.suction": {
       "title": {
-        "en": "Suction temperature (T4)",
-        "nl": "Zuigtemperatuur (T4)"
+        "en": "Suction temperature (TH)",
+        "nl": "Zuigtemperatuur (TH)"
       }
     },
     "measure_temperature.exhaust": {
       "title": {
-        "en": "Exhaust temperature (T5)",
-        "nl": "Uitlaattemperatuur compressor (T5)"
+        "en": "Discharge temperature (TP)",
+        "nl": "Perstemperatuur (TP)"
       }
     },
     "measure_temperature.dhw": {
       "title": {
-        "en": "DHW tank temperature",
-        "nl": "Warmwaterboiler temperatuur"
+        "en": "DHW tank temperature (TZ2)",
+        "nl": "Warmwaterboiler temperatuur (TZ2)"
       }
     },
     "measure_temperature.buffer_tank": {
       "title": {
-        "en": "Buffer tank temperature",
-        "nl": "Buffervat temperatuur"
+        "en": "Buffer tank temperature (TW)",
+        "nl": "Buffervat temperatuur (TW)"
       }
     },
     "measure_temperature.total_outlet": {
       "title": {
-        "en": "Total water outlet temperature",
-        "nl": "Totaal uitlaattemperatuur water"
+        "en": "Total outlet temperature (TC)",
+        "nl": "Totaal aanvoertemperatuur (TC)"
       }
     },
     "measure_temperature.zone2": {
       "title": {
-        "en": "Zone 2 temperature",
-        "nl": "Zone 2 temperatuur"
+        "en": "Zone 2 temperature (Tso)",
+        "nl": "Zone 2 temperatuur (Tso)"
       }
     },
     "measure_current.comp_phase": {

@@ -416,7 +416,7 @@ export class ServiceCoordinator {
     }
 
     // Update capability health for key sensors
-    this.capabilityHealth.updateCapabilityHealth('measure_temperature.outlet', snapshot.sensors.outletT7?.value);
+    this.capabilityHealth.updateCapabilityHealth('measure_temperature.outlet', snapshot.sensors.retourTE1?.value);
     this.capabilityHealth.updateCapabilityHealth('measure_power', snapshot.power.derivedPowerKw * 1000);
     this.capabilityHealth.updateCapabilityHealth('onoff', snapshot.control.on);
 
@@ -431,7 +431,7 @@ export class ServiceCoordinator {
       this._defrostStartedAt = Date.now();
     } else if (!defrosting && this._prevDefrosting && this._defrostStartedAt !== null) {
       const durationSec = (Date.now() - this._defrostStartedAt) / 1000;
-      const outdoorTemp = snapshot.sensors.ambientT1?.value ?? 0;
+      const outdoorTemp = snapshot.sensors.ambientT4?.value ?? 0;
       this._defrostStartedAt = null;
       this.adaptiveControl.onDefrostComplete(outdoorTemp, durationSec).catch((e) => {
         this.logger('ServiceCoordinator: onDefrostComplete failed', e);
