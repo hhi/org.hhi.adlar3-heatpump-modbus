@@ -488,7 +488,10 @@ function buildFunctionalBlocks(sourceBlocks) {
     { id: 'func_cooling', label: 'Koeling', match: r => hasAny(r, ['cooling', 'cool']) || r.address === 0x0300 },
     { id: 'func_heating', label: 'Verwarming', match: r => hasAny(r, ['heating', 'heat', 'floor', 'climate curve', 'stooklijn', 'water outlet', 'water inlet', 'room temperature']) || inAddress(r, 0x0301, 0x0303) },
     { id: 'func_compressor', label: 'Compressor & ventilator', match: r => hasAny(r, ['compressor', 'fan', 'frequency', 'freq', 'ipm', 'eev', 'evi']) || inAddress(r, 0x0040, 0x0048) },
-    { id: 'func_water', label: 'Watercircuit', match: r => hasAny(r, ['water', 'flow', 'pump', 'pressure', 'mixing', 'buffer']) },
+    { id: 'func_eev', label: 'EEV & ventielregeling', match: r => hasAny(r, ['eev', 'valve', 'enthalpy', 'superheat', 'opening', 'coeff']) },
+    { id: 'func_evi', label: 'EVI & vloeistofinjector', match: r => hasAny(r, ['evi', 'liquid injection']) },
+    { id: 'func_defrost', label: 'Ontdooiing & antibevriezing', match: r => hasAny(r, ['defrost', 'antifreeze', 'anti-condensation', 'throttle bypass', 'dew point', 'constant temp operation']) },
+    { id: 'func_water', label: 'Watercircuit', match: r => hasAny(r, ['water', 'flow', 'pump', 'pressure', 'mixing', 'buffer', 'tank temp']) },
     { id: 'func_energy', label: 'Energie & COP', match: r => hasAny(r, ['energy', 'power', 'current', 'voltage', 'consumption', 'cop']) },
     { id: 'func_smartgrid', label: "Smart Grid & commando's", match: r => hasAny(r, ['smart grid', 'command', 'mode']) || inAddress(r, 0x0330, 0x0345) || !!r.isCoil || (r.fc === 'holding' && r.address === 2104) },
     { id: 'func_temperature', label: 'Temperatuur', match: r => r.unit === '°C' },
@@ -503,12 +506,11 @@ function buildFunctionalBlocks(sourceBlocks) {
     }
   }
 
-  const assigned = new Set();
+  const matched = new Set();
   const result = categories.map(category => {
     const registers = flat.filter(reg => {
-      if (assigned.has(reg.address)) return false;
       if (!category.match(reg)) return false;
-      assigned.add(reg.address);
+      matched.add(registerKey(reg));
       return true;
     });
     return {
@@ -519,7 +521,7 @@ function buildFunctionalBlocks(sourceBlocks) {
     };
   }).filter(block => block.registers.length > 0);
 
-  const remaining = flat.filter(reg => !assigned.has(reg.address));
+  const remaining = flat.filter(reg => !matched.has(registerKey(reg)));
   if (remaining.length > 0) {
     result.push({
       id: 'func_overig',
@@ -605,14 +607,13 @@ function renderRow(block, reg) {
   const addrHex = '0x' + reg.address.toString(16).toUpperCase().padStart(4, '0');
   const range = rangeStr(reg);
   const key = registerKey(reg);
-  const warnId = rangeWarningId(reg);
   const rangeWarningTip = rangeWarningTips.get(key);
   const rangeWarningAttrs = outOfRangeRegisters.has(key)
     ? ` style="display:inline-block"${rangeWarningTip ? ` data-tip="${esc(rangeWarningTip)}"` : ''}`
     : '';
   const nameHtml = `${esc(reg.name || reg.key)}${reg.serviceOnly ? '<span class="svc-badge">service</span>' : ''}${reg.desc ? `<div class="desc-text">${esc(reg.desc)}</div>` : ''}`;
   const hasBits = reg.bits && Object.keys(reg.bits).length > 0;
-  const bitsBtn = hasBits ? `<span class="bits-toggle" data-tip="Toon/verberg afzonderlijke bits" onclick="toggleBits('${reg.address}')">bits</span>` : '';
+  const bitsBtn = hasBits ? `<span class="bits-toggle" data-tip="Toon/verberg afzonderlijke bits" onclick="toggleBits('${esc(key)}')">bits</span>` : '';
   const canWrite = !block.readOnly && !reg.readOnly;
   const fc = reg.isCoil ? 'FC01' : (reg.fc === 'input' ? 'FC04' : 'FC03');
   const readTip = `Lees register live (${fc}) — adres ${addrHex}`;
@@ -624,13 +625,13 @@ function renderRow(block, reg) {
     : '';
 
   return `
-    <tr id="row-${reg.address}" data-addr="${reg.address}" data-multiply="${reg.multiply||1}" data-iscoil="${!!reg.isCoil}" data-fc="${esc(reg.fc || 'holding')}">
+    <tr data-reg-key="${esc(key)}" data-addr="${reg.address}" data-multiply="${reg.multiply||1}" data-iscoil="${!!reg.isCoil}" data-fc="${esc(reg.fc || 'holding')}">
       <td class="addr">${addrHex}${bitsBtn}</td>
-      <td class="reg-id">${reg.fc === 'input' ? '3' : '4'}-${reg.address}<span class="range-warning" id="${warnId}" aria-label="Waarde buiten gedocumenteerd bereik"${rangeWarningAttrs}>!</span></td>
+      <td class="reg-id">${reg.fc === 'input' ? '3' : '4'}-${reg.address}<span class="range-warning" data-range-key="${esc(key)}" aria-label="Waarde buiten gedocumenteerd bereik"${rangeWarningAttrs}>!</span></td>
       <td class="name-cell">${nameHtml}</td>
       <td class="poll-cell">${renderPollGroups(reg.pollGroups)}</td>
-      <td class="val-raw" id="raw-${reg.address}">—</td>
-      <td class="val-scaled" id="scaled-${reg.address}">—</td>
+      <td class="val-raw" data-raw-key="${esc(key)}">—</td>
+      <td class="val-scaled" data-scaled-key="${esc(key)}">—</td>
       <td class="unit">${esc(reg.unit||'')}</td>
       <td class="unit">${range}</td>
       <td class="actions-cell">
@@ -638,7 +639,7 @@ function renderRow(block, reg) {
         ${writeBtn}
       </td>
     </tr>
-    ${hasBits ? `<tr class="bits-row" id="bits-${reg.address}"><td colspan="9">${renderBitsTable(reg)}</td></tr>` : ''}`;
+    ${hasBits ? `<tr class="bits-row" data-bits-key="${esc(key)}"><td colspan="9">${renderBitsTable(reg)}</td></tr>` : ''}`;
 }
 
 function renderPollGroups(pollGroups) {
@@ -657,8 +658,9 @@ function renderPollGroups(pollGroups) {
 
 function renderBitsTable(reg) {
   if (!reg.bits) return '';
+  const key = registerKey(reg);
   const rows = Object.entries(reg.bits).map(([name, mask]) =>
-    `<tr><td class="bit-off" id="bit-${reg.address}-${mask}">○</td><td>${esc(name)}</td><td style="color:#475569;font-family:monospace;">bit ${Math.log2(mask)|0}</td></tr>`
+    `<tr><td class="bit-off" data-bit-key="${esc(key)}:${mask}">○</td><td>${esc(name)}</td><td style="color:#475569;font-family:monospace;">bit ${Math.log2(mask)|0}</td></tr>`
   ).join('');
   return `<table class="bits-table">${rows}</table>`;
 }
@@ -705,12 +707,24 @@ async function expandAll() {
   applyRegisterCacheToVisibleRows();
   if (!forceDirect) return;
 
-  const total = blocksToRead.reduce((sum, block) => sum + block.registers.length, 0);
-  if (total === 0) return;
+  const registersToRead = [];
+  const seen = new Set();
+  blocksToRead.forEach(block => {
+    block.registers.forEach(reg => {
+      const key = registerKey(reg);
+      if (seen.has(key)) return;
+      seen.add(key);
+      registersToRead.push(reg);
+    });
+  });
+  if (registersToRead.length === 0) return;
 
-  const progress = startReadProgress(total, 'Alles lezen');
-  for (const block of blocksToRead) {
-    await readBlock(block.id, progress);
+  const progress = startReadProgress(registersToRead.length, 'Alles lezen');
+  for (const reg of registersToRead) {
+    setReadProgressCurrent(progress, reg);
+    await readRow(reg.address, !!reg.isCoil, reg.multiply || 1, reg.fc || 'holding');
+    incrementReadProgress(progress);
+    await sleep(120);
   }
   finishReadProgress(progress);
 }
@@ -722,9 +736,10 @@ function collapseAll() {
   });
 }
 
-function toggleBits(addr) {
-  const row = document.getElementById('bits-' + addr);
-  if (row) row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+function toggleBits(key) {
+  document.querySelectorAll(`[data-bits-key="${key}"]`).forEach(row => {
+    row.style.display = row.style.display === 'table-row' ? 'none' : 'table-row';
+  });
 }
 
 // ── Register cache ────────────────────────────────────────────────────────────
@@ -768,13 +783,18 @@ function applyRegisterCacheToVisibleRows() {
 }
 
 function applyRegisterValue(addr, rawValue, scaledValue, isCoil, fc, source) {
-  const rawEl = document.getElementById('raw-' + addr);
-  const scEl  = document.getElementById('scaled-' + addr);
-  if (!rawEl || !scEl) return;
+  const key = `${fc || 'holding'}:${addr}`;
+  const rawEls = document.querySelectorAll(`[data-raw-key="${key}"]`);
+  const scEls = document.querySelectorAll(`[data-scaled-key="${key}"]`);
+  if (rawEls.length === 0 || scEls.length === 0) return;
 
   const displayValue = isCoil ? (rawValue ? '1 (aan)' : '0 (uit)') : String(rawValue);
-  rawEl.innerHTML = `${displayValue} <span class="value-source ${source}">${source === 'direct' ? 'direct' : 'cache'}</span>`;
-  scEl.textContent = isCoil ? '' : String(scaledValue ?? '');
+  rawEls.forEach(rawEl => {
+    rawEl.innerHTML = `${displayValue} <span class="value-source ${source}">${source === 'direct' ? 'direct' : 'cache'}</span>`;
+  });
+  scEls.forEach(scEl => {
+    scEl.textContent = isCoil ? '' : String(scaledValue ?? '');
+  });
   if (!isCoil) {
     recordRegisterRead(addr, fc || 'holding', rawValue, scaledValue, false);
     updateRangeWarning(addr, fc || 'holding', scaledValue);
@@ -784,10 +804,13 @@ function applyRegisterValue(addr, rawValue, scaledValue, isCoil, fc, source) {
 
 // ── Live lezen ────────────────────────────────────────────────────────────────
 async function readRow(addr, isCoil, multiply, fc = 'holding') {
-  const rawEl = document.getElementById('raw-' + addr);
-  const scEl  = document.getElementById('scaled-' + addr);
+  const key = `${fc || 'holding'}:${addr}`;
+  const rawEls = document.querySelectorAll(`[data-raw-key="${key}"]`);
+  const scEls = document.querySelectorAll(`[data-scaled-key="${key}"]`);
   directReadInFlight.add(addr);
-  rawEl.innerHTML = '<span class="reading">…</span>';
+  rawEls.forEach(rawEl => {
+    rawEl.innerHTML = '<span class="reading">…</span>';
+  });
 
   try {
     for (let attempt = 1; attempt <= 2; attempt++) {
@@ -805,14 +828,14 @@ async function readRow(addr, isCoil, multiply, fc = 'holding') {
           return;
         }
         if (attempt < 2) { await sleep(r.status === 503 ? 4000 : 600); continue; }
-        rawEl.textContent = '⚠ ' + (j.error || 'fout');
-        scEl.textContent = '';
+        rawEls.forEach(rawEl => { rawEl.textContent = '⚠ ' + (j.error || 'fout'); });
+        scEls.forEach(scEl => { scEl.textContent = ''; });
         recordRegisterError(addr, fc, j.error || 'fout');
         updateRangeWarning(addr, fc, null);
       } catch (e) {
         if (attempt < 2) { await sleep(600); continue; }
-        rawEl.textContent = '⚠ ' + e.message;
-        scEl.textContent = '';
+        rawEls.forEach(rawEl => { rawEl.textContent = '⚠ ' + e.message; });
+        scEls.forEach(scEl => { scEl.textContent = ''; });
         recordRegisterError(addr, fc, e.message);
         updateRangeWarning(addr, fc, null);
       }
@@ -949,16 +972,18 @@ function findVisibleRegister(addr, fc = 'holding') {
 function updateRangeWarning(addr, fc, scaledValue) {
   const reg = findVisibleRegister(addr, fc);
   const key = reg ? registerKey(reg) : `${fc}:${addr}`;
-  const warn = document.getElementById(rangeWarningId({ address: addr, fc }));
-  if (!warn) return;
+  const warnings = document.querySelectorAll(`[data-range-key="${key}"]`);
+  if (warnings.length === 0) return;
 
   const value = Number(scaledValue);
   if (!reg || reg.isCoil || !Number.isFinite(value) || (reg.min == null && reg.max == null)) {
     rangeCheckedRegisters.delete(key);
     outOfRangeRegisters.delete(key);
     rangeWarningTips.delete(key);
-    warn.style.display = 'none';
-    warn.removeAttribute('data-tip');
+    warnings.forEach(warn => {
+      warn.style.display = 'none';
+      warn.removeAttribute('data-tip');
+    });
     updateRangeSummary();
     return;
   }
@@ -972,8 +997,10 @@ function updateRangeWarning(addr, fc, scaledValue) {
   if (!below && !above) {
     outOfRangeRegisters.delete(key);
     rangeWarningTips.delete(key);
-    warn.style.display = 'none';
-    warn.removeAttribute('data-tip');
+    warnings.forEach(warn => {
+      warn.style.display = 'none';
+      warn.removeAttribute('data-tip');
+    });
     updateRangeSummary();
     return;
   }
@@ -985,8 +1012,10 @@ function updateRangeWarning(addr, fc, scaledValue) {
   const unit = reg.unit ? ` ${reg.unit}` : '';
   const tip = `Waarde buiten gedocumenteerd bereik: ${value}${unit}, verwacht ${expected}${unit}`;
   rangeWarningTips.set(key, tip);
-  warn.style.display = 'inline-block';
-  warn.setAttribute('data-tip', tip);
+  warnings.forEach(warn => {
+    warn.style.display = 'inline-block';
+    warn.setAttribute('data-tip', tip);
+  });
   updateRangeSummary();
 }
 
@@ -996,10 +1025,6 @@ function formatRangeNumber(value) {
 
 function registerKey(reg) {
   return `${reg.fc || 'holding'}:${reg.address}`;
-}
-
-function rangeWarningId(reg) {
-  return `range-warn-${reg.fc || 'holding'}-${reg.address}`;
 }
 
 // ── Markdown rapport ─────────────────────────────────────────────────────────
@@ -1199,27 +1224,32 @@ function md(value) {
 }
 
 function updateBits(addr, rawValue) {
-  const bitsRow = document.getElementById('bits-' + addr);
-  if (!bitsRow) return;
   const block = visibleBlocks.find(b => b.registers.some(r => r.address === addr));
   if (!block) return;
   const reg = block.registers.find(r => r.address === addr);
   if (!reg || !reg.bits) return;
+  const key = registerKey(reg);
   for (const [, mask] of Object.entries(reg.bits)) {
-    const el = document.getElementById('bit-' + addr + '-' + mask);
-    if (!el) continue;
-    const on = (rawValue & Number(mask)) !== 0;
-    el.textContent = on ? '●' : '○';
-    el.className = on ? 'bit-on' : 'bit-off';
+    document.querySelectorAll(`[data-bit-key="${key}:${mask}"]`).forEach(el => {
+      const on = (rawValue & Number(mask)) !== 0;
+      el.textContent = on ? '●' : '○';
+      el.className = on ? 'bit-on' : 'bit-off';
+    });
   }
 }
 
 function flashRow(addr) {
-  const row = document.getElementById('row-' + addr);
-  if (!row) return;
-  row.classList.remove('flash-green');
-  void row.offsetWidth; // reflow
-  row.classList.add('flash-green');
+  visibleBlocks.forEach(block => {
+    block.registers
+      .filter(reg => reg.address === addr)
+      .forEach(reg => {
+        document.querySelectorAll(`[data-reg-key="${registerKey(reg)}"]`).forEach(row => {
+          row.classList.remove('flash-green');
+          void row.offsetWidth; // reflow
+          row.classList.add('flash-green');
+        });
+      });
+  });
 }
 
 // ── Write dialog ──────────────────────────────────────────────────────────────
@@ -1238,7 +1268,7 @@ function openWriteDialog(addr) {
   document.getElementById('dlg-feedback').className = 'dlg-feedback';
 
   // Haal huidige waarde op
-  const rawEl = document.getElementById('raw-' + addr);
+  const rawEl = document.querySelector(`[data-raw-key="${registerKey(reg)}"]`);
   const curRaw = rawEl ? rawEl.textContent : '—';
   document.getElementById('dlg-current').textContent = 'Huidige waarde: ' + curRaw;
 
