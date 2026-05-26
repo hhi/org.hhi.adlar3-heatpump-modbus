@@ -303,7 +303,7 @@ export class ModbusTcpService extends EventEmitter {
     this._destroyed = false;
     if (this._connected) {
       this._connected = false;
-      this.socket.destroy();
+      this._gracefulClose();
       this.emit('disconnected', 'manual');
     }
   }
@@ -314,9 +314,21 @@ export class ModbusTcpService extends EventEmitter {
     this._clearBackoff();
     if (this._connected) {
       this._connected = false;
-      this.socket.destroy();
+      this._gracefulClose();
     }
     this.removeAllListeners();
+  }
+
+  private _gracefulClose(): void {
+    // socket.end() stuurt FIN zodat Modbus bridges de sessie netjes kunnen opruimen.
+    // Na 1s alsnog destroy() als de remote niet antwoordt.
+    try {
+      const socket = this.socket;
+      socket.end();
+      this._timers.setTimeout(() => socket.destroy(), 1_000);
+    } catch {
+      this.socket.destroy();
+    }
   }
 
   private _scheduleReconnect(): void {
