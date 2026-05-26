@@ -569,10 +569,10 @@ export class DashboardService {
     const map = new Map<number, string>();
     const groups = [
       { name: 'superfast', reads: [{ start: 38, count: 2 }, { start: 42, count: 2 }, { start: 64, count: 1 }, { start: 79, count: 1 }] },
-      { name: 'fast', reads: [{ start: 40, count: 17 }, { start: 62, count: 3 }, { start: 70, count: 10 }, { start: 80, count: 2 }, { start: 2100, count: 15 }] },
-      { name: 'medium', reads: [{ start: 60, count: 2 }, { start: 86, count: 18 }] },
+      { name: 'fast', reads: [{ start: 40, count: 17 }, { start: 62, count: 3 }, { start: 70, count: 10 }, { start: 80, count: 2 }] },
+      { name: 'medium', reads: [{ start: 60, count: 2 }, { start: 86, count: 18 }, { start: 2100, count: 15 }] },
       { name: 'slow', reads: [{ start: 10, count: 22 }] },
-      { name: 'once', reads: [{ start: 2100, count: 15 }] },
+      { name: 'once', reads: [{ start: 0, count: 10 }, { start: 34, count: 4 }, { start: 66, count: 4 }] },
     ];
     for (const group of groups) {
       for (const block of group.reads) {

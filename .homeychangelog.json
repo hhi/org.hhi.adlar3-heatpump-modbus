@@ -1,4 +1,8 @@
 {
+  "1.6.3": {
+    "en": "Corrected expert dashboard poll-group metadata so holding registers 4-2100..4-2114 are shown as medium instead of incorrectly appearing as fast/once. The once group now only contains the startup input-register blocks for configuration, zone terminal types and climate-curve outputs.",
+    "nl": "Pollgroepmetadata in het expertdashboard gecorrigeerd zodat holding-registers 4-2100..4-2114 als medium worden getoond in plaats van onterecht als fast/once. De once-groep bevat nu alleen nog de input-registerblokken voor configuratie, zone-terminaltypes en klimaatcurve-uitgangen."
+  },
   "1.6.2": {
     "en": "Improved Modbus connection handling and the expert dashboard. Manual disconnect and destroy now close the TCP socket gracefully by sending FIN before falling back to destroy, and the first Modbus startup waits 5 seconds before connecting/polling to avoid overloading bridges during app startup. The expert dashboard functional view now allows registers to appear in multiple matching categories, adds EEV, EVI and defrost categories, and updates duplicated register rows consistently for cache/direct reads, bit states and range warnings.",
     "nl": "Modbus-verbindingsafhandeling en het expertdashboard verbeterd. Handmatige disconnect en destroy sluiten de TCP-socket nu netjes met FIN voordat eventueel op destroy wordt teruggevallen, en de eerste Modbus-start wacht 5 seconden voordat de verbinding/polling begint om bridges tijdens app-start te ontzien. De functionele weergave van het expertdashboard laat registers nu in meerdere passende categorieën verschijnen, voegt EEV-, EVI- en ontdooicategorieën toe en werkt dubbele registerrijen consequent bij voor cache/direct lezen, bitstatussen en bereikwaarschuwingen."
