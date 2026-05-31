@@ -143,13 +143,22 @@ export interface PollGroup {
   };
 }
 
+export type RegisterChangeSource = 'poll' | 'expert-read' | 'expert-write';
+export type RegisterChangeLogMode = 'poll' | 'cache';
+
 export interface RegisterChangeEntry {
   firstSeen: number;
   lastChanged: number;
   changeCount: number;
+  pollChangeCount: number;
+  actionChangeCount: number;
+  cacheChangeCount: number;
+  /** Laatste 100 tussenpozen tussen wijzigingen in ms */
   intervals: number[];
   previousValue: number | null;
+  previousChangedAt: number | null;
   lastValue: number;
+  lastSource: RegisterChangeSource;
 }
 
 // ============================================================================
@@ -184,6 +193,7 @@ export class ModbusTcpService extends EventEmitter {
   /** Holding register cache: adres → unsigned 16-bit */
   private readonly cache = new Map<number, number>();
   private readonly changeLog = new Map<number, RegisterChangeEntry>();
+  private readonly cacheChangeLog = new Map<number, RegisterChangeEntry>();
 
   private _connected = false;
   private _destroyed = false;
@@ -400,7 +410,7 @@ export class ModbusTcpService extends EventEmitter {
    * jsmodbus response.body.values kan zowel Buffer als number[] zijn,
    * afhankelijk van de jsmodbus versie.
    */
-  async readHoldingRegisters(startAddr: number, count: number): Promise<void> {
+  async readHoldingRegisters(startAddr: number, count: number, source?: RegisterChangeSource): Promise<void> {
     if (!this._connected) throw new Error('Niet verbonden');
 
     const addrHex = `0x${startAddr.toString(16).padStart(4, '0')}`;
@@ -421,7 +431,10 @@ export class ModbusTcpService extends EventEmitter {
         } else {
           throw new Error(`Onverwacht response type: ${typeof values}`);
         }
-        this._recordCacheValue(startAddr + i, val);
+        const addr = startAddr + i;
+        const previous = this.cache.get(addr);
+        this.cache.set(addr, val);
+        if (source) this._recordCacheObservation(addr, previous, val, source);
       }
 
       if (this._debug) {
@@ -444,7 +457,7 @@ export class ModbusTcpService extends EventEmitter {
    * Resultaten worden opgeslagen in dezelfde interne cache als holding registers.
    * Aurora III gebruikt input registers voor vrijwel alle sensor- en statusdata.
    */
-  async readInputRegisters(startAddr: number, count: number): Promise<void> {
+  async readInputRegisters(startAddr: number, count: number, source?: RegisterChangeSource): Promise<void> {
     if (!this._connected) throw new Error('Niet verbonden');
 
     const addrHex = `0x${startAddr.toString(16).padStart(4, '0')}`;
@@ -463,7 +476,10 @@ export class ModbusTcpService extends EventEmitter {
         } else {
           throw new Error(`Onverwacht response type: ${typeof values}`);
         }
-        this._recordCacheValue(startAddr + i, val);
+        const addr = startAddr + i;
+        const previous = this.cache.get(addr);
+        this.cache.set(addr, val);
+        if (source) this._recordCacheObservation(addr, previous, val, source);
       }
 
       if (this._debug) {
@@ -482,17 +498,15 @@ export class ModbusTcpService extends EventEmitter {
   }
 
   private async _readHoldingRegistersAndDetectChange(startAddr: number, count: number): Promise<boolean> {
-    const before = Array.from({ length: count }, (_, i) => this.cache.get(startAddr + i));
-    await this.readHoldingRegisters(startAddr, count);
+    await this.readHoldingRegisters(startAddr, count, 'poll');
 
-    return before.some((value, i) => value !== this.cache.get(startAddr + i));
+    return this._detectPolledChanges(startAddr, count);
   }
 
   private async _readInputRegistersAndDetectChange(startAddr: number, count: number): Promise<boolean> {
-    const before = Array.from({ length: count }, (_, i) => this.cache.get(startAddr + i));
-    await this.readInputRegisters(startAddr, count);
+    await this.readInputRegisters(startAddr, count, 'poll');
 
-    return before.some((value, i) => value !== this.cache.get(startAddr + i));
+    return this._detectPolledChanges(startAddr, count);
   }
 
   /**
@@ -507,7 +521,10 @@ export class ModbusTcpService extends EventEmitter {
 
     try {
       await this.client.writeSingleRegister(addr, raw);
-      this._recordCacheValue(addr, raw);
+      const previous = this.cache.get(addr);
+      this.cache.set(addr, raw);
+      this._recordCacheObservation(addr, previous, raw, 'expert-write');
+      this._recordExpertWrite(addr, previous, raw);
       this._log('  → OK');
       await this._batchDelay();
     } catch (err) {
@@ -522,7 +539,7 @@ export class ModbusTcpService extends EventEmitter {
    * FC01 — Read Single Coil.
    * Retourneert 1 als de coil actief is, 0 anders.
    */
-  async readSingleCoil(coilAddr: number): Promise<number> {
+  async readSingleCoil(coilAddr: number, source?: RegisterChangeSource): Promise<number> {
     if (!this._connected) throw new Error('Niet verbonden');
     const addrHex = `0x${coilAddr.toString(16).padStart(4, '0')}`;
     this._log(`FC01 COIL  ${addrHex} lezen`);
@@ -537,6 +554,10 @@ export class ModbusTcpService extends EventEmitter {
         result = (values[0] & 0x01) ? 1 : 0;
       } else {
         throw new Error(`Onverwacht coil response type: ${typeof values}`);
+      }
+      if (source) {
+        const previous = this.cacheChangeLog.get(coilAddr)?.lastValue;
+        this._recordCacheObservation(coilAddr, previous, result, source);
       }
       this._log(`  → ${result}`);
       return result;
@@ -557,6 +578,10 @@ export class ModbusTcpService extends EventEmitter {
 
     try {
       await this.client.writeSingleCoil(coilAddr, state);
+      const raw = state ? 1 : 0;
+      const previous = this.cacheChangeLog.get(coilAddr)?.lastValue;
+      this._recordCacheObservation(coilAddr, previous, raw, 'expert-write');
+      this._recordExpertWrite(coilAddr, previous, raw);
       this._log('  → OK');
       await this._batchDelay();
     } catch (err) {
@@ -597,41 +622,109 @@ export class ModbusTcpService extends EventEmitter {
     return this.cache.has(addr);
   }
 
-  getChangeLog(): Map<number, RegisterChangeEntry> {
-    return this.changeLog;
+  getChangeLog(mode: RegisterChangeLogMode = 'poll'): Map<number, RegisterChangeEntry> {
+    return mode === 'cache' ? this.cacheChangeLog : this.changeLog;
   }
 
   getRegisterCache(): Map<number, number> {
     return this.cache;
   }
 
-  private _recordCacheValue(addr: number, value: number): void {
+  private _detectPolledChanges(startAddr: number, count: number): boolean {
     const now = Date.now();
-    const previous = this.cache.get(addr);
-    this.cache.set(addr, value);
+    let anyChanged = false;
 
+    for (let i = 0; i < count; i++) {
+      const addr = startAddr + i;
+      const value = this.cache.get(addr)!;
+      let entry = this.changeLog.get(addr);
+      if (!entry) {
+        entry = this._createChangeEntry(now, value, 'poll');
+        this.changeLog.set(addr, entry);
+        continue;
+      }
+
+      if (entry.lastValue !== value) {
+        if (entry.lastSource === 'poll') {
+          entry.intervals.push(now - entry.lastChanged);
+          if (entry.intervals.length > 100) entry.intervals.shift();
+        }
+        entry.previousValue = entry.lastValue;
+        entry.previousChangedAt = entry.lastChanged;
+        entry.lastValue = value;
+        entry.changeCount += 1;
+        entry.pollChangeCount += 1;
+        entry.lastChanged = now;
+        entry.lastSource = 'poll';
+        anyChanged = true;
+      }
+    }
+
+    return anyChanged;
+  }
+
+  private _createChangeEntry(now: number, value: number, source: RegisterChangeSource): RegisterChangeEntry {
+    return {
+      firstSeen: now,
+      lastChanged: now,
+      changeCount: 0,
+      pollChangeCount: 0,
+      actionChangeCount: 0,
+      cacheChangeCount: 0,
+      intervals: [],
+      previousValue: null,
+      previousChangedAt: null,
+      lastValue: value,
+      lastSource: source,
+    };
+  }
+
+  private _recordCacheObservation(addr: number, previous: number | undefined, newVal: number, source: RegisterChangeSource): void {
+    const now = Date.now();
+    let entry = this.cacheChangeLog.get(addr);
+    if (!entry) {
+      entry = this._createChangeEntry(now, newVal, source);
+      if (source === 'expert-write') {
+        entry.changeCount = 1;
+        entry.actionChangeCount = 1;
+      }
+      this.cacheChangeLog.set(addr, entry);
+      return;
+    }
+
+    if (entry.lastValue === newVal) return;
+
+    entry.lastSource = source;
+    entry.previousValue = previous ?? entry.lastValue;
+    entry.previousChangedAt = entry.lastChanged;
+    entry.changeCount += 1;
+    if (source === 'poll') entry.pollChangeCount += 1;
+    else if (source === 'expert-write') entry.actionChangeCount += 1;
+    else entry.cacheChangeCount += 1;
+    entry.lastChanged = now;
+    entry.lastValue = newVal;
+  }
+
+  private _recordExpertWrite(addr: number, previous: number | undefined, newVal: number): void {
+    const now = Date.now();
     let entry = this.changeLog.get(addr);
     if (!entry) {
-      entry = {
-        firstSeen: now,
-        lastChanged: now,
-        changeCount: 0,
-        intervals: [],
-        previousValue: null,
-        lastValue: value,
-      };
+      entry = this._createChangeEntry(now, newVal, 'expert-write');
+      entry.changeCount = 1;
+      entry.actionChangeCount = 1;
       this.changeLog.set(addr, entry);
       return;
     }
 
-    if (previous !== value) {
-      entry.previousValue = previous ?? null;
-      entry.lastValue = value;
-      entry.changeCount += 1;
-      entry.intervals.push(now - entry.lastChanged);
-      if (entry.intervals.length > 100) entry.intervals.shift();
-      entry.lastChanged = now;
-    }
+    entry.lastSource = 'expert-write';
+    if (entry.lastValue === newVal) return;
+
+    entry.previousValue = previous ?? entry.lastValue;
+    entry.previousChangedAt = entry.lastChanged;
+    entry.changeCount += 1;
+    entry.actionChangeCount += 1;
+    entry.lastChanged = now;
+    entry.lastValue = newVal;
   }
 
   // ── Poll-engine ────────────────────────────────────────────────────────────

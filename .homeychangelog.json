@@ -1,4 +1,8 @@
 {
+  "1.7.0": {
+    "en": "Register Change Log dashboard: added modes for Automatic polling and Cache observations, with a source column for poll, expert read and expert write observations. Expert writes are logged as explicit actions without poll interval impact. Previous values now show when they were active, decoded values are shown alongside raw values, and a Markdown report can be copied or downloaded from the filtered and sorted view. Expert dashboard functional category matching now uses whole words to avoid unrelated matches.",
+    "nl": "Register Change Log-dashboard: modi toegevoegd voor Automatische polling en Cache-observaties, met een bronkolom voor poll-, expert-read- en expert-write-observaties. Expert writes worden als expliciete acties gelogd zonder invloed op pollintervalstatistiek. Vorige waarden tonen nu wanneer ze actief waren, gedecodeerde waarden staan naast ruwe waarden, en van de gefilterde en gesorteerde weergave kan een Markdown-rapport worden gekopieerd of gedownload. De functionele categorieweergave van het expertdashboard matcht trefwoorden nu op hele woorden, zodat ongerelateerde matches worden voorkomen."
+  },
   "1.6.3": {
     "en": "Corrected expert dashboard poll-group metadata so holding registers 4-2100..4-2114 are shown as medium instead of incorrectly appearing as fast/once. The once group now only contains the startup input-register blocks for configuration, zone terminal types and climate-curve outputs.",
     "nl": "Pollgroepmetadata in het expertdashboard gecorrigeerd zodat holding-registers 4-2100..4-2114 als medium worden getoond in plaats van onterecht als fast/once. De once-groep bevat nu alleen nog de input-registerblokken voor configuratie, zone-terminaltypes en klimaatcurve-uitgangen."

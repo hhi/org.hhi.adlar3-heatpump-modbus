@@ -596,7 +596,7 @@ function sanitizeBlockId(value) {
 
 function hasAny(reg, terms) {
   const text = `${reg.key || ''} ${reg.registerId || ''} ${reg.name || ''} ${reg.desc || ''}`.toLowerCase();
-  return terms.some(term => text.includes(term));
+  return terms.some(term => new RegExp('\\b' + term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b').test(text));
 }
 
 function inAddress(reg, start, end) {

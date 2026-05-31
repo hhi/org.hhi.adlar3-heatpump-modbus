@@ -12,7 +12,7 @@
 import { EventEmitter } from 'events';
 
 import {
-  ModbusTcpConfig, ModbusTcpService, PollBlock, PollGroup, RegisterChangeEntry, TimerProvider,
+  ModbusTcpConfig, ModbusTcpService, PollBlock, PollGroup, RegisterChangeEntry, RegisterChangeLogMode, TimerProvider,
 } from './modbus-tcp-service';
 import {
   CONTROL_REGISTERS,
@@ -381,12 +381,12 @@ export class Adlar3ModbusService extends EventEmitter {
   }
 
   async readRegister(addr: number): Promise<number> {
-    await this.tcp.readHoldingRegisters(addr, 1);
+    await this.tcp.readHoldingRegisters(addr, 1, 'expert-read');
     return this.tcp.s16(addr);
   }
 
   async readInputRegister(addr: number): Promise<number> {
-    await this.tcp.readInputRegisters(addr, 1);
+    await this.tcp.readInputRegisters(addr, 1, 'expert-read');
     return this.tcp.s16(addr);
   }
 
@@ -429,8 +429,8 @@ export class Adlar3ModbusService extends EventEmitter {
     this.externalFlowLpm = lpm;
   }
 
-  getChangeLog(): Map<number, RegisterChangeEntry> {
-    return this.tcp.getChangeLog();
+  getChangeLog(mode?: RegisterChangeLogMode): Map<number, RegisterChangeEntry> {
+    return this.tcp.getChangeLog(mode);
   }
 
   private buildSnapshot(sourcePollGroup?: DataSnapshot['sourcePollGroup']): DataSnapshot {
