@@ -416,7 +416,7 @@ class AdlarModbusDevice extends Homey.Device {
         setReadRegisterCallback(fn: (addr: number, isCoil: boolean, isInput: boolean) => Promise<number>): void;
         setWriteExpertCallback(fn: (addr: number, rawValue: number, isCoil: boolean) => Promise<void>): void;
         setGetTemperatureScaleCallback(fn: () => 'x1' | 'x10'): void;
-        setGetChangeLogCallback(fn: () => Map<number, RegisterChangeEntry>): void;
+        setGetChangeLogCallback(fn: (mode?: import('../../lib/modbus/modbus-tcp-service').RegisterChangeLogMode) => Map<number, RegisterChangeEntry>): void;
         setGetSnapshotCallback(fn: () => DataSnapshot | null): void;
         setGetRegisterCacheCallback(fn: () => Map<number, number>): void;
         setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void;
@@ -440,7 +440,7 @@ class AdlarModbusDevice extends Homey.Device {
     });
 
     app.dashboard.setGetTemperatureScaleCallback(() => this.coordinator!.getTemperatureScale());
-    app.dashboard.setGetChangeLogCallback(() => this.coordinator!.getChangeLog());
+    app.dashboard.setGetChangeLogCallback((mode) => this.coordinator!.getChangeLog(mode));
     app.dashboard.setGetSnapshotCallback(() => this.coordinator!.getCurrentSnapshot());
     app.dashboard.setGetRegisterCacheCallback(() => this.coordinator!.getRegisterCache());
     app.dashboard.setGetCapabilityValuesCallback(() => {

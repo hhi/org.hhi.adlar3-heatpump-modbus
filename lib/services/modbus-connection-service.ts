@@ -5,7 +5,7 @@
 import { EventEmitter } from 'events';
 import Homey from 'homey';
 import { DataSnapshot } from '../modbus/adlar3-modbus-service';
-import { RegisterChangeEntry, TimerProvider } from '../modbus/modbus-tcp-service';
+import { RegisterChangeEntry, RegisterChangeLogMode, TimerProvider } from '../modbus/modbus-tcp-service';
 import { ModbusRuntimeService } from '../modbus/modbus-runtime-service';
 
 type TemperatureRegisterScale = 'x1' | 'x10';
@@ -204,8 +204,8 @@ export class ModbusConnectionService<TSnapshot = DataSnapshot> extends EventEmit
     return (this.service as unknown as { activeTemperatureScale: TemperatureRegisterScale } | null)?.activeTemperatureScale ?? 'x1';
   }
 
-  getChangeLog(): Map<number, RegisterChangeEntry> {
-    return (this.service as unknown as { getChangeLog(): Map<number, RegisterChangeEntry> } | null)?.getChangeLog() ?? new Map();
+  getChangeLog(mode?: RegisterChangeLogMode): Map<number, RegisterChangeEntry> {
+    return (this.service as unknown as { getChangeLog(m?: RegisterChangeLogMode): Map<number, RegisterChangeEntry> } | null)?.getChangeLog(mode) ?? new Map();
   }
 
   getSnapshot(): TSnapshot | null {

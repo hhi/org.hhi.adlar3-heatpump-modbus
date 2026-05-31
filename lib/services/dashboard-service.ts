@@ -6,7 +6,7 @@ import http from 'http';
 import fs from 'fs';
 import path from 'path';
 import { DataSnapshot } from '../modbus/adlar3-modbus-service';
-import { RegisterChangeEntry } from '../modbus/modbus-tcp-service';
+import { RegisterChangeEntry, RegisterChangeLogMode } from '../modbus/modbus-tcp-service';
 import {
   ALL_HOLDING_REGISTERS,
   ALL_INPUT_REGISTERS,
@@ -106,7 +106,7 @@ export class DashboardService {
   private onReadRegister: ((address: number, isCoil: boolean, isInput: boolean) => Promise<number>) | null = null;
   private onWriteExpert: ((address: number, rawValue: number, isCoil: boolean) => Promise<void>) | null = null;
   private getTemperatureScale: (() => TemperatureRegisterScale) | null = null;
-  private getChangeLog: (() => Map<number, RegisterChangeEntry>) | null = null;
+  private getChangeLog: ((mode?: RegisterChangeLogMode) => Map<number, RegisterChangeEntry>) | null = null;
   private getCapabilityValues: (() => Record<string, unknown>) | null = null;
   private getSnapshotCallback: (() => DataSnapshot | null) | null = null;
   private getRegisterCache: (() => Map<number, number>) | null = null;
@@ -136,7 +136,7 @@ export class DashboardService {
     this.getTemperatureScale = fn;
   }
 
-  setGetChangeLogCallback(fn: () => Map<number, RegisterChangeEntry>): void {
+  setGetChangeLogCallback(fn: (mode?: RegisterChangeLogMode) => Map<number, RegisterChangeEntry>): void {
     this.getChangeLog = fn;
   }
 
@@ -200,7 +200,8 @@ export class DashboardService {
   // ── Request dispatcher ────────────────────────────────────────────────────────
 
   private async _handleRequest(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
-    const url = (req.url ?? '/').split('?')[0];
+    const parsedUrl = new URL(req.url ?? '/', 'http://localhost');
+    const url = parsedUrl.pathname;
     const method = (req.method ?? 'GET').toUpperCase();
 
     this._setCors(res);
@@ -276,7 +277,7 @@ export class DashboardService {
       return;
     }
     if (method === 'GET' && url === '/api/register-changelog') {
-      this._serveChangeLog(res);
+      this._serveChangeLog(res, parsedUrl.searchParams.get('mode'));
       return;
     }
 
@@ -505,7 +506,7 @@ export class DashboardService {
     return map;
   }
 
-  private _serveChangeLog(res: http.ServerResponse): void {
+  private _serveChangeLog(res: http.ServerResponse, requestedMode: string | null): void {
     if (!this.getChangeLog) {
       res.writeHead(503, { 'Content-Type': 'application/json; charset=utf-8' });
       res.end(JSON.stringify({ error: 'Not connected' }));
@@ -514,34 +515,55 @@ export class DashboardService {
 
     const pollGroupMap = this._buildPollGroupMap();
     const nameMap = this._buildNameMap();
+    const tempScale = this.getTemperatureScale?.() ?? 'x10';
+    const metaMap = this._buildRegisterMetaMap(tempScale);
     const writableAddresses = new Set(
       Object.values(ALL_HOLDING_REGISTERS).map((r) => (r as { address: number }).address),
     );
+    const mode: RegisterChangeLogMode = requestedMode === 'cache' ? 'cache' : 'poll';
     const entries: object[] = [];
 
-    for (const [addr, entry] of this.getChangeLog()) {
+    const decodeRaw = (addr: number, raw: number | null): number | null => {
+      if (raw === null) return null;
+      const meta = metaMap.get(addr);
+      const rawValue = decodeRegisterRawValue(raw, meta);
+      const scaledValue = scaleRegisterValue(rawValue, meta);
+      return scaledValue === null ? null : Math.round(scaledValue * 1000) / 1000;
+    };
+
+    for (const [addr, entry] of this.getChangeLog(mode)) {
       const intervals = entry.intervals;
       const avgInterval = intervals.length > 0
         ? Math.round(intervals.reduce((a, b) => a + b, 0) / intervals.length)
         : null;
       const minInterval = intervals.length > 0 ? Math.min(...intervals) : null;
       const maxInterval = intervals.length > 0 ? Math.max(...intervals) : null;
+      const meta = metaMap.get(addr);
 
       entries.push({
         address: addr,
         addressHex: `0x${addr.toString(16).toUpperCase().padStart(4, '0')}`,
-        name: nameMap.get(addr) ?? '',
+        name: nameMap.get(addr) ?? meta?.name ?? '',
+        unit: meta?.unit ?? '',
         pollGroup: pollGroupMap.get(addr) ?? 'manual',
+        mode,
         writable: writableAddresses.has(addr),
         firstSeen: entry.firstSeen,
         lastChanged: entry.lastChanged,
+        previousChangedAt: entry.previousChangedAt,
         changeCount: entry.changeCount,
+        pollChangeCount: entry.pollChangeCount,
+        actionChangeCount: entry.actionChangeCount,
+        cacheChangeCount: entry.cacheChangeCount,
+        lastSource: entry.lastSource,
         avgInterval,
         minInterval,
         maxInterval,
         recommendedGroup: this._recommendPollGroup(avgInterval),
         lastValue: entry.lastValue,
         previousValue: entry.previousValue,
+        lastValueDecoded: decodeRaw(addr, entry.lastValue),
+        previousValueDecoded: decodeRaw(addr, entry.previousValue),
       });
     }
 
