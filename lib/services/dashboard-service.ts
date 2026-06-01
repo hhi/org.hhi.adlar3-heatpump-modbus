@@ -25,13 +25,14 @@ interface WritableRegisterMeta {
   max: number;
   multiply: number;
   name: string;
+  capability?: string;
 }
 
 const WRITABLE_REGISTERS: Record<string, WritableRegisterMeta> = {
-  zone1HeatingSetTemp: { address: CONTROL_REGISTERS.zone1HeatingSetTemp.address, min: 18, max: 50, multiply: 0.1, name: 'Zone 1 verwarming setpoint' },
-  zone1CoolingSetTemp: { address: CONTROL_REGISTERS.zone1CoolingSetTemp.address, min: 7,  max: 25, multiply: 0.1, name: 'Zone 1 koeling setpoint' },
-  dhwSetTemp:          { address: CONTROL_REGISTERS.dhwSetTemp.address,          min: 20, max: 75, multiply: 0.1, name: 'Tapwater setpoint' },
-  roomTempSetTemp:     { address: CONTROL_REGISTERS.roomTempSetTemp.address,     min: 15, max: 30, multiply: 0.1, name: 'Ruimtetemperatuur setpoint' },
+  zone1HeatingSetTemp: { address: CONTROL_REGISTERS.zone1HeatingSetTemp.address, min: 18, max: 50, multiply: 0.1, name: 'Zone 1 verwarming setpoint', capability: 'target_temperature' },
+  zone1CoolingSetTemp: { address: CONTROL_REGISTERS.zone1CoolingSetTemp.address, min: 7,  max: 25, multiply: 0.1, name: 'Zone 1 koeling setpoint',    capability: 'target_temperature.cooling' },
+  dhwSetTemp:          { address: CONTROL_REGISTERS.dhwSetTemp.address,          min: 20, max: 75, multiply: 0.1, name: 'Tapwater setpoint',            capability: 'target_temperature.dhw' },
+  roomTempSetTemp:     { address: CONTROL_REGISTERS.roomTempSetTemp.address,     min: 15, max: 30, multiply: 0.1, name: 'Ruimtetemperatuur setpoint',   capability: 'target_temperature.floor' },
 };
 
 // ── Registermetadata types voor ADR-046 expertdashboard ───────────────────────
@@ -103,6 +104,7 @@ export class DashboardService {
 
   // Callbacks — worden laat gebonden vanuit device.ts
   private onWriteRegister: ((address: number, rawValue: number) => Promise<void>) | null = null;
+  private onCapabilityWrite: ((capability: string, value: number) => Promise<void>) | null = null;
   private onReadRegister: ((address: number, isCoil: boolean, isInput: boolean) => Promise<number>) | null = null;
   private onWriteExpert: ((address: number, rawValue: number, isCoil: boolean) => Promise<void>) | null = null;
   private getTemperatureScale: (() => TemperatureRegisterScale) | null = null;
@@ -122,6 +124,10 @@ export class DashboardService {
 
   setWriteRegisterCallback(fn: (address: number, rawValue: number) => Promise<void>): void {
     this.onWriteRegister = fn;
+  }
+
+  setCapabilityWriteCallback(fn: (capability: string, value: number) => Promise<void>): void {
+    this.onCapabilityWrite = fn;
   }
 
   setReadRegisterCallback(fn: (address: number, isCoil: boolean, isInput: boolean) => Promise<number>): void {
@@ -480,6 +486,7 @@ export class DashboardService {
         rawValue,
         scaledValue,
         isCoil: meta?.isCoil ?? false,
+        fc: meta?.fc ?? 'holding',
         unit: meta?.unit ?? '',
         lastChanged: change?.lastChanged ?? null,
         firstSeen: change?.firstSeen ?? null,
@@ -653,6 +660,9 @@ export class DashboardService {
 
     try {
       await this.onWriteRegister(meta.address, rawValue);
+      if (meta.capability && this.onCapabilityWrite) {
+        await this.onCapabilityWrite(meta.capability, value).catch(() => {});
+      }
       this._jsonOk(res);
     } catch (err) {
       this._jsonError(res, 500, (err as Error).message);

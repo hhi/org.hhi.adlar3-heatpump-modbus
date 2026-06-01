@@ -183,7 +183,7 @@
   <div class="write-card">
     <label>Verwarming setpoint</label>
     <div class="write-row">
-      <input type="number" id="i-heat" min="18" max="50" step="0.5" placeholder="18–50">
+      <input type="number" id="i-heat" min="18" max="50" step="0.1" placeholder="18–50">
       <span class="unit">°C</span>
       <button class="btn btn-primary" onclick="doWrite('zone1HeatingSetTemp','i-heat','fb-heat')">Stel in</button>
     </div>
@@ -194,7 +194,7 @@
   <div class="write-card">
     <label>Tapwater setpoint</label>
     <div class="write-row">
-      <input type="number" id="i-dhw" min="20" max="75" step="0.5" placeholder="20–75">
+      <input type="number" id="i-dhw" min="20" max="75" step="0.1" placeholder="20–75">
       <span class="unit">°C</span>
       <button class="btn btn-primary" onclick="doWrite('dhwSetTemp','i-dhw','fb-dhw')">Stel in</button>
     </div>
@@ -205,7 +205,7 @@
   <div class="write-card">
     <label>Koeling setpoint</label>
     <div class="write-row">
-      <input type="number" id="i-cool" min="7" max="25" step="0.5" placeholder="7–25">
+      <input type="number" id="i-cool" min="7" max="25" step="0.1" placeholder="7–25">
       <span class="unit">°C</span>
       <button class="btn btn-primary" onclick="doWrite('zone1CoolingSetTemp','i-cool','fb-cool')">Stel in</button>
     </div>
@@ -356,19 +356,21 @@ async function refresh() {
 
     updateLiveOverview(d);
 
-    // Prefill invoervelden met huidige waarden (alleen als veld nog leeg is)
-    prefillIfEmpty('i-heat', control.heatingSetpointC);
-    prefillIfEmpty('i-dhw',  control.dhwSetpointC);
-    prefillIfEmpty('i-cool', control.coolingSetpointC);
+    // Werk invoervelden bij met actuele waarden, behalve tijdens actieve invoer.
+    updateInputIfNotActive('i-heat', control.heatingSetpointC);
+    updateInputIfNotActive('i-dhw',  control.dhwSetpointC);
+    updateInputIfNotActive('i-cool', control.coolingSetpointC);
   } catch (e) {
     dot.className = 'dot';
     statusText.textContent = 'Geen verbinding: ' + e.message;
   }
 }
 
-function prefillIfEmpty(id, val) {
+function updateInputIfNotActive(id, val) {
   const el = document.getElementById(id);
-  if (el && el.value === '' && val != null) el.value = Number(val).toFixed(1);
+  if (!el || document.activeElement === el || val == null) return;
+  const formattedNewVal = Number(val).toFixed(1);
+  if (el.value !== formattedNewVal) el.value = formattedNewVal;
 }
 
 async function doWrite(key, inputId, fbId) {
