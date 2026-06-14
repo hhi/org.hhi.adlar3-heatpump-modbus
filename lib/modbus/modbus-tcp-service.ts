@@ -328,6 +328,8 @@ export class ModbusTcpService extends EventEmitter {
     if (this._connected) {
       this._connected = false;
       this._gracefulClose();
+    } else {
+      this.socket.destroy();
     }
     this.removeAllListeners();
   }
