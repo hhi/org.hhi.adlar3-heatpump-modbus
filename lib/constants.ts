@@ -15,7 +15,7 @@ export class DeviceConstants {
    *  flow-card update the value is considered stale and Modbus takes over again. */
   static readonly EXTERNAL_DATA_TTL_MS = 60 * 60 * 1000; // 1 hour
 
-  /** Tuya device reconnection attempt interval */
+  /** Modbus device reconnection attempt interval */
   static readonly RECONNECTION_INTERVAL_MS = 20 * 1000; // 20 seconds
 
   /** Capability health check interval */
@@ -112,9 +112,6 @@ export class DeviceConstants {
 
   /** Adaptive control loop interval - frequency of PI calculations */
   static readonly ADAPTIVE_CONTROL_INTERVAL_MS = 5 * 60 * 1000; // 5 minutes
-
-  /** Minimum wait time between temperature adjustments (prevent oscillation) */
-  static readonly ADAPTIVE_MIN_WAIT_BETWEEN_ADJUSTMENTS_MS = 20 * 60 * 1000; // 20 minutes
 
   /** Maximum temperature adjustment per control cycle (safety limit) */
   static readonly ADAPTIVE_MAX_TEMP_ADJUSTMENT = 3.0; // ±3°C
