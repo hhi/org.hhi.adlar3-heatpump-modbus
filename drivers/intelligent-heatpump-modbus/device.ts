@@ -494,23 +494,6 @@ class AdlarModbusDevice extends Homey.Device {
       }
     };
 
-    // Schrijft modbusVal alleen als er geen actieve externe waarde beschikbaar is.
-    // Als de externe waarde ouder is dan EXTERNAL_DATA_TTL_MS wordt deze gewist en neemt Modbus over.
-    const setWithExternalPriority = (cap: string, externalCap: string, modbusVal: unknown) => {
-      if (this.hasCapability(externalCap)) {
-        const externalVal = this.getCapabilityValue(externalCap);
-        if (externalVal !== null && externalVal !== undefined) {
-          const ts = this.externalDataTimestamps.get(externalCap) ?? 0;
-          const stale = Date.now() - ts > DeviceConstants.EXTERNAL_DATA_TTL_MS;
-          if (!stale) return;
-          this.setCapabilityValue(externalCap, null).catch(() => {});
-          this.externalDataTimestamps.delete(externalCap);
-          this.logger.info(`External value for ${externalCap} expired (TTL 1h), reverting to Modbus`);
-        }
-      }
-      set(cap, modbusVal);
-    };
-
     // Control
     if (from('medium')) {
       set('onoff', snap.control.on);
@@ -546,7 +529,7 @@ class AdlarModbusDevice extends Homey.Device {
       set('measure_temperature.inlet', s.retourTE1?.value);
     }
     if (from('fast')) {
-      setWithExternalPriority('measure_temperature.ambient', 'adlar_external_ambient', s.ambientT4?.value);
+      set('measure_temperature.ambient', s.ambientT4?.value);
       set('measure_temperature.outer_coil', s.outerCoilT3?.value);
       set('measure_temperature.suction', s.suctionTH?.value);
       set('measure_temperature.exhaust', s.dischargeTP?.value);
@@ -573,6 +556,9 @@ class AdlarModbusDevice extends Homey.Device {
     // COP
     if (from('superfast', 'fast')) {
       this.copService?.processSnapshot(snap, set);
+    }
+    if (from('fast')) {
+      clearIfStale('adlar_external_ambient');
     }
 
     // Mechanical sensors
