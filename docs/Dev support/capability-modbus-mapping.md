@@ -41,7 +41,7 @@ Temperatuurwaarden met x10-schaal worden als raw registerwaarde `temperatuur_C *
 | `target_temperature.indoor` | geen Modbus-write | n.v.t. | n.v.t. | alleen lokale/adaptieve-control waarde; listener accepteert `15-25 C` |
 | `measure_temperature.outlet` | `3-43` | FC04 input | x0.1 C | aanvoertemperatuur (TA); geen harde min/max in registermetadata |
 | `measure_temperature.inlet` | `3-42` | FC04 input | x0.1 C | retourtemperatuur (TE1); geen harde min/max in registermetadata |
-| `measure_temperature.ambient` | `3-50` | FC04 input | x0.1 C | overschreven door `adlar_external_ambient` als die gevuld is |
+| `measure_temperature.ambient` | `3-50` | FC04 input | x0.1 C | altijd directe Modbuswaarde; `adlar_external_ambient` blijft aparte externe input voor COP/adaptieve regeling |
 | `measure_temperature.outer_coil` | `3-49` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
 | `measure_temperature.suction` | `3-53` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
 | `measure_temperature.exhaust` | `3-52` | FC04 input | x0.1 C | geen harde min/max in registermetadata |
