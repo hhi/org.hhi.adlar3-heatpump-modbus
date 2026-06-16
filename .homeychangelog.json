@@ -1,4 +1,8 @@
 {
+  "1.8.2": {
+    "en": "Trigger flow card titles in the Flow editor now show a descriptive title instead of empty placeholders. Affected cards include 'Heating mode changed', 'Price trend changed', 'Cheapest price block started', and 'Expensive period approaching'.",
+    "nl": "Titels van trigger-flowkaarten in de Flow-editor tonen nu een beschrijvende titel in plaats van lege plaatshouders. Het gaat onder meer om 'Verwarmingsmodus gewijzigd', 'Prijstrend gewijzigd', 'Goedkoopste prijsblok gestart' en 'Dure periode nadert'."
+  },
   "1.8.1": {
     "en": "Improved handling of non-responsive Modbus servers that keep the TCP socket open. Poll timeouts now mark the device unavailable and force a reconnect, while stale Modbus services and sockets are cleaned up during failed connects and reconnects to prevent resource buildup during long outages. Homey visible connection recovery now waits for a valid Modbus snapshot instead of TCP connect alone, and restores availability and connection capabilities before refreshing device values.",
     "nl": "Verbeterde afhandeling van Modbus-servers die niet meer reageren maar de TCP-socket open houden. Poll-timeouts zetten het apparaat nu op onbeschikbaar en forceren een reconnect, terwijl oude Modbus-services en sockets worden opgeruimd bij mislukte connects en reconnects om resource-opbouw tijdens lange storingen te voorkomen. Zichtbaar verbindingsherstel in Homey wacht nu op een geldige Modbus-snapshot in plaats van alleen een TCP-connect, en herstelt beschikbaarheid en verbindingscapabilities voordat apparaatwaarden worden ververst."
