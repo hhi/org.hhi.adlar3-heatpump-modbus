@@ -349,12 +349,17 @@ function buildRows(snap) {
 
   // Control
   const controlRows = [
-    { address: '4-2100', name: 'On/off',           value: snap.control.on        ? 'aan' : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2101', name: 'On/off (zones)',   value: snap.control.on        ? 'aan' : 'uit', raw: snap.control.zoneControl ?? '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
     { address: '4-2100', name: 'Mode',             value: `${snap.control.modeName} (${snap.control.mode})`, raw: snap.control.mode, category: 'Control', pollGroup: 'MEDIUM', fault: false },
     { address: '4-2107', name: 'Heating setpoint', value: `${snap.control.heatingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
     { address: '4-2106', name: 'Cooling setpoint', value: `${snap.control.coolingSetpointC} °C`,      raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
     { address: '4-2105', name: 'DHW setpoint',     value: `${snap.control.dhwSetpointC} °C`,          raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
     { address: '4-2114', name: 'Floor setpoint',   value: `${snap.control.floorSetpointC} °C`,        raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2102', name: 'DHW function',     value: snap.control.dhwEnabled ? 'aan' : 'uit',    raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2103', name: 'Silent mode',      value: snap.control.silentMode ? `niveau ${snap.control.silentMode}` : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2103', name: 'Forced backup heater', value: snap.control.backupHeaterForced ? 'aan' : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '4-2103', name: 'Disinfection function', value: snap.control.disinfectionEnabled ? 'aan' : 'uit', raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
+    { address: '3-9',    name: 'DHW heating active', value: snap.status.dhwActive ? 'ja' : 'nee',     raw: '—', category: 'Control', pollGroup: 'MEDIUM', fault: false },
   ];
   sections.push({ label: 'Control', rows: controlRows });
 

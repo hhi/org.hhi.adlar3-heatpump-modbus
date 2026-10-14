@@ -196,6 +196,16 @@ export class BuildingModelService {
         return;
       }
 
+      // DHW gate — while heating hot water the thermal power goes into the tank, not the
+      // building. Aurora III Modbus: input register 3-9 bit 2 via adlar_dhw_active.
+      if (this.device.getCapabilityValue('adlar_dhw_active') === true) {
+        this.lastBlockingReason = 'Hot water heating active';
+        this.lastBlockingReasonKey = 'building_model.blocked_dhw_active';
+        this.logger('BuildingModelService: ⏭️ EXIT - DHW heating active, skipping sample');
+        await this.updateModelCapabilities(); // Update UI to show blocked status
+        return;
+      }
+
       // ADR-057 W2b: Defrost gate — during defrost the machine EXTRACTS heat
       // from the system; the sample would be inverted relative to the model.
       // Aurora III Modbus: input register 3-38 bit 1 via adlar_state_defrost_state.
