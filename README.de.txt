@@ -28,7 +28,8 @@ Auslesen
 - Lokale Dashboards standardmaessig unter http://<homey-ip>:8090/, inklusive Live-Capability-Kacheln, interaktiver Sollwertbedienung, Experten-Modbus-Werkzeugen und Registeraenderungsstatistiken
 
 Steuerung aus Homey
-- Haupt-Ein/Aus lesen; Schreiben ist blockiert, bis Aurora III Register 4-2100 = 0 auf Hardware bestaetigt ist
+- Haupt-Ein/Aus ueber Zonenregister 4-2101; das Schalten ist experimentell und muss in den Geraeteeinstellungen aktiviert werden
+- Warmwasserfunktion ein/aus, Leisemodus (aus, Stufe 1, Stufe 2) und erzwungene elektrische Zusatzheizung
 - Betriebsmodus und Arbeitsmodus
 - Heiz-Sollwert
 - Kuehl-Sollwert

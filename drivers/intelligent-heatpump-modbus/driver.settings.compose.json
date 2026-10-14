@@ -29,6 +29,12 @@
           "de": "TCP-Port",
           "fr": "Port TCP"
         },
+        "hint": {
+          "en": "Port of the Modbus gateway. An Elfin EW11A uses 502 when set to Modbus TCP and 8899 (its default socket port) otherwise.",
+          "nl": "Poort van de Modbus-gateway. Een Elfin EW11A gebruikt 502 als die op Modbus TCP staat en anders 8899 (de standaard socketpoort).",
+          "de": "Port des Modbus-Gateways. Ein Elfin EW11A verwendet 502 im Modus Modbus TCP, sonst 8899 (Standard-Socket-Port).",
+          "fr": "Port de la passerelle Modbus. Un Elfin EW11A utilise 502 en mode Modbus TCP, sinon 8899 (port socket par défaut)."
+        },
         "value": 502,
         "attr": {
           "min": 1,
@@ -1246,6 +1252,35 @@
         },
         "value": 20,
         "attr": { "min": 0, "max": 50, "step": 5 }
+      }
+    ]
+  },
+  {
+    "id": "experimental",
+    "type": "group",
+    "label": {
+      "en": "Experimental functions",
+      "nl": "Experimentele functies",
+      "de": "Experimentelle Funktionen",
+      "fr": "Fonctions expérimentales"
+    },
+    "children": [
+      {
+        "id": "experimental_zone_onoff",
+        "type": "checkbox",
+        "label": {
+          "en": "On/off via zone control (experimental)",
+          "nl": "Aan/uit via zonebesturing (experimenteel)",
+          "de": "Ein/Aus über Zonensteuerung (experimentell)",
+          "fr": "Marche/arrêt via la commande de zone (expérimental)"
+        },
+        "hint": {
+          "en": "Lets the on/off switch write zone control register 4-2101 (0 = space heating and cooling off). Hot water is switched separately. Not yet confirmed on all installations.",
+          "nl": "Laat de aan/uit-schakelaar zoneregister 4-2101 schrijven (0 = ruimteverwarming en -koeling uit). Tapwater wordt apart geschakeld. Nog niet op alle installaties bevestigd.",
+          "de": "Der Ein/Aus-Schalter schreibt das Zonenregister 4-2101 (0 = Raumheizung und -kühlung aus). Warmwasser wird separat geschaltet. Noch nicht auf allen Anlagen bestätigt.",
+          "fr": "Le bouton marche/arrêt écrit le registre de zone 4-2101 (0 = chauffage et refroidissement arrêtés). L'eau chaude est commandée séparément. Pas encore confirmé sur toutes les installations."
+        },
+        "value": false
       }
     ]
   },

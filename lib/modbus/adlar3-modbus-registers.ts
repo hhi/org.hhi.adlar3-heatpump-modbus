@@ -6,7 +6,10 @@
  * SCOPE: best-effort definitions derived from:
  *   1. The Aurora III official register map spreadsheet (125 registers, "Register Map" tab)
  *   2. The Home Assistant adlar_heatpump.yaml reference implementation (12 registers used)
- *   3. Cross-mapping against legacy Aurora II semantics where useful
+ *   3. The extended Home Assistant package adlar_warmtepomp.yaml (OnnoTimmermans/
+ *      HA-modbus-Adlar-aurora-Pro-III, 2026) — adds value lists for Reg 1/2/9/35/39/81/2101/2102
+ *      and the Reg 2103 bit layout (bit 3 backup heater, bits 4-5 silent mode, bit 6 disinfection)
+ *   4. Cross-mapping against legacy Aurora II semantics where useful
  *
  * NOTATION:
  *   - Aurora III uses Modbus Modicon-style addressing:
@@ -25,7 +28,8 @@
  *   - System status bitmap (STATUS_BITS) uses ENTIRELY DIFFERENT bit positions from Aurora II.
  *   - Water flow unit is m³/h on III, L/min on II (factor 60).
  *   - III has no native power register — power must be derived (V × I) or sourced externally.
- *   - III lacks dedicated main on/off switch — likely encoded in mode register (verify).
+ *   - III lacks a dedicated main on/off switch — space heating is switched per zone via Reg 2101
+ *     and DHW via Reg 2102 (verify 2101 on hardware).
  *   - III pressure sensors report kPa directly; Aurora II only had saturation temperature.
  *
  * Version: 0.1.0-draft (best-effort, pre-hardware-verification)
@@ -126,18 +130,33 @@ export function statusBitSet(reg38Raw: number, bit: number): boolean {
 }
 
 // ============================================================================
-// BLOCK 3: SILENT MODE BIT-FIELD (Reg 2103)
+// BLOCK 3: ADDITIONAL FUNCTION A BIT-FIELD (Reg 2103)
 // ============================================================================
 //
 // Reg 2103 is "Additional function A" — a writable holding register that packs multiple
-// configuration flags into one word. The YAML reference confirms that the SILENT MODE level
-// occupies bits 4–5 (mask 0x0030, shifted right by 4 to get a 0–3 value).
+// configuration flags into one word. Known layout (HA YAML references):
 //
-// The remaining 14 bits are unknown but are PRESERVED on writes via read-modify-write.
+//   Bit 3     → Forced electric backup heater (written by the extended HA package)
+//   Bits 4–5  → Silent mode level 0/1/2 (mask 0x0030, shifted right by 4)
+//   Bit 6     → Disinfection function enabled (read-only in the HA package — never written here)
+//
+// All other bits are unknown and are PRESERVED on writes via read-modify-write.
 // Aurora II exposes silent mode via a dedicated enum register (0x0307 runningMode) which also
 // supports a "Powerful" boost mode — Aurora III appears to lack the boost option.
 //
 // ============================================================================
+
+export const FUNCTION_A_BITS = {
+  /** Bit 3: forced electric backup heater. */
+  FORCED_BACKUP_HEATER: 0x0008,
+  /** Bit 6: disinfection function enabled. Read-only in this app. */
+  DISINFECTION_ENABLED: 0x0040,
+} as const;
+
+/** Return `raw` with `mask` set or cleared; all other bits are preserved. */
+export function setBitFlag(raw: number, mask: number, on: boolean): number {
+  return (on ? (raw | mask) : (raw & ~mask)) & 0xFFFF;
+}
 
 export const SILENT_MODE_MASK = 0x0030;     // bits 4-5
 export const SILENT_MODE_SHIFT = 4;
@@ -164,9 +183,8 @@ export function encodeSilentMode(currentReg2103Raw: number, newLevel: SilentMode
 // BLOCK 4: HVAC MODE ENUM (Reg 2100)
 // ============================================================================
 //
-// Reg 2100 controls the HVAC mode. The YAML reference verifies three values; auto/dehum/dhw
-// values below are best-effort and need confirmation. Writing 0 is hypothesized to mean OFF
-// (since Aurora III lacks a dedicated main switch register) — this MUST be tested before use.
+// Reg 2100 controls the HVAC mode. The YAML references verify three values (1/2/4). Value 0 is
+// never written by this app: on/off goes through the zone control register 2101 (Block 4b).
 //
 // ============================================================================
 
@@ -181,6 +199,54 @@ export enum HvacMode {
   Reserved3 = 3,
   /** Auto mode. VERIFIED. */
   Auto = 4,
+}
+
+// ============================================================================
+// BLOCK 4b: ZONE CONTROL (Reg 2101) & EFFECTIVE MODE (Reg 9)
+// ============================================================================
+//
+// Reg 2101 switches space heating/cooling per zone (extended HA YAML reference). DHW is
+// switched separately via Reg 2102 (0 = off, 1 = on). Writing 2101 from this app is the
+// on/off mechanism; it is guarded by the `experimental_zone_onoff` device setting until
+// hardware tests confirm it.
+//
+// Reg 9 reports which functions are effectively active right now.
+//
+// ============================================================================
+
+export enum ZoneControl {
+  AllOff = 0,
+  Zone1On = 1,
+  Zone2On = 2,
+  AllOn = 3,
+}
+
+export const EFFECTIVE_MODE_BITS = {
+  COOLING: 0x0001,
+  HEATING: 0x0002,
+  DHW: 0x0004,
+} as const;
+
+// ============================================================================
+// BLOCK 4c: FAULT & PROTECTION CODE BIT-FIELDS (Reg 90-101)
+// ============================================================================
+//
+// Each register covers 16 codes: bit n of the k-th register (k = 0..5) is code k*16 + n + 1.
+// Example: Reg 90 = 0x0004 → E03; Reg 97 = 0x0001 → P17.
+//
+// ============================================================================
+
+/** Decode consecutive code-bitfield registers into codes like "E03" or "P17". */
+export function decodeCodeBits(prefix: string, words: readonly number[]): string[] {
+  const codes: string[] = [];
+  words.forEach((word, wordIndex) => {
+    for (let bit = 0; bit < 16; bit++) {
+      if ((word & (1 << bit)) !== 0) {
+        codes.push(`${prefix}${String(wordIndex * 16 + bit + 1).padStart(2, '0')}`);
+      }
+    }
+  });
+  return codes;
 }
 
 // ============================================================================
@@ -306,9 +372,9 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
     desc: 'II ≈ 0x0057.',
   },
   pumpPwmFeedback: {
-    address: 63, fc: 'input', dataType: 'U16', /* @verify unit/scale */ multiply: 0.1,
+    address: 63, fc: 'input', dataType: 'U16', unit: '%', multiply: 1,
     name: 'PWM Feedback DC Water Pump',
-    desc: 'III-only. Useful for detecting blocked impeller / pump failures.',
+    desc: 'III-only. Percentage ×1 (extended HA YAML). Useful for detecting blocked impeller / pump failures.',
   },
   waterFlow: {
     address: 64, fc: 'input', dataType: 'U16', unit: 'm³/h', /* @verify scale */ multiply: 0.1,
@@ -323,9 +389,10 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   zone1CurveHeatingSetTemp: {
     address: 67, fc: 'input', dataType: 'S16', unit: '°C',
-    /* @verify — spec says scale x1 but other °C registers are x10. Assume x10 until verified. */
+    /* Spec says scale x1; both HA YAML references use x10 like all other °C registers. */
     multiply: TEMP_MULTIPLY,
     name: 'Zone 1 Climate Curve Heating Set Temperature',
+    desc: 'Follows outdoor temperature — polled in the slow group, not once.',
   },
   zone2CurveCoolingSetTemp: {
     address: 68, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
@@ -357,12 +424,14 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   acInputVoltage: {
     address: 74, fc: 'input', dataType: 'U16', unit: 'V', multiply: 1,
     name: 'AC Input Voltage',
-    desc: 'Aurora II applies 0.99 calibration factor (~1% sensor offset). Likely also applies here. @verify',
+    desc: 'Reads 0 on some firmware (extended HA YAML). '
+        + 'Aurora II applies 0.99 calibration factor (~1% sensor offset). Likely also applies here. @verify',
   },
   acInputCurrent: {
     address: 75, fc: 'input', dataType: 'U16', unit: 'A', multiply: 0.1,
     name: 'AC Input Current',
-    desc: '⚠️ Aurora II documents non-linear sensor (38% error @4A → 18% @10A). '
+    desc: 'Reads 0 on some firmware (extended HA YAML). '
+        + '⚠️ Aurora II documents non-linear sensor (38% error @4A → 18% @10A). '
         + 'III likely uses same sensor architecture. Apply calibration curve before deriving power. @verify',
   },
   dcBusVoltage: {
@@ -394,8 +463,9 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   ahsRequest: {
     address: 39, fc: 'input', dataType: 'U16',
-    name: 'Request External Heating Source (Hybrid)',
-    desc: 'AHS = Auxiliary Heat Source. II ≈ 0x001B bit 9 (RELAY_3.AHS_SIGNAL_OUTPUT).',
+    name: 'External Request (bit field)',
+    desc: 'Extended HA YAML: bit0 = external anti-freeze request, bit1 = external defrost request. '
+        + 'Spec label: "Request External Heating Source (Hybrid)". Not decoded by this app.',
   },
   mainPumpStatus: {
     address: 80, fc: 'input', dataType: 'U16',
@@ -405,7 +475,7 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   fourWayValveStatus: {
     address: 81, fc: 'input', dataType: 'U16',
     name: 'Four Way Valve On/Off',
-    desc: 'II ≈ 0x001A bit 3 (RELAY_2.FOUR_WAY_VALVE_1).',
+    desc: '0 = heating cycle, 1 = cooling or defrost cycle. II ≈ 0x001A bit 3 (RELAY_2.FOUR_WAY_VALVE_1).',
   },
 
   // --- Refrigerant Pressure (III-only direct readings) ---
@@ -424,7 +494,7 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   errorCodes_E01_E16: {
     address: 90, fc: 'input', dataType: 'U16',
     name: 'Error Codes E01-E16',
-    desc: 'Numeric code value (not bitmask). Lookup table not in spec — see VERIFICATION_TASKS.',
+    desc: 'Bit field: bit n = code E(n+1). Same layout for Reg 91-101. Decode with decodeCodeBits().',
   },
   errorCodes_E17_E32: { address: 91, fc: 'input', dataType: 'U16', name: 'Error Codes E17-E32' },
   errorCodes_E33_E48: { address: 92, fc: 'input', dataType: 'U16', name: 'Error Codes E33-E48' },
@@ -446,7 +516,8 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   currentTargetOpMode: {
     address: 102, fc: 'input', dataType: 'U16',
     name: 'Current Target Operation Mode',
-    desc: 'III-only explicit readback. Enum values undocumented. @verify',
+    desc: 'III-only explicit readback. Enum values undocumented. '
+        + 'The extended HA YAML reads this value from Reg 101 instead — see VERIFICATION_TASKS. @verify',
   },
   actualOpMode: {
     address: 103, fc: 'input', dataType: 'U16',
@@ -478,26 +549,27 @@ export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
   hvacMode: {
     address: 2100, fc: 'holding', dataType: 'U16',
     name: 'Air Conditioning Modes',
-    desc: 'See HvacMode enum. Verified: 1=Cool, 2=Heat, 4=Auto. Value 0 may serve as OFF — @verify.',
+    desc: 'See HvacMode enum. Verified: 1=Cool, 2=Heat, 4=Auto. On/off is Reg 2101, not value 0.',
   },
   hvacZoneControlMode: {
     address: 2101, fc: 'holding', dataType: 'U16',
     name: 'Air Conditioning Modes (Zone Control)',
-    desc: 'Zone-control mode bit field. Values are not verified; exposed for expert read/write only. @verify.',
+    desc: 'See ZoneControl enum: 0=all off, 1=zone 1 on, 2=zone 2 on, 3=all on (extended HA YAML). '
+        + 'Drives onoff; writes require the experimental_zone_onoff setting. @verify on hardware.',
   },
 
   // --- DHW On/Off ---
   dhwOnOff: {
     address: 2102, fc: 'holding', dataType: 'U16',
     name: 'DHW Mode On/Off',
-    desc: 'Aurora II uses 0x0305 mainSwitch + 0x0304 mode for the same purpose.',
+    desc: '0 = off, 1 = on (extended HA YAML). Aurora II uses 0x0305 mainSwitch + 0x0304 mode for the same purpose.',
   },
 
-  // --- Additional Function A (Silent Mode lives in bits 4-5) ---
+  // --- Additional Function A (bit field, see Block 3) ---
   additionalFunctionA: {
     address: 2103, fc: 'holding', dataType: 'U16',
-    name: 'Additional Function A (Silent Mode bits 4-5)',
-    desc: 'Use decodeSilentMode/encodeSilentMode helpers. Other bits unknown — preserve via RMW.',
+    name: 'Additional Function A (backup heater bit 3, silent mode bits 4-5, disinfection bit 6)',
+    desc: 'Use FUNCTION_A_BITS and the silent-mode helpers. Unknown bits are preserved via RMW.',
   },
   additionalFunctionB: {
     address: 2104, fc: 'holding', dataType: 'U16',
@@ -556,8 +628,9 @@ export const CONTROL_REGISTERS: Record<string, HoldingRegister> = {
   },
   roomTempSetTemp: {
     address: 2114, fc: 'holding', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
+    min: 16, max: 28, /* From extended HA YAML; active limits in Reg 30/31 take precedence */
     name: 'Room Temperature Setting',
-    desc: 'II ≈ 0x0306 indoorTempSetpoint.',
+    desc: 'II ≈ 0x0306 indoorTempSetpoint. May have no effect without a room thermostat (Reg 1 = 0).',
   },
 } as const;
 
@@ -611,8 +684,16 @@ export const CONFIG_REGISTERS: Record<string, InputRegister> = {
     name: 'Total Number of Modbus Registers',
     desc: 'Total register count in the Aurora III map: 110 input registers plus 15 holding registers.',
   },
-  thermostatControllerType: { address: 1, fc: 'input', dataType: 'U16', name: 'Third Party Thermostat Controller Type' },
-  zoneControlModeWithoutThermostat: { address: 2, fc: 'input', dataType: 'U16', name: 'Single Zone or Two Zones Control Without Third Party Thermostat' },
+  thermostatControllerType: {
+    address: 1, fc: 'input', dataType: 'U16',
+    name: 'Third Party Thermostat Controller Type',
+    desc: '0=none, 1=single zone on/off + mode, 2=single zone on/off, 3=two zones.',
+  },
+  zoneControlModeWithoutThermostat: {
+    address: 2, fc: 'input', dataType: 'U16',
+    name: 'Single Zone or Two Zones Control Without Third Party Thermostat',
+    desc: '0=single zone, 1=two zones.',
+  },
   singleZoneControlWithoutThermostat: { address: 3, fc: 'input', dataType: 'U16', name: 'Single Zone Control Without Third Party Thermostat' },
   twoZonesControlWithoutThermostat: { address: 4, fc: 'input', dataType: 'U16', name: 'Two Zones Control Without Third Party Thermostat' },
   singleZoneControlWithThermostat: { address: 5, fc: 'input', dataType: 'U16', name: 'Single Zone Control With Thermostat' },
@@ -630,7 +711,7 @@ export const CONFIG_REGISTERS: Record<string, InputRegister> = {
   effectiveMode: {
     address: 9, fc: 'input', dataType: 'U16',
     name: 'Effective Mode',
-    desc: 'Bit field: bit0=cooling effective, bit1=heating effective, bit2=DHW effective.',
+    desc: 'Bit field (EFFECTIVE_MODE_BITS): bit0=cooling, bit1=heating, bit2=DHW. Dynamic — polled in the medium group.',
   },
   zone1TerminalCooling: {
     address: 34, fc: 'input', dataType: 'U16',
@@ -747,10 +828,11 @@ export const VERIFICATION_TASKS = [
   },
   {
     priority: 'high',
-    item: 'On/Off mechanism via Reg 2100',
-    affects: ['HvacMode.Off (hypothesized)'],
-    issue: 'Aurora III lacks dedicated main switch register.',
-    action: 'Test write 0 to Reg 2100; observe whether unit halts. Test all enum values.',
+    item: 'On/Off mechanism via Reg 2101 (zone control)',
+    affects: ['CONTROL_REGISTERS.hvacZoneControlMode', 'onoff capability', 'setting experimental_zone_onoff'],
+    issue: 'Value list 0/1/2/3 comes from the extended HA YAML; never written from Homey before.',
+    action: 'Testers: enable experimental_zone_onoff, switch off/on, confirm space heating stops/resumes '
+          + 'and DHW (Reg 2102) is unaffected. Check single- and two-zone installations.',
   },
   {
     priority: 'high',
@@ -761,10 +843,18 @@ export const VERIFICATION_TASKS = [
   },
   {
     priority: 'high',
-    item: 'Error code lookup table (E01-E96)',
-    affects: ['SENSOR_REGISTERS.errorCodes_*'],
-    issue: 'III emits numeric codes, not bitmasks. Code-to-description mapping not in spec.',
-    action: 'Request manufacturer table OR trigger known faults and record values.',
+    item: 'Error code bit fields (E01-E96, P01-P96)',
+    affects: ['SENSOR_REGISTERS.errorCodes_*', 'SENSOR_REGISTERS.protectionCodes_*'],
+    issue: 'Decoded as bit fields (extended HA YAML). Code-to-description mapping not in spec.',
+    action: 'Compare a reported code with the code on the unit display during a real fault.',
+  },
+  {
+    priority: 'high',
+    item: 'Reg 101 vs Reg 102 (target operation mode)',
+    affects: ['SENSOR_REGISTERS.protectionCodes_P81_P96', 'SENSOR_REGISTERS.currentTargetOpMode'],
+    issue: 'Extended HA YAML reads the target operation mode from Reg 101; the spec puts it at 102. '
+         + 'If HA is right, Reg 101 would show up as a permanent protection code P81-P96.',
+    action: 'Read Reg 101 and 102 in the expert dashboard while changing the operating mode.',
   },
   {
     priority: 'medium',
@@ -783,9 +873,9 @@ export const VERIFICATION_TASKS = [
   {
     priority: 'medium',
     item: 'Reg 2103 full bit layout',
-    affects: ['SILENT_MODE_MASK + 14 unknown bits'],
-    issue: 'Only silent-mode bits 4-5 verified; 14 bits unknown but preserved on write.',
-    action: 'Log Reg 2103 in standard operation; test bits 0-3 for "Powerful" mode equivalent.',
+    affects: ['FUNCTION_A_BITS', 'SILENT_MODE_MASK', 'unknown bits 0-2, 7-15'],
+    issue: 'Bits 3 (backup heater), 4-5 (silent) and 6 (disinfection) known from HA; others preserved on write.',
+    action: 'Log Reg 2103 in standard operation; test bits 0-2 for "Powerful" mode equivalent.',
   },
   {
     priority: 'medium',

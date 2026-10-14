@@ -246,3 +246,36 @@ test('TCP reconnect does not mark Homey visibly connected before a valid Modbus 
   assert.strictEqual(coordinator._consecutiveNonFastRequiredFailures, 0);
   assert.strictEqual(coordinator._errorCountByContext.size, 0);
 });
+
+test('medium snapshot updates capabilities and dashboard without touching fast-poll health', () => {
+  const appliedSnapshots = [];
+  const dashboardSnapshots = [];
+  const healthUpdates = [];
+  const coordinator = Object.create(ServiceCoordinator.prototype);
+  coordinator.logger = () => {};
+  coordinator._connectionQuality = 'degraded';
+  coordinator._consecutiveFastPollFailures = 3;
+  coordinator._consecutiveSuperfastPollFailures = 2;
+  coordinator._lastSuccessfulFastPollAt = 1234;
+  coordinator._lastErrorContext = null;
+  coordinator.device = {
+    applyModbusSnapshot: (snapshot) => appliedSnapshots.push(snapshot),
+  };
+  coordinator.snapshotTrigger = { detect: () => {} };
+  coordinator.capabilityHealth = {
+    updateCapabilityHealth: (capability, value) => healthUpdates.push([capability, value]),
+  };
+  coordinator.energyTracking = {
+    updateIntelligentPowerMeasurement: () => assert.fail('energy tracking must not run on medium snapshots'),
+  };
+  coordinator.onSnapshot = (snapshot) => dashboardSnapshots.push(snapshot);
+
+  coordinator._handleModbusData({ sourcePollGroup: 'medium', control: { on: false }, status: { activeFaults: [] } });
+
+  assert.strictEqual(appliedSnapshots.length, 1);
+  assert.strictEqual(dashboardSnapshots.length, 1);
+  assert.deepStrictEqual(healthUpdates, [['onoff', false]]);
+  assert.strictEqual(coordinator._connectionQuality, 'degraded');
+  assert.strictEqual(coordinator._consecutiveFastPollFailures, 3);
+  assert.strictEqual(coordinator._lastSuccessfulFastPollAt, 1234);
+});

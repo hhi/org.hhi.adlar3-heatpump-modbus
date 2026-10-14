@@ -187,16 +187,6 @@ export function buildLiveOperationWidgetState(context: WidgetStateContext): Live
 
   const compressorHz = capNumber(device, 'measure_frequency.compressor_freq')
     ?? sensorValue(snapshot, 'compRunningFreq');
-  const deltaTC = outletC !== null && inletC !== null ? outletC - inletC : null;
-  const thermalPowerKw = flowLpm !== null && deltaTC !== null
-    ? Math.abs(flowLpm * deltaTC * THERMAL_POWER_FACTOR_KW_PER_LPM_PER_C)
-    : null;
-  const liveCopEstimate = thermalPowerKw !== null
-    && inputPowerKw !== null
-    && inputPowerKw >= MIN_ELECTRICAL_POWER_KW
-    ? thermalPowerKw / inputPowerKw
-    : null;
-
   const running = capBoolean(device, 'adlar_running')
     ?? snapshot?.status.running
     ?? false;
@@ -206,6 +196,20 @@ export function buildLiveOperationWidgetState(context: WidgetStateContext): Live
   const defrosting = capBoolean(device, 'adlar_defrosting')
     ?? snapshot?.status.defrosting
     ?? false;
+
+  const deltaTC = outletC !== null && inletC !== null ? outletC - inletC : null;
+  // During defrost or with the compressor off, ΔT does not represent delivered heat.
+  const exchanging = compressorOn && !defrosting;
+  let thermalPowerKw: number | null = null;
+  if (flowLpm !== null && deltaTC !== null) {
+    thermalPowerKw = exchanging ? Math.abs(flowLpm * deltaTC * THERMAL_POWER_FACTOR_KW_PER_LPM_PER_C) : 0;
+  }
+  const liveCopEstimate = thermalPowerKw !== null
+    && exchanging
+    && inputPowerKw !== null
+    && inputPowerKw >= MIN_ELECTRICAL_POWER_KW
+    ? thermalPowerKw / inputPowerKw
+    : null;
   const faultActive = capString(device, 'adlar_fault_active')
     ?? snapshot?.status.activeFaults.join('; ')
     ?? '';

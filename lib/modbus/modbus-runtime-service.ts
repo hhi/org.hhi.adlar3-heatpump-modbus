@@ -12,6 +12,9 @@
 
 import { RegisterChangeEntry, RegisterChangeLogMode } from './modbus-tcp-service';
 
+/** Writable device functions beyond setpoints/mode/on-off. Value: boolean flag or enum level. */
+export type DeviceFeature = 'dhw_enabled' | 'silent_mode' | 'backup_heater_forced';
+
 export interface ModbusRuntimeService<TSnapshot> {
   // ── Verbinding ──────────────────────────────────────────────────────────────
   connect(): Promise<void>;
@@ -30,6 +33,7 @@ export interface ModbusRuntimeService<TSnapshot> {
   setTemperature(type: string, value: number): Promise<void>;
   setMainSwitch(value: boolean): Promise<void>;
   setMode(mode: number): Promise<void>;
+  setFeature(feature: DeviceFeature, value: number): Promise<void>;
   setExternalFlow(lpm: number | null): void;
   getChangeLog?(mode?: RegisterChangeLogMode): Map<number, RegisterChangeEntry>;
 
