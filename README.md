@@ -30,7 +30,8 @@ This app gives Homey Pro local Modbus TCP access to an Adlar Castra / Aurora III
 
 ### Control From Homey
 
-- Main on/off readout; write is blocked until Aurora III register `4-2100 = 0` is hardware-confirmed
+- Main on/off via zone control register `4-2101`; switching is experimental and must be enabled in the device settings
+- Hot water function on/off, silent mode (off, level 1, level 2) and forced electric backup heater
 - Operating mode and work mode
 - Heating setpoint
 - Cooling setpoint

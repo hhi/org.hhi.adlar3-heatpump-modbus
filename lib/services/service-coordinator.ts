@@ -13,6 +13,7 @@ import { BuildingInsightsService } from './building-insights-service';
 import { SnapshotTriggerService } from './snapshot-trigger-service';
 import { Adlar3ModbusService, DataSnapshot } from '../modbus/adlar3-modbus-service';
 import { ModbusBlockError, RegisterChangeEntry, RegisterChangeLogMode } from '../modbus/modbus-tcp-service';
+import { DeviceFeature } from '../modbus/modbus-runtime-service';
 import { RollingCOPCalculator } from './rolling-cop-calculator';
 
 type TemperatureRegisterScale = 'x1' | 'x10';
@@ -371,7 +372,40 @@ export class ServiceCoordinator {
 
   // ── Data handlers ──────────────────────────────────────────────────────────
 
+  /**
+   * Medium snapshots carry controls (4-2100..2114), faults and the effective mode. They update
+   * capabilities, flow triggers and the dashboard, but leave fast-poll health, energy tracking
+   * and defrost learning alone (poll health is tracked via _onPollGroupSucceeded).
+   */
+  private _handleMediumSnapshot(snapshot: DataSnapshot): void {
+    const device = this.device as unknown as {
+      applyModbusSnapshot?: (s: DataSnapshot) => void;
+      triggerFlowCard?: (cardId: string, tokens: Record<string, unknown>, state: Record<string, unknown>) => void;
+    };
+    device.applyModbusSnapshot?.(snapshot);
+    if (typeof device.triggerFlowCard === 'function') {
+      this.snapshotTrigger.detect(snapshot, (cardId, tokens, state) => {
+        device.triggerFlowCard!(cardId, tokens, state);
+      });
+    }
+    this.capabilityHealth.updateCapabilityHealth('onoff', snapshot.control.on);
+
+    snapshot.diagnostics = {
+      connectionQuality: this._connectionQuality,
+      consecutiveFastPollFailures: this._consecutiveFastPollFailures,
+      consecutiveSuperfastPollFailures: this._consecutiveSuperfastPollFailures,
+      lastSuccessfulFastPollAt: this._lastSuccessfulFastPollAt,
+      lastErrorContext: this._lastErrorContext,
+    };
+    this.onSnapshot?.(snapshot);
+  }
+
   private _handleModbusData(snapshot: DataSnapshot): void {
+    if (snapshot.sourcePollGroup === 'medium') {
+      this._handleMediumSnapshot(snapshot);
+      return;
+    }
+
     // ADR-042/043: fast/superfast poll succes registreren
     this._lastSuccessfulFastPollAt = Date.now();
     this._consecutiveFastPollFailures = 0;
@@ -748,6 +782,10 @@ export class ServiceCoordinator {
 
   async setMode(mode: number): Promise<void> {
     return this.modbusConnection.setMode(mode);
+  }
+
+  async setFeature(feature: DeviceFeature, value: number): Promise<void> {
+    return this.modbusConnection.setFeature(feature, value);
   }
 
   isConnected(): boolean {

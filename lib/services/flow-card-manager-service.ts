@@ -276,6 +276,25 @@ export class FlowCardManagerService {
         return true;
       });
 
+      this.registerCapabilityAction('set_silent_mode', async (args) => {
+        const level = String(args.level ?? '');
+        if (!['0', '1', '2'].includes(level)) {
+          throw new Error(`Unsupported silent mode level: ${level}`);
+        }
+        await this.triggerSelectedDeviceCapability(args, 'adlar_silent_mode', level);
+        return true;
+      });
+
+      this.registerCapabilityAction('set_dhw_function', async (args) => {
+        await this.triggerSelectedDeviceCapability(args, 'adlar_dhw_enabled', args.state === 'on');
+        return true;
+      });
+
+      this.registerCapabilityAction('set_backup_heater', async (args) => {
+        await this.triggerSelectedDeviceCapability(args, 'adlar_backup_heater_forced', args.state === 'on');
+        return true;
+      });
+
       this.logger('FlowCardManagerService: Modbus simple action cards registered');
     } catch (error) {
       this.logger('FlowCardManagerService: Error registering Modbus simple action cards:', error);
@@ -417,6 +436,20 @@ export class FlowCardManagerService {
         return expectedMode !== undefined && currentValue === String(expectedMode);
       });
       this.flowCardListeners.set('heating_mode_is', heatingModeListener);
+
+      // Silent mode condition
+      const silentModeCard = this.device.homey.flow.getConditionCard('silent_mode_is');
+      const silentModeListener = silentModeCard.registerRunListener(async (args) => {
+        return String(this.device.getCapabilityValue('adlar_silent_mode') ?? '') === String(args.level ?? '');
+      });
+      this.flowCardListeners.set('silent_mode_is', silentModeListener);
+
+      // DHW heating active condition
+      const dhwActiveCard = this.device.homey.flow.getConditionCard('dhw_heating_active');
+      const dhwActiveListener = dhwActiveCard.registerRunListener(async () => {
+        return this.device.getCapabilityValue('adlar_dhw_active') === true;
+      });
+      this.flowCardListeners.set('dhw_heating_active', dhwActiveListener);
 
       // Fault active condition
       const faultActiveCard = this.device.homey.flow.getConditionCard('fault_active');

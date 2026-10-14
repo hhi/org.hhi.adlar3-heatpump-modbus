@@ -80,7 +80,11 @@
     "period_day": "Dag",
     "period_evening": "Avond",
     "blocked_dhw_mode": "Niet in verwarmingsmodus",
+    "blocked_dhw_active": "Tapwater verwarmen",
     "blocked_defrost": "Ontdooien actief",
     "blocked_no_cop": "Geen COP-meting"
+  },
+  "errors": {
+    "zone_onoff_disabled": "Aan/uit via zoneregister 2101 is experimenteel. Schakel 'Aan/uit via zonebesturing (experimenteel)' in bij de apparaatinstellingen om dit te gebruiken."
   }
 }

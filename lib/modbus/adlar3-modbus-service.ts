@@ -15,13 +15,24 @@ import {
   ModbusTcpConfig, ModbusTcpService, PollBlock, PollGroup, RegisterChangeEntry, RegisterChangeLogMode, TimerProvider,
 } from './modbus-tcp-service';
 import {
+  CONFIG_REGISTERS,
   CONTROL_REGISTERS,
+  EFFECTIVE_MODE_BITS,
+  FUNCTION_A_BITS,
   HvacMode,
+  LIMIT_REGISTERS,
   SENSOR_REGISTERS,
   STATUS_BITS,
+  SilentMode,
+  ZoneControl,
+  decodeCodeBits,
   decodeS16,
+  decodeSilentMode,
+  encodeSilentMode,
+  setBitFlag,
   statusBitSet,
 } from './adlar3-modbus-registers';
+import { DeviceFeature } from './modbus-runtime-service';
 
 type TemperatureRegisterScale = 'x10';
 
@@ -56,6 +67,11 @@ interface SensorDescriptor {
 const TEMP_MULTIPLY = 0.1;
 const MIN_COP_POWER_KW = 0.10;
 const MIN_COP_DELTA_T_C = 0.5;
+/** Below this flow the ΔT-based thermal power is not meaningful (extended HA YAML: 0.3 m³/h). */
+const MIN_THERMAL_FLOW_M3H = 0.3;
+/** Plausibility window for limit registers 10-31 before they are used to bound a write. */
+const LIMIT_PLAUSIBLE_MIN_C = -30;
+const LIMIT_PLAUSIBLE_MAX_C = 100;
 const MAX_VALID_COP = 15.0;
 
 const ADLAR3_POLL_SUPERFAST_DEF: RegisterPollGroupDefinition = {
@@ -84,6 +100,7 @@ const ADLAR3_POLL_MEDIUM_DEF: RegisterPollGroupDefinition = {
   name: 'medium',
   interval: 30_000,
   reads: [
+    { start: 9, count: 1, label: 'AIII effective mode 3-9', fc: 'input', optional: true },
     { start: 60, count: 2, label: 'AIII pressures 3-60..3-61', fc: 'input', optional: true },
     { start: 86, count: 18, label: 'AIII pressure/fault/opmode 3-86..3-103', fc: 'input', optional: true },
     { start: 2100, count: 15, label: 'AIII controls 4-2100..4-2114', fc: 'holding' },
@@ -95,6 +112,8 @@ const ADLAR3_POLL_SLOW_DEF: RegisterPollGroupDefinition = {
   interval: 300_000,
   reads: [
     { start: 10, count: 22, label: 'AIII limits 3-10..3-31', fc: 'input', optional: true },
+    // Climate-curve setpoints follow the outdoor temperature, so they are re-read here.
+    { start: 66, count: 4, label: 'AIII climate curve outputs 3-66..3-69', fc: 'input', optional: true },
   ],
 };
 
@@ -104,7 +123,6 @@ const ADLAR3_POLL_ONCE_DEF: RegisterPollGroupDefinition = {
   reads: [
     { start: 0,  count: 10, label: 'AIII config 3-0..3-9',                   fc: 'input' },
     { start: 34, count: 4,  label: 'AIII zone terminal types 3-34..3-37',     fc: 'input' },
-    { start: 66, count: 4,  label: 'AIII climate curve outputs 3-66..3-69',   fc: 'input' },
   ],
 };
 
@@ -149,17 +167,30 @@ export interface StatusSnapshot {
   antifreeze: boolean;
   sterilization: boolean;
   compressorOn: boolean;
+  /** Reg 9 bit 2: the unit is heating domestic hot water right now. */
+  dhwActive: boolean;
   activeFaults: string[];
 }
 
 export interface ControlSnapshot {
+  /** Space heating/cooling on: Reg 2101 ≠ 0 (falls back to Reg 2100 ≠ 0 before 2101 is read). */
   on: boolean;
+  /** Raw Reg 2101 value, see ZoneControl. */
+  zoneControl: number;
   mode: number;
   modeName: string;
   heatingSetpointC: number;
   coolingSetpointC: number;
   dhwSetpointC: number;
   floorSetpointC: number;
+  /** Reg 2102 = 1. */
+  dhwEnabled: boolean;
+  /** Reg 2103 bits 4-5, see SilentMode. */
+  silentMode: number;
+  /** Reg 2103 bit 3. */
+  backupHeaterForced: boolean;
+  /** Reg 2103 bit 6. */
+  disinfectionEnabled: boolean;
 }
 
 export interface PowerSnapshot {
@@ -169,7 +200,9 @@ export interface PowerSnapshot {
 }
 
 export interface CopSnapshot {
+  /** Delivered heating or cooling power; 0 while idle, defrosting or at too low flow. */
   thermalPowerKw: number;
+  thermalMode: 'heating' | 'cooling' | 'idle';
   electricalPowerKw: number;
   cop: number;
   deltaTc: number;
@@ -219,6 +252,12 @@ const SETPOINT_DEFINITIONS: Partial<Record<SetpointType, NumericRegisterDefiniti
   cooling: CONTROL_REGISTERS.zone1CoolingSetTemp,
   dhw: CONTROL_REGISTERS.dhwSetTemp,
   indoor: CONTROL_REGISTERS.roomTempSetTemp,
+};
+
+/** Setpoint types whose write range follows the controller's active limit registers. */
+const DYNAMIC_LIMITS: Partial<Record<SetpointType, { upper: number; lower: number }>> = {
+  dhw: { upper: LIMIT_REGISTERS.dhwUpperLimit.address, lower: LIMIT_REGISTERS.dhwLowerLimit.address },
+  indoor: { upper: LIMIT_REGISTERS.roomTempUpperLimit.address, lower: LIMIT_REGISTERS.roomTempLowerLimit.address },
 };
 
 function toRuntimePollGroup(
@@ -272,16 +311,31 @@ function clonePollGroup(group: PollGroup, intervalMs: number): PollGroup {
   };
 }
 
-function formatCode(prefix: string, index: number, raw: number): string | null {
-  if (raw <= 0) return null;
-  return `${prefix}${String(index).padStart(2, '0')}=${raw}`;
-}
+const ERROR_CODE_REGISTERS = [
+  SENSOR_REGISTERS.errorCodes_E01_E16,
+  SENSOR_REGISTERS.errorCodes_E17_E32,
+  SENSOR_REGISTERS.errorCodes_E33_E48,
+  SENSOR_REGISTERS.errorCodes_E49_E64,
+  SENSOR_REGISTERS.errorCodes_E65_E80,
+  SENSOR_REGISTERS.errorCodes_E81_E96,
+];
+
+const PROTECTION_CODE_REGISTERS = [
+  SENSOR_REGISTERS.protectionCodes_P01_P16,
+  SENSOR_REGISTERS.protectionCodes_P17_P32,
+  SENSOR_REGISTERS.protectionCodes_P33_P48,
+  SENSOR_REGISTERS.protectionCodes_P49_P64,
+  SENSOR_REGISTERS.protectionCodes_P65_P80,
+  SENSOR_REGISTERS.protectionCodes_P81_P96,
+];
 
 export class Adlar3ModbusService extends EventEmitter {
   private readonly tcp: ModbusTcpService;
   private externalFlowLpm: number | null = null;
   private lastFaults: string[] = [];
   private hasBaseSnapshot = false;
+  /** Last non-zero Reg 2101 value, restored when switching on again. */
+  private lastZoneControlOn: number | null = null;
 
   constructor(config: Adlar3ModbusConfig) {
     super();
@@ -306,14 +360,27 @@ export class Adlar3ModbusService extends EventEmitter {
         }
       } else {
         this.emit('poll-group-succeeded', groupName);
+        this.emitMediumSnapshot(groupName);
       }
     });
 
     this.tcp.on('poll-partial', (groupName) => {
       if (groupName !== ADLAR3_POLL_FAST.name) {
         this.emit('poll-group-succeeded', groupName);
+        this.emitMediumSnapshot(groupName);
       }
     });
+  }
+
+  /**
+   * Controls (4-2100..2114), faults (3-90..101) and effective mode (3-9) are only read by the
+   * medium group. Emit a 'medium' snapshot so the device can apply those values.
+   */
+  private emitMediumSnapshot(groupName: string): void {
+    if (groupName !== ADLAR3_POLL_MEDIUM.name || !this.hasBaseSnapshot) return;
+    const snapshot = this.buildSnapshot('medium');
+    this.emit('data', snapshot);
+    this.checkFaults(snapshot.status.activeFaults);
   }
 
   get connected(): boolean {
@@ -398,6 +465,11 @@ export class Adlar3ModbusService extends EventEmitter {
     if (addr === CONTROL_REGISTERS.zone1AutoHeatingSetTemp.address) {
       throw new Error('Schrijven naar Aurora III register 2109 is geblokkeerd: schaalfactor is nog niet hardware-bevestigd.');
     }
+    for (const [type, def] of Object.entries(SETPOINT_DEFINITIONS) as Array<[SetpointType, NumericRegisterDefinition]>) {
+      if (def.address === addr && DYNAMIC_LIMITS[type]) {
+        this.assertSetpointAllowed(type, def, decodeS16(value & 0xFFFF) * TEMP_MULTIPLY);
+      }
+    }
     await this.tcp.writeSingleRegister(addr, value);
   }
 
@@ -405,8 +477,50 @@ export class Adlar3ModbusService extends EventEmitter {
     throw new Error('Aurora III ondersteunt geen bekende coil-acties in deze app.');
   }
 
-  async setMainSwitch(): Promise<void> {
-    throw new Error('Aurora III on/off via register 2100=0 is geblokkeerd totdat dit op hardware bevestigd is.');
+  /**
+   * Space heating/cooling on/off via zone control Reg 2101.
+   * Off writes 0; on restores the last non-zero value, or zone 1 / both zones depending on Reg 2.
+   * The device layer only calls this when the experimental_zone_onoff setting is enabled.
+   */
+  async setMainSwitch(value: boolean): Promise<void> {
+    const addr = CONTROL_REGISTERS.hvacZoneControlMode.address;
+    if (!value) {
+      await this.tcp.writeSingleRegister(addr, ZoneControl.AllOff);
+      return;
+    }
+    const twoZones = this.tcp.u16(CONFIG_REGISTERS.zoneControlModeWithoutThermostat.address) === 1;
+    const onValue = this.lastZoneControlOn ?? (twoZones ? ZoneControl.AllOn : ZoneControl.Zone1On);
+    await this.tcp.writeSingleRegister(addr, onValue);
+  }
+
+  async setFeature(feature: DeviceFeature, value: number): Promise<void> {
+    switch (feature) {
+      case 'dhw_enabled':
+        await this.tcp.writeSingleRegister(CONTROL_REGISTERS.dhwOnOff.address, value ? 1 : 0);
+        return;
+      case 'silent_mode':
+        if (![SilentMode.Off, SilentMode.Level1, SilentMode.Level2].includes(value)) {
+          throw new Error(`Aurora III stille modus ${value} is niet vrijgegeven voor schrijven.`);
+        }
+        await this.updateFunctionA((raw) => encodeSilentMode(raw, value as SilentMode));
+        return;
+      case 'backup_heater_forced':
+        await this.updateFunctionA((raw) => setBitFlag(raw, FUNCTION_A_BITS.FORCED_BACKUP_HEATER, value !== 0));
+        return;
+      default:
+        throw new Error(`Onbekende Aurora III functie: ${String(feature)}`);
+    }
+  }
+
+  /** Read-modify-write of Reg 2103: always re-read first so bits changed on the unit are kept. */
+  private async updateFunctionA(update: (raw: number) => number): Promise<void> {
+    const addr = CONTROL_REGISTERS.additionalFunctionA.address;
+    await this.tcp.readHoldingRegisters(addr, 1, 'expert-read');
+    const current = this.tcp.u16(addr);
+    const next = update(current);
+    if (next !== current) {
+      await this.tcp.writeSingleRegister(addr, next);
+    }
   }
 
   async setMode(mode: number): Promise<void> {
@@ -421,8 +535,34 @@ export class Adlar3ModbusService extends EventEmitter {
     if (!def) {
       throw new Error(`Aurora III setpoint '${type}' is niet beschikbaar of niet veilig vrijgegeven.`);
     }
-    assertRange(def, tempC);
+    this.assertSetpointAllowed(type, def, tempC);
     await this.tcp.writeSingleRegister(def.address, encodeTemperatureRaw(tempC));
+  }
+
+  /**
+   * Bound a setpoint write by the controller's active limits (Reg 14/15 for DHW, 30/31 for room)
+   * when they have been read and look plausible; otherwise by the static register range.
+   */
+  private assertSetpointAllowed(type: SetpointType, def: NumericRegisterDefinition, tempC: number): void {
+    const limits = this.activeLimits(type);
+    if (!limits) {
+      assertRange(def, tempC);
+      return;
+    }
+    if (tempC < limits.min || tempC > limits.max) {
+      throw new Error(
+        `${def.name} ${tempC}${def.unit ?? ''} buiten actief bereik ${limits.min}–${limits.max}${def.unit ?? ''} (limietregisters warmtepomp)`,
+      );
+    }
+  }
+
+  private activeLimits(type: SetpointType): { min: number; max: number } | null {
+    const regs = DYNAMIC_LIMITS[type];
+    if (!regs || !this.tcp.has(regs.upper) || !this.tcp.has(regs.lower)) return null;
+    const max = decodeS16(this.tcp.u16(regs.upper)) * TEMP_MULTIPLY;
+    const min = decodeS16(this.tcp.u16(regs.lower)) * TEMP_MULTIPLY;
+    const plausible = min < max && min >= LIMIT_PLAUSIBLE_MIN_C && max <= LIMIT_PLAUSIBLE_MAX_C;
+    return plausible ? { min: +min.toFixed(1), max: +max.toFixed(1) } : null;
   }
 
   setExternalFlow(lpm: number | null): void {
@@ -457,20 +597,30 @@ export class Adlar3ModbusService extends EventEmitter {
       antifreeze: statusBitSet(reg38, STATUS_BITS.ANTI_FREEZING),
       sterilization: statusBitSet(reg38, STATUS_BITS.DISINFECTION),
       compressorOn: compFreq > 0,
+      dhwActive: (this.tcp.u16(CONFIG_REGISTERS.effectiveMode.address) & EFFECTIVE_MODE_BITS.DHW) !== 0,
       activeFaults,
     };
   }
 
   private buildControl(): ControlSnapshot {
     const mode = this.tcp.u16(CONTROL_REGISTERS.hvacMode.address);
+    const zoneAddr = CONTROL_REGISTERS.hvacZoneControlMode.address;
+    const zoneControl = this.tcp.u16(zoneAddr);
+    if (zoneControl !== ZoneControl.AllOff) this.lastZoneControlOn = zoneControl;
+    const functionA = this.tcp.u16(CONTROL_REGISTERS.additionalFunctionA.address);
     return {
-      on: mode !== HvacMode.Off,
+      on: this.tcp.has(zoneAddr) ? zoneControl !== ZoneControl.AllOff : mode !== HvacMode.Off,
+      zoneControl,
       mode,
       modeName: modeName(mode),
       heatingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1HeatingSetTemp, true),
       coolingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1CoolingSetTemp, true),
       dhwSetpointC: this.readScaledValue(CONTROL_REGISTERS.dhwSetTemp, true),
       floorSetpointC: this.readScaledValue(CONTROL_REGISTERS.roomTempSetTemp, true),
+      dhwEnabled: this.tcp.u16(CONTROL_REGISTERS.dhwOnOff.address) === 1,
+      silentMode: decodeSilentMode(functionA),
+      backupHeaterForced: (functionA & FUNCTION_A_BITS.FORCED_BACKUP_HEATER) !== 0,
+      disinfectionEnabled: (functionA & FUNCTION_A_BITS.DISINFECTION_ENABLED) !== 0,
     };
   }
 
@@ -495,22 +645,47 @@ export class Adlar3ModbusService extends EventEmitter {
     const flowM3h = this.externalFlowLpm !== null && this.externalFlowLpm > 0
       ? (this.externalFlowLpm * 60) / 1000
       : internalFlowM3h;
-    const thermalPowerKw = Math.abs(deltaT) * flowM3h * 1.163;
-    const electricalPowerKw = this.buildPower().derivedPowerKw;
+    const compressorOn = this.readScaledValue(SENSOR_REGISTERS.compressorRunningFreq) > 0;
+    const defrosting = statusBitSet(this.tcp.u16(SENSOR_REGISTERS.systemStatus.address), STATUS_BITS.DEFROST);
+    const exchanging = compressorOn && !defrosting && flowM3h >= MIN_THERMAL_FLOW_M3H;
+    let thermalMode: CopSnapshot['thermalMode'] = 'idle';
+    if (exchanging && deltaT >= MIN_COP_DELTA_T_C) thermalMode = 'heating';
+    else if (exchanging && deltaT <= -MIN_COP_DELTA_T_C) thermalMode = 'cooling';
+    const thermalPowerKw = thermalMode === 'idle' ? 0 : Math.abs(deltaT) * flowM3h * 1.163;
+    const power = this.buildPower();
+    const electricalPowerKw = power.derivedPowerKw;
 
     const base = {
       thermalPowerKw: +thermalPowerKw.toFixed(3),
+      thermalMode,
       electricalPowerKw: +electricalPowerKw.toFixed(3),
       deltaTc: +deltaT.toFixed(1),
       flowLpm: +((flowM3h * 1000) / 60).toFixed(2),
       ambientTempC: ambientTemp,
     };
 
+    if (compressorOn && (power.inputVoltageV === 0 || power.inputCurrentA === 0)) {
+      return {
+        ...base,
+        cop: 0,
+        valid: false,
+        reason: 'Registers 74/75 (AC-spanning/-stroom) geven 0 terwijl de compressor draait; gebruik een externe vermogensmeting.',
+      };
+    }
+
     if (electricalPowerKw < MIN_COP_POWER_KW) {
       return { ...base, cop: 0, valid: false, reason: 'Elektrisch vermogen niet beschikbaar of te laag.' };
     }
 
-    if (deltaT < MIN_COP_DELTA_T_C) {
+    if (defrosting) {
+      return { ...base, cop: 0, valid: false, reason: 'Ontdooicyclus actief.' };
+    }
+
+    if (flowM3h < MIN_THERMAL_FLOW_M3H) {
+      return { ...base, cop: 0, valid: false, reason: `Flow ${flowM3h.toFixed(2)} m³/h < ${MIN_THERMAL_FLOW_M3H} m³/h.` };
+    }
+
+    if (thermalMode !== 'heating') {
       return { ...base, cop: 0, valid: false, reason: `ΔT=${deltaT.toFixed(1)}°C < ${MIN_COP_DELTA_T_C}°C.` };
     }
 
@@ -539,37 +714,13 @@ export class Adlar3ModbusService extends EventEmitter {
     return sensors;
   }
 
+  /** Fault/protection registers are bit fields: bit n of the k-th register is code k*16+n+1. */
   private decodeFaults(): string[] {
-    const faults: string[] = [];
-    const errorDefs = [
-      SENSOR_REGISTERS.errorCodes_E01_E16,
-      SENSOR_REGISTERS.errorCodes_E17_E32,
-      SENSOR_REGISTERS.errorCodes_E33_E48,
-      SENSOR_REGISTERS.errorCodes_E49_E64,
-      SENSOR_REGISTERS.errorCodes_E65_E80,
-      SENSOR_REGISTERS.errorCodes_E81_E96,
+    const words = (defs: ReadonlyArray<{ address: number }>) => defs.map((def) => this.tcp.u16(def.address));
+    return [
+      ...decodeCodeBits('E', words(ERROR_CODE_REGISTERS)),
+      ...decodeCodeBits('P', words(PROTECTION_CODE_REGISTERS)),
     ];
-    const protectionDefs = [
-      SENSOR_REGISTERS.protectionCodes_P01_P16,
-      SENSOR_REGISTERS.protectionCodes_P17_P32,
-      SENSOR_REGISTERS.protectionCodes_P33_P48,
-      SENSOR_REGISTERS.protectionCodes_P49_P64,
-      SENSOR_REGISTERS.protectionCodes_P65_P80,
-      SENSOR_REGISTERS.protectionCodes_P81_P96,
-    ];
-
-    errorDefs.forEach((def, i) => {
-      if (!this.tcp.has(def.address)) return;
-      const code = formatCode('E', i + 1, this.tcp.u16(def.address));
-      if (code) faults.push(code);
-    });
-    protectionDefs.forEach((def, i) => {
-      if (!this.tcp.has(def.address)) return;
-      const code = formatCode('P', i + 1, this.tcp.u16(def.address));
-      if (code) faults.push(code);
-    });
-
-    return faults;
   }
 
   private checkFaults(currentFaults: string[]): void {

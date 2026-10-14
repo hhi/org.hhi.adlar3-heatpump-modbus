@@ -44,6 +44,11 @@ const DRIVER_COMPOSE_CAPABILITIES = [
   'adlar_state_defrost_state',
   'adlar_antifreeze',
   'adlar_sterilization',
+  'adlar_dhw_enabled',
+  'adlar_dhw_active',
+  'adlar_silent_mode',
+  'adlar_backup_heater_forced',
+  'adlar_disinfection_enabled',
   'measure_frequency.compressor_freq',
   'measure_frequency.comp_target_freq',
   'adlar_fan_speed',
@@ -118,6 +123,9 @@ const DRIVER_COMPOSE_CAPABILITIES = [
   'adlar_openmeteo_last_fetch',
 ] as const;
 
+/** Consecutive fast polls with compressor on and V or I = 0 before logging (≈5 min at 10 s). */
+const INTERNAL_POWER_ZERO_SAMPLES = 30;
+
 const INTERNAL_POWER_CAPABILITIES = [
   'measure_power',
   'meter_power',
@@ -146,6 +154,7 @@ interface DeviceSettings {
   dashboard_port: number;
   log_level: string;
   enable_power_measurements: boolean;
+  experimental_zone_onoff: boolean;
 }
 /* eslint-enable camelcase */
 
@@ -164,6 +173,8 @@ class AdlarModbusDevice extends Homey.Device {
   private logger!: Logger;
   private copService: ModbusCOPService | null = null;
   private readonly externalDataTimestamps = new Map<string, number>();
+  private internalPowerZeroSamples = 0;
+  private internalPowerZeroLogged = false;
 
   public registerExternalDataReceived(cap: string): void {
     this.externalDataTimestamps.set(cap, Date.now());
@@ -502,6 +513,11 @@ class AdlarModbusDevice extends Homey.Device {
       set('target_temperature.dhw', snap.control.dhwSetpointC);
       set('target_temperature.floor', snap.control.floorSetpointC);
       set('adlar_mode', String(snap.control.mode));
+      set('adlar_dhw_enabled', snap.control.dhwEnabled);
+      set('adlar_silent_mode', String(snap.control.silentMode));
+      set('adlar_backup_heater_forced', snap.control.backupHeaterForced);
+      set('adlar_disinfection_enabled', snap.control.disinfectionEnabled);
+      set('adlar_dhw_active', snap.status.dhwActive);
     }
 
     // Status
@@ -546,6 +562,9 @@ class AdlarModbusDevice extends Homey.Device {
     // Power — altijd Modbus (voltage × current), nooit externe prioriteit
     if (from('superfast', 'fast')) {
       set('measure_power', snap.power.derivedPowerKw * 1000);
+    }
+    if (from('fast')) {
+      this._checkInternalPowerRegisters(snap);
     }
     // meter_power is written exclusively by EnergyTrackingService (ETS).
     if (from('fast')) {
@@ -593,6 +612,26 @@ class AdlarModbusDevice extends Homey.Device {
       set(
         'adlar_fault_active',
         faults.length > 0 ? faults.join('; ') : '',
+      );
+    }
+  }
+
+  /**
+   * Some firmware reports 0 in registers 74/75 (AC voltage/current), which leaves measure_power
+   * at 0 W. Log this once per run so the user can switch to an external power measurement.
+   */
+  private _checkInternalPowerRegisters(snap: DataSnapshot): void {
+    if (this.internalPowerZeroLogged || !snap.status.compressorOn) return;
+    if (snap.power.inputVoltageV > 0 && snap.power.inputCurrentA > 0) {
+      this.internalPowerZeroSamples = 0;
+      return;
+    }
+    this.internalPowerZeroSamples += 1;
+    if (this.internalPowerZeroSamples >= INTERNAL_POWER_ZERO_SAMPLES) {
+      this.internalPowerZeroLogged = true;
+      this.logger.warn(
+        `Registers 74/75 report ${snap.power.inputVoltageV} V / ${snap.power.inputCurrentA} A while the compressor runs. `
+        + 'This firmware does not report input power; use the "Send power data to heat pump" flow card for COP and energy.',
       );
     }
   }
@@ -667,8 +706,30 @@ class AdlarModbusDevice extends Homey.Device {
   private _registerCapabilityListeners(): void {
     this.registerCapabilityListener('onoff', async (value: boolean) => {
       this.logger.debug('Set onoff:', value);
+      // Writing zone control register 2101 is pending hardware verification by testers.
+      if (this.getSetting('experimental_zone_onoff') !== true) {
+        throw new Error(this.homey.__('errors.zone_onoff_disabled'));
+      }
       if (!this.coordinator) return;
       await this.coordinator.setMainSwitch(value);
+    });
+
+    this.registerCapabilityListener('adlar_dhw_enabled', async (value: boolean) => {
+      this.logger.debug('Set DHW function:', value);
+      if (!this.coordinator) return;
+      await this.coordinator.setFeature('dhw_enabled', value ? 1 : 0);
+    });
+
+    this.registerCapabilityListener('adlar_silent_mode', async (value: string) => {
+      this.logger.debug('Set silent mode:', value);
+      if (!this.coordinator) return;
+      await this.coordinator.setFeature('silent_mode', parseInt(value, 10));
+    });
+
+    this.registerCapabilityListener('adlar_backup_heater_forced', async (value: boolean) => {
+      this.logger.debug('Set forced backup heater:', value);
+      if (!this.coordinator) return;
+      await this.coordinator.setFeature('backup_heater_forced', value ? 1 : 0);
     });
 
     this.registerCapabilityListener('target_temperature', async (value: number) => {

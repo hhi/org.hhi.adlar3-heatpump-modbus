@@ -32,7 +32,7 @@ const WRITABLE_REGISTERS: Record<string, WritableRegisterMeta> = {
   zone1HeatingSetTemp: { address: CONTROL_REGISTERS.zone1HeatingSetTemp.address, min: 18, max: 50, multiply: 0.1, name: 'Zone 1 verwarming setpoint', capability: 'target_temperature' },
   zone1CoolingSetTemp: { address: CONTROL_REGISTERS.zone1CoolingSetTemp.address, min: 7,  max: 25, multiply: 0.1, name: 'Zone 1 koeling setpoint',    capability: 'target_temperature.cooling' },
   dhwSetTemp:          { address: CONTROL_REGISTERS.dhwSetTemp.address,          min: 20, max: 75, multiply: 0.1, name: 'Tapwater setpoint',            capability: 'target_temperature.dhw' },
-  roomTempSetTemp:     { address: CONTROL_REGISTERS.roomTempSetTemp.address,     min: 15, max: 30, multiply: 0.1, name: 'Ruimtetemperatuur setpoint',   capability: 'target_temperature.floor' },
+  roomTempSetTemp:     { address: CONTROL_REGISTERS.roomTempSetTemp.address,     min: 16, max: 28, multiply: 0.1, name: 'Ruimtetemperatuur setpoint',   capability: 'target_temperature.floor' },
 };
 
 // ── Registermetadata types voor ADR-046 expertdashboard ───────────────────────

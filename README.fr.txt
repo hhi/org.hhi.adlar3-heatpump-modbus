@@ -28,7 +28,8 @@ Lecture
 - Tableaux de bord locaux sur http://<homey-ip>:8090/ par defaut, avec tuiles de capacites live, commandes interactives de consignes, outils Modbus experts et statistiques de changements de registres
 
 Commande depuis Homey
-- Lecture marche/arret principal ; l'ecriture est bloquee jusqu'a confirmation materielle du registre Aurora III 4-2100 = 0
+- Marche/arret principal via le registre de zone 4-2101 ; la commande est experimentale et doit etre activee dans les parametres de l'appareil
+- Fonction eau chaude marche/arret, mode silencieux (arret, niveau 1, niveau 2) et appoint electrique force
 - Mode de fonctionnement et mode de travail
 - Consigne de chauffage
 - Consigne de refroidissement

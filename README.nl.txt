@@ -28,7 +28,8 @@ Uitlezen
 - Lokale dashboards standaard op http://<homey-ip>:8090/, inclusief live capability-tegels, interactieve setpointbediening, expert Modbus-tools en registerwijzigingsstatistieken
 
 Bediening vanuit Homey
-- Hoofd aan/uit uitlezen; schrijven is geblokkeerd totdat Aurora III register 4-2100 = 0 op hardware bevestigd is
+- Hoofd aan/uit via zoneregister 4-2101; schakelen is experimenteel en moet in de apparaatinstellingen worden ingeschakeld
+- Tapwaterfunctie aan/uit, stille modus (uit, niveau 1, niveau 2) en geforceerde elektrische bijverwarming
 - Bedrijfsmodus en werkmodus
 - Verwarmingssetpoint
 - Koelsetpoint

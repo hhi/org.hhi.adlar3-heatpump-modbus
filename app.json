@@ -1929,10 +1929,10 @@
               "fr": " code"
             },
             "placeholder": {
-              "en": "Fault code to monitor, e.g. F1.1 or SYS1_1",
-              "nl": "Storingscode om te monitoren, bijv. F1.1 of SYS1_1",
-              "de": "Störungscode zur Überwachung, z. B. F1.1 oder SYS1_1",
-              "fr": "Code de défaut à surveiller, p. ex. F1.1 ou SYS1_1"
+              "en": "Fault code to monitor, e.g. E03 or P17",
+              "nl": "Storingscode om te monitoren, bijv. E03 of P17",
+              "de": "Störungscode zur Überwachung, z. B. E03 oder P17",
+              "fr": "Code de défaut à surveiller, p. ex. E03 ou P17"
             }
           }
         ],
@@ -1946,7 +1946,7 @@
               "de": "Störungscode",
               "fr": "Code de défaut"
             },
-            "example": "F1.1"
+            "example": "E03"
           },
           {
             "type": "string",
@@ -3707,6 +3707,34 @@
         ]
       },
       {
+        "id": "dhw_heating_active",
+        "title": {
+          "en": "Hot water is being heated",
+          "nl": "Tapwater wordt verwarmd",
+          "de": "Warmwasser wird bereitet",
+          "fr": "L'eau chaude est en chauffe"
+        },
+        "titleFormatted": {
+          "en": "Hot water !{{is|is not}} being heated",
+          "nl": "Tapwater wordt !{{wel|niet}} verwarmd",
+          "de": "Warmwasser !{{wird|wird nicht}} bereitet",
+          "fr": "L'eau chaude !{{est|n'est pas}} en chauffe"
+        },
+        "hint": {
+          "en": "Check if the heat pump is heating domestic hot water right now",
+          "nl": "Controleer of de warmtepomp op dit moment tapwater verwarmt",
+          "de": "Prüfen, ob die Wärmepumpe gerade Warmwasser bereitet",
+          "fr": "Vérifier si la pompe à chaleur chauffe actuellement l'eau chaude sanitaire"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=intelligent-heatpump-modbus"
+          }
+        ]
+      },
+      {
         "id": "fault_active",
         "title": {
           "en": "Fault is active",
@@ -4343,6 +4371,73 @@
               "de": "100",
               "fr": "100"
             }
+          }
+        ]
+      },
+      {
+        "id": "silent_mode_is",
+        "title": {
+          "en": "Silent mode is",
+          "nl": "Stille modus is",
+          "de": "Leisemodus ist",
+          "fr": "Le mode silencieux est"
+        },
+        "titleFormatted": {
+          "en": "Silent mode !{{is|is not}} [[level]]",
+          "nl": "Stille modus !{{is|is niet}} [[level]]",
+          "de": "Leisemodus !{{ist|ist nicht}} [[level]]",
+          "fr": "Le mode silencieux !{{est|n'est pas}} [[level]]"
+        },
+        "hint": {
+          "en": "Check the silent mode level of the heat pump",
+          "nl": "Controleer het niveau van de stille modus van de warmtepomp",
+          "de": "Prüfen Sie die Stufe des Leisemodus der Wärmepumpe",
+          "fr": "Vérifier le niveau du mode silencieux de la pompe à chaleur"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=intelligent-heatpump-modbus"
+          },
+          {
+            "type": "dropdown",
+            "name": "level",
+            "title": {
+              "en": "Silent mode",
+              "nl": "Stille modus",
+              "de": "Leisemodus",
+              "fr": "Mode silencieux"
+            },
+            "values": [
+              {
+                "id": "0",
+                "title": {
+                  "en": "Off",
+                  "nl": "Uit",
+                  "de": "Aus",
+                  "fr": "Arrêt"
+                }
+              },
+              {
+                "id": "1",
+                "title": {
+                  "en": "Level 1",
+                  "nl": "Niveau 1",
+                  "de": "Stufe 1",
+                  "fr": "Niveau 1"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "Level 2",
+                  "nl": "Niveau 2",
+                  "de": "Stufe 2",
+                  "fr": "Niveau 2"
+                }
+              }
+            ]
           }
         ]
       },
@@ -5595,6 +5690,64 @@
         ]
       },
       {
+        "id": "set_backup_heater",
+        "title": {
+          "en": "Switch forced backup heater",
+          "nl": "Geforceerde bijverwarming schakelen",
+          "de": "Erzwungene Zusatzheizung schalten",
+          "fr": "Commuter l'appoint électrique forcé"
+        },
+        "titleFormatted": {
+          "en": "Switch forced backup heater [[state]]",
+          "nl": "Geforceerde bijverwarming [[state]] schakelen",
+          "de": "Erzwungene Zusatzheizung [[state]] schalten",
+          "fr": "Commuter l'appoint électrique forcé sur [[state]]"
+        },
+        "hint": {
+          "en": "Forces the electric backup heater on or releases it",
+          "nl": "Forceert de elektrische bijverwarming of geeft deze weer vrij",
+          "de": "Erzwingt die elektrische Zusatzheizung oder gibt sie wieder frei",
+          "fr": "Force l'appoint électrique ou le libère"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=intelligent-heatpump-modbus"
+          },
+          {
+            "type": "dropdown",
+            "name": "state",
+            "title": {
+              "en": "State",
+              "nl": "Stand",
+              "de": "Zustand",
+              "fr": "État"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "on",
+                  "nl": "aan",
+                  "de": "ein",
+                  "fr": "marche"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "off",
+                  "nl": "uit",
+                  "de": "aus",
+                  "fr": "arrêt"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
         "id": "set_desired_indoor_temperature",
         "title": {
           "en": "Set desired indoor temperature",
@@ -5640,6 +5793,64 @@
               "de": "Gewünschte Innentemperatur in °C",
               "fr": "Température intérieure souhaitée en °C"
             }
+          }
+        ]
+      },
+      {
+        "id": "set_dhw_function",
+        "title": {
+          "en": "Switch hot water function",
+          "nl": "Tapwaterfunctie schakelen",
+          "de": "Warmwasserfunktion schalten",
+          "fr": "Commuter la fonction eau chaude"
+        },
+        "titleFormatted": {
+          "en": "Switch hot water function [[state]]",
+          "nl": "Tapwaterfunctie [[state]] schakelen",
+          "de": "Warmwasserfunktion [[state]] schalten",
+          "fr": "Commuter la fonction eau chaude sur [[state]]"
+        },
+        "hint": {
+          "en": "Switches domestic hot water heating on or off",
+          "nl": "Schakelt de tapwaterverwarming aan of uit",
+          "de": "Schaltet die Warmwasserbereitung ein oder aus",
+          "fr": "Active ou désactive la production d'eau chaude sanitaire"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=intelligent-heatpump-modbus"
+          },
+          {
+            "type": "dropdown",
+            "name": "state",
+            "title": {
+              "en": "State",
+              "nl": "Stand",
+              "de": "Zustand",
+              "fr": "État"
+            },
+            "values": [
+              {
+                "id": "on",
+                "title": {
+                  "en": "on",
+                  "nl": "aan",
+                  "de": "ein",
+                  "fr": "marche"
+                }
+              },
+              {
+                "id": "off",
+                "title": {
+                  "en": "off",
+                  "nl": "uit",
+                  "de": "aus",
+                  "fr": "arrêt"
+                }
+              }
+            ]
           }
         ]
       },
@@ -5761,6 +5972,73 @@
         ]
       },
       {
+        "id": "set_silent_mode",
+        "title": {
+          "en": "Set silent mode",
+          "nl": "Stille modus instellen",
+          "de": "Leisemodus einstellen",
+          "fr": "Régler le mode silencieux"
+        },
+        "titleFormatted": {
+          "en": "Set silent mode to [[level]]",
+          "nl": "Stille modus instellen op [[level]]",
+          "de": "Leisemodus einstellen auf [[level]]",
+          "fr": "Régler le mode silencieux sur [[level]]"
+        },
+        "hint": {
+          "en": "Sets the silent mode level of the heat pump",
+          "nl": "Stelt het niveau van de stille modus van de warmtepomp in",
+          "de": "Stellt die Stufe des Leisemodus der Wärmepumpe ein",
+          "fr": "Règle le niveau du mode silencieux de la pompe à chaleur"
+        },
+        "args": [
+          {
+            "type": "device",
+            "name": "device",
+            "filter": "driver_id=intelligent-heatpump-modbus"
+          },
+          {
+            "type": "dropdown",
+            "name": "level",
+            "title": {
+              "en": "Silent mode",
+              "nl": "Stille modus",
+              "de": "Leisemodus",
+              "fr": "Mode silencieux"
+            },
+            "values": [
+              {
+                "id": "0",
+                "title": {
+                  "en": "Off",
+                  "nl": "Uit",
+                  "de": "Aus",
+                  "fr": "Arrêt"
+                }
+              },
+              {
+                "id": "1",
+                "title": {
+                  "en": "Level 1",
+                  "nl": "Niveau 1",
+                  "de": "Stufe 1",
+                  "fr": "Niveau 1"
+                }
+              },
+              {
+                "id": "2",
+                "title": {
+                  "en": "Level 2",
+                  "nl": "Niveau 2",
+                  "de": "Stufe 2",
+                  "fr": "Niveau 2"
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
         "id": "set_target_temperature",
         "title": {
           "en": "Set target (setpoint) temperature",
@@ -5874,6 +6152,11 @@
         "adlar_state_defrost_state",
         "adlar_antifreeze",
         "adlar_sterilization",
+        "adlar_dhw_enabled",
+        "adlar_dhw_active",
+        "adlar_silent_mode",
+        "adlar_backup_heater_forced",
+        "adlar_disinfection_enabled",
         "measure_frequency.compressor_freq",
         "measure_frequency.comp_target_freq",
         "adlar_fan_speed",
@@ -6214,6 +6497,12 @@
                 "nl": "TCP-poort",
                 "de": "TCP-Port",
                 "fr": "Port TCP"
+              },
+              "hint": {
+                "en": "Port of the Modbus gateway. An Elfin EW11A uses 502 when set to Modbus TCP and 8899 (its default socket port) otherwise.",
+                "nl": "Poort van de Modbus-gateway. Een Elfin EW11A gebruikt 502 als die op Modbus TCP staat en anders 8899 (de standaard socketpoort).",
+                "de": "Port des Modbus-Gateways. Ein Elfin EW11A verwendet 502 im Modus Modbus TCP, sonst 8899 (Standard-Socket-Port).",
+                "fr": "Port de la passerelle Modbus. Un Elfin EW11A utilise 502 en mode Modbus TCP, sinon 8899 (port socket par défaut)."
               },
               "value": 502,
               "attr": {
@@ -7568,6 +7857,35 @@
           ]
         },
         {
+          "id": "experimental",
+          "type": "group",
+          "label": {
+            "en": "Experimental functions",
+            "nl": "Experimentele functies",
+            "de": "Experimentelle Funktionen",
+            "fr": "Fonctions expérimentales"
+          },
+          "children": [
+            {
+              "id": "experimental_zone_onoff",
+              "type": "checkbox",
+              "label": {
+                "en": "On/off via zone control (experimental)",
+                "nl": "Aan/uit via zonebesturing (experimenteel)",
+                "de": "Ein/Aus über Zonensteuerung (experimentell)",
+                "fr": "Marche/arrêt via la commande de zone (expérimental)"
+              },
+              "hint": {
+                "en": "Lets the on/off switch write zone control register 4-2101 (0 = space heating and cooling off). Hot water is switched separately. Not yet confirmed on all installations.",
+                "nl": "Laat de aan/uit-schakelaar zoneregister 4-2101 schrijven (0 = ruimteverwarming en -koeling uit). Tapwater wordt apart geschakeld. Nog niet op alle installaties bevestigd.",
+                "de": "Der Ein/Aus-Schalter schreibt das Zonenregister 4-2101 (0 = Raumheizung und -kühlung aus). Warmwasser wird separat geschaltet. Noch nicht auf allen Anlagen bestätigt.",
+                "fr": "Le bouton marche/arrêt écrit le registre de zone 4-2101 (0 = chauffage et refroidissement arrêtés). L'eau chaude est commandée séparément. Pas encore confirmé sur toutes les installations."
+              },
+              "value": false
+            }
+          ]
+        },
+        {
           "id": "diagnostics",
           "type": "group",
           "label": {
@@ -7726,6 +8044,39 @@
         "nl": "Status van de antivriesbeveiliging, gedecodeerd uit Aurora III inputregister 3-0038, bit 2.",
         "fr": "État de la protection antigel décodé depuis le registre d’entrée Aurora III 3-0038, bit 2.",
         "de": "Status des Frostschutzes, dekodiert aus Aurora-III-Eingangsregister 3-0038, Bit 2."
+      }
+    },
+    "adlar_backup_heater_forced": {
+      "id": "adlar_backup_heater_forced",
+      "type": "boolean",
+      "title": {
+        "en": "Forced electric backup heater",
+        "nl": "Geforceerde elektrische bijverwarming",
+        "fr": "Appoint électrique forcé",
+        "de": "Erzwungene elektrische Zusatzheizung"
+      },
+      "icon": "/assets/backup-heater.svg",
+      "uiComponent": "toggle",
+      "getable": true,
+      "setable": true,
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Forced backup heater on",
+        "nl": "Geforceerde bijverwarming aan",
+        "fr": "Appoint forcé activé",
+        "de": "Erzwungene Zusatzheizung ein"
+      },
+      "insightsTitleFalse": {
+        "en": "Forced backup heater off",
+        "nl": "Geforceerde bijverwarming uit",
+        "fr": "Appoint forcé désactivé",
+        "de": "Erzwungene Zusatzheizung aus"
+      },
+      "description": {
+        "en": "Forces the electric backup heater on via holding register 4-2103, bit 3. Other bits of the register are kept unchanged.",
+        "nl": "Forceert de elektrische bijverwarming via holdingregister 4-2103, bit 3. De overige bits van het register blijven ongewijzigd.",
+        "fr": "Force l’appoint électrique via le registre holding 4-2103, bit 3. Les autres bits du registre restent inchangés.",
+        "de": "Erzwingt die elektrische Zusatzheizung über Holdingregister 4-2103, Bit 3. Die übrigen Bits des Registers bleiben unverändert."
       }
     },
     "adlar_building_c": {
@@ -8333,6 +8684,93 @@
         "nl": "Actuele ontdooistatus, gedecodeerd uit Aurora III inputregister 3-0038, bit 1.",
         "fr": "État de dégivrage actuel décodé depuis le registre d’entrée Aurora III 3-0038, bit 1.",
         "de": "Aktueller Abtaustatus, dekodiert aus Aurora-III-Eingangsregister 3-0038, Bit 1."
+      }
+    },
+    "adlar_dhw_active": {
+      "id": "adlar_dhw_active",
+      "type": "boolean",
+      "title": {
+        "en": "Hot water heating active",
+        "nl": "Tapwater wordt verwarmd",
+        "fr": "Chauffage de l’eau chaude actif",
+        "de": "Warmwasserbereitung aktiv"
+      },
+      "icon": "/assets/dhw-tank.svg",
+      "uiComponent": "sensor",
+      "getable": true,
+      "setable": false,
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Hot water heating started",
+        "nl": "Tapwaterverwarming gestart",
+        "fr": "Chauffage de l’eau chaude démarré",
+        "de": "Warmwasserbereitung gestartet"
+      },
+      "insightsTitleFalse": {
+        "en": "Hot water heating stopped",
+        "nl": "Tapwaterverwarming gestopt",
+        "fr": "Chauffage de l’eau chaude arrêté",
+        "de": "Warmwasserbereitung gestoppt"
+      },
+      "description": {
+        "en": "The heat pump is heating domestic hot water right now (input register 3-0009, bit 2).",
+        "nl": "De warmtepomp verwarmt op dit moment tapwater (inputregister 3-0009, bit 2).",
+        "fr": "La pompe à chaleur chauffe actuellement l’eau chaude sanitaire (registre d’entrée 3-0009, bit 2).",
+        "de": "Die Wärmepumpe bereitet gerade Warmwasser (Eingangsregister 3-0009, Bit 2)."
+      }
+    },
+    "adlar_dhw_enabled": {
+      "id": "adlar_dhw_enabled",
+      "type": "boolean",
+      "title": {
+        "en": "Hot water function",
+        "nl": "Tapwaterfunctie",
+        "fr": "Fonction eau chaude",
+        "de": "Warmwasserfunktion"
+      },
+      "icon": "/assets/dhw-tank.svg",
+      "uiComponent": "toggle",
+      "getable": true,
+      "setable": true,
+      "insights": true,
+      "insightsTitleTrue": {
+        "en": "Hot water function on",
+        "nl": "Tapwaterfunctie aan",
+        "fr": "Fonction eau chaude activée",
+        "de": "Warmwasserfunktion ein"
+      },
+      "insightsTitleFalse": {
+        "en": "Hot water function off",
+        "nl": "Tapwaterfunctie uit",
+        "fr": "Fonction eau chaude désactivée",
+        "de": "Warmwasserfunktion aus"
+      },
+      "description": {
+        "en": "Switches domestic hot water heating on or off via holding register 4-2102.",
+        "nl": "Schakelt de tapwaterverwarming aan of uit via holdingregister 4-2102.",
+        "fr": "Active ou désactive la production d’eau chaude sanitaire via le registre holding 4-2102.",
+        "de": "Schaltet die Warmwasserbereitung über Holdingregister 4-2102 ein oder aus."
+      }
+    },
+    "adlar_disinfection_enabled": {
+      "id": "adlar_disinfection_enabled",
+      "type": "boolean",
+      "title": {
+        "en": "Disinfection function enabled",
+        "nl": "Desinfectiefunctie ingeschakeld",
+        "fr": "Fonction de désinfection activée",
+        "de": "Desinfektionsfunktion aktiviert"
+      },
+      "icon": "/assets/sterilization.svg",
+      "uiComponent": "sensor",
+      "getable": true,
+      "setable": false,
+      "insights": false,
+      "description": {
+        "en": "Disinfection function setting read from holding register 4-2103, bit 6. Read-only.",
+        "nl": "Instelling van de desinfectiefunctie, gelezen uit holdingregister 4-2103, bit 6. Alleen-lezen.",
+        "fr": "Réglage de la fonction de désinfection lu depuis le registre holding 4-2103, bit 6. Lecture seule.",
+        "de": "Einstellung der Desinfektionsfunktion aus Holdingregister 4-2103, Bit 6. Nur lesbar."
       }
     },
     "adlar_eev_step": {
@@ -9603,6 +10041,55 @@
         "nl": "Kwaliteitsindicator voor de SCOP-berekening, gebaseerd op beschikbare historie en volledigheid van gegevens.",
         "fr": "Indicateur de qualité du calcul SCOP, basé sur l’historique disponible et la complétude des données.",
         "de": "Qualitätsindikator für die SCOP-Berechnung, basierend auf verfügbarer Historie und Datenvollständigkeit."
+      }
+    },
+    "adlar_silent_mode": {
+      "id": "adlar_silent_mode",
+      "type": "enum",
+      "title": {
+        "en": "Silent mode",
+        "nl": "Stille modus",
+        "fr": "Mode silencieux",
+        "de": "Leisemodus"
+      },
+      "icon": "/assets/silent-mode.svg",
+      "uiComponent": "picker",
+      "getable": true,
+      "setable": true,
+      "values": [
+        {
+          "id": "0",
+          "title": {
+            "en": "Off",
+            "nl": "Uit",
+            "fr": "Arrêt",
+            "de": "Aus"
+          }
+        },
+        {
+          "id": "1",
+          "title": {
+            "en": "Level 1",
+            "nl": "Niveau 1",
+            "fr": "Niveau 1",
+            "de": "Stufe 1"
+          }
+        },
+        {
+          "id": "2",
+          "title": {
+            "en": "Level 2",
+            "nl": "Niveau 2",
+            "fr": "Niveau 2",
+            "de": "Stufe 2"
+          }
+        }
+      ],
+      "description": {
+        "en": "Silent mode level in holding register 4-2103, bits 4-5. Other bits of the register are kept unchanged.",
+        "nl": "Niveau van de stille modus in holdingregister 4-2103, bits 4-5. De overige bits van het register blijven ongewijzigd.",
+        "fr": "Niveau du mode silencieux dans le registre holding 4-2103, bits 4-5. Les autres bits du registre restent inchangés.",
+        "de": "Stufe des Leisemodus in Holdingregister 4-2103, Bits 4-5. Die übrigen Bits des Registers bleiben unverändert."
       }
     },
     "adlar_simulated_target": {

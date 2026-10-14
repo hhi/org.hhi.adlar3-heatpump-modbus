@@ -35,10 +35,10 @@
         "fr": " code"
       },
       "placeholder": {
-        "en": "Fault code to monitor, e.g. F1.1 or SYS1_1",
-        "nl": "Storingscode om te monitoren, bijv. F1.1 of SYS1_1",
-        "de": "Störungscode zur Überwachung, z. B. F1.1 oder SYS1_1",
-        "fr": "Code de défaut à surveiller, p. ex. F1.1 ou SYS1_1"
+        "en": "Fault code to monitor, e.g. E03 or P17",
+        "nl": "Storingscode om te monitoren, bijv. E03 of P17",
+        "de": "Störungscode zur Überwachung, z. B. E03 oder P17",
+        "fr": "Code de défaut à surveiller, p. ex. E03 ou P17"
       }
     }
   ],
@@ -52,7 +52,7 @@
         "de": "Störungscode",
         "fr": "Code de défaut"
       },
-      "example": "F1.1"
+      "example": "E03"
     },
     {
       "type": "string",

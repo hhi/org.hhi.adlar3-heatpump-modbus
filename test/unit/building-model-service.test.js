@@ -117,6 +117,12 @@ test('BuildingModelService skips non-heating/cooling modes', async () => {
   assert.match(result.status.blockingReason, /Not in heating mode/);
 });
 
+test('BuildingModelService skips samples while hot water is being heated', async () => {
+  const result = await runCollect({ capabilities: { adlar_dhw_active: true } });
+  assert.strictEqual(result.count, 0);
+  assert.match(result.status.blockingReason, /Hot water heating active/);
+});
+
 test('BuildingModelService skips defrost samples', async () => {
   const result = await runCollect({ capabilities: { adlar_state_defrost_state: true } });
   assert.strictEqual(result.count, 0);

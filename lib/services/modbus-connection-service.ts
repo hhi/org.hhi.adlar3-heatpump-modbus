@@ -6,7 +6,7 @@ import { EventEmitter } from 'events';
 import Homey from 'homey';
 import { DataSnapshot } from '../modbus/adlar3-modbus-service';
 import { RegisterChangeEntry, RegisterChangeLogMode, TimerProvider } from '../modbus/modbus-tcp-service';
-import { ModbusRuntimeService } from '../modbus/modbus-runtime-service';
+import { DeviceFeature, ModbusRuntimeService } from '../modbus/modbus-runtime-service';
 
 type TemperatureRegisterScale = 'x1' | 'x10';
 
@@ -236,6 +236,14 @@ export class ModbusConnectionService<TSnapshot = DataSnapshot> extends EventEmit
   async setMode(mode: number): Promise<void> {
     if (!this.service) throw new Error('Not connected');
     await this.service.setMode(mode);
+  }
+
+  /**
+   * Write a device function (DHW on/off, silent mode, forced backup heater).
+   */
+  async setFeature(feature: DeviceFeature, value: number): Promise<void> {
+    if (!this.service) throw new Error('Not connected');
+    await this.service.setFeature(feature, value);
   }
 
   /**
