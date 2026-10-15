@@ -90,7 +90,7 @@ Open vanaf een apparaat op hetzelfde lokale netwerk:
 | URL | Doel |
 |---|---|
 | `http://<homey-ip>:8090/` | Live read-only dashboard met actuele warmtepompwaarden |
-| `http://<homey-ip>:8090/interactive` | Interactief dashboard voor veelgebruikte bediening |
+| `http://<homey-ip>:8090/interactive` | Interactief dashboard: setpoints, tapwaterfunctie, stille modus, bijverwarming en (experimenteel) aan/uit |
 | `http://<homey-ip>:8090/live` | Live capability-dashboard met status, setpoints, sensoren en diagnostiek |
 | `http://<homey-ip>:8090/expert` | Expertdashboard met Modbus-adressen, P/L-parameter-ID's en live lees-/schrijftools |
 | `http://<homey-ip>:8090/changelog` | Register Change Log met wijzigingsstatistieken per Modbus-register |

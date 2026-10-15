@@ -161,3 +161,8 @@ test('medium poll emits a medium snapshot once a fast snapshot exists', () => {
   service.tcp.emit('poll-partial', 'medium');
   assert.deepStrictEqual(sources, ['fast', 'medium', 'medium']);
 });
+
+test('control snapshot reports the allowed DHW setpoint range', () => {
+  assert.deepStrictEqual(createService({ 14: 550, 15: 300 }).service.getSnapshot().control.dhwSetpointRange, { min: 30, max: 55 });
+  assert.deepStrictEqual(createService().service.getSnapshot().control.dhwSetpointRange, { min: 20, max: 75 });
+});
