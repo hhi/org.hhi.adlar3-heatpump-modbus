@@ -7,9 +7,11 @@
  *   1. The Aurora III official register map spreadsheet (125 registers, "Register Map" tab)
  *   2. The Home Assistant adlar_heatpump.yaml reference implementation (12 registers used)
  *   3. The extended Home Assistant package adlar_warmtepomp.yaml (OnnoTimmermans/
- *      HA-modbus-Adlar-aurora-Pro-III, 2026) — adds value lists for Reg 1/2/9/35/39/81/2101/2102
- *      and the Reg 2103 bit layout (bit 3 backup heater, bits 4-5 silent mode, bit 6 disinfection)
+ *      HA-modbus-Adlar-aurora-Pro-III, 2026) — practical use of Reg 2101/2102/2103 on hardware
  *   4. Cross-mapping against legacy Aurora II semantics where useful
+ *
+ *   The official register map (source 1) is leading. The HA packages are only used where the map
+ *   is silent or demonstrably contradicted by working installations; such cases keep an @verify.
  *
  * NOTATION:
  *   - Aurora III uses Modbus Modicon-style addressing:
@@ -134,13 +136,14 @@ export function statusBitSet(reg38Raw: number, bit: number): boolean {
 // ============================================================================
 //
 // Reg 2103 is "Additional function A" — a writable holding register that packs multiple
-// configuration flags into one word. Known layout (HA YAML references):
+// configuration flags into one word. Layout per the official register map:
 //
-//   Bit 3     → Forced electric backup heater (written by the extended HA package)
-//   Bits 4–5  → Silent mode level 0/1/2 (mask 0x0030, shifted right by 4)
-//   Bit 6     → Disinfection function enabled (read-only in the HA package — never written here)
+//   Bit 3     → Forced electrical heater
+//   Bits 4–5  → Silent mode level 0/1/2 (mask 0x0030, shifted right by 4); level 2 only for R290 units
+//   Bit 6     → Disinfection mode (read-only in this app, as in the HA package)
+//   Bits 0–2, 7–15 → Reserved
 //
-// All other bits are unknown and are PRESERVED on writes via read-modify-write.
+// Reserved bits are PRESERVED on writes via read-modify-write.
 // Aurora II exposes silent mode via a dedicated enum register (0x0307 runningMode) which also
 // supports a "Powerful" boost mode — Aurora III appears to lack the boost option.
 //
@@ -164,9 +167,13 @@ export const SILENT_MODE_SHIFT = 4;
 export enum SilentMode {
   Off = 0,
   Level1 = 1,
+  /** Official map: only for R290 heat pumps (Reg 7 = REFRIGERANT_R290). */
   Level2 = 2,
-  // Level 3 reserved by encoding but not exposed in YAML reference
+  // Level 3 reserved by encoding but not documented in the official map
 }
+
+/** Reg 7 value for R290 units (0 = R32). */
+export const REFRIGERANT_R290 = 1;
 
 /** Decode silent-mode level from raw Reg 2103 value. */
 export function decodeSilentMode(reg2103Raw: number): SilentMode {
@@ -227,10 +234,12 @@ export const EFFECTIVE_MODE_BITS = {
   DHW: 0x0004,
 } as const;
 
-/** Reg 39 external request bits (extended HA YAML). */
-export const EXTERNAL_REQUEST_BITS = {
-  EXTERNAL_ANTI_FREEZE: 0x0001,
-  EXTERNAL_DEFROST: 0x0002,
+/** Reg 39: request for an external heating source (hybrid systems), per the official map. */
+export const EXTERNAL_HEAT_SOURCE_REQUEST_BITS = {
+  /** B0: request external heating source during anti-freezing mode. */
+  AHS_REQUEST_ANTI_FREEZING: 0x0001,
+  /** B1: request external heating source during defrosting mode. */
+  AHS_REQUEST_DEFROSTING: 0x0002,
 } as const;
 
 // ============================================================================
@@ -261,7 +270,7 @@ export function registerBitTable(address: number, fc: ModbusFC): Record<string, 
     };
   }
   if (address === 38) return { ...STATUS_BITS };
-  if (address === 39) return { ...EXTERNAL_REQUEST_BITS };
+  if (address === 39) return { ...EXTERNAL_HEAT_SOURCE_REQUEST_BITS };
   if (address === 9) return { ...EFFECTIVE_MODE_BITS };
   for (const [prefix, base] of [['E', ERROR_CODE_BASE_ADDRESS], ['P', PROTECTION_CODE_BASE_ADDRESS]] as const) {
     const index = address - base;
@@ -412,9 +421,10 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
     desc: 'II ≈ 0x0057.',
   },
   pumpPwmFeedback: {
-    address: 63, fc: 'input', dataType: 'U16', unit: '%', multiply: 1,
+    address: 63, fc: 'input', dataType: 'U16', unit: 'm³/h', /* @verify */ multiply: 0.1,
     name: 'PWM Feedback DC Water Pump',
-    desc: 'III-only. Percentage ×1 (extended HA YAML). Useful for detecting blocked impeller / pump failures.',
+    desc: 'Official map: scale x10, unit m³/h ("123 means 12.3 m³/h"), although the title says "percentage". '
+        + 'The extended HA YAML reads it as % x1. @verify on hardware. Not used for capabilities.',
   },
   waterFlow: {
     address: 64, fc: 'input', dataType: 'U16', unit: 'm³/h', /* @verify scale */ multiply: 0.1,
@@ -429,10 +439,10 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   zone1CurveHeatingSetTemp: {
     address: 67, fc: 'input', dataType: 'S16', unit: '°C',
-    /* Spec says scale x1; both HA YAML references use x10 like all other °C registers. */
+    /* @verify — official map says scale x1; both HA YAML references use x10 like all other °C registers. */
     multiply: TEMP_MULTIPLY,
     name: 'Zone 1 Climate Curve Heating Set Temperature',
-    desc: 'Follows outdoor temperature — polled in the slow group, not once.',
+    desc: 'Follows outdoor temperature — polled in the slow group. Scale conflict: official map x1, HA x10. @verify',
   },
   zone2CurveCoolingSetTemp: {
     address: 68, fc: 'input', dataType: 'S16', unit: '°C', multiply: TEMP_MULTIPLY,
@@ -503,9 +513,9 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   },
   ahsRequest: {
     address: 39, fc: 'input', dataType: 'U16',
-    name: 'External Request (bit field)',
-    desc: 'Extended HA YAML: bit0 = external anti-freeze request, bit1 = external defrost request. '
-        + 'Spec label: "Request External Heating Source (Hybrid)". Not decoded by this app.',
+    name: 'Request External Heating Source (Hybrid)',
+    desc: 'Only for hybrid systems. B0 = request external heating source during anti-freezing mode, '
+        + 'B1 = request external heating source during defrosting mode (official map). Not decoded into capabilities.',
   },
   mainPumpStatus: {
     address: 80, fc: 'input', dataType: 'U16',
@@ -534,7 +544,8 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   errorCodes_E01_E16: {
     address: 90, fc: 'input', dataType: 'U16',
     name: 'Error Codes E01-E16',
-    desc: 'Bit field: bit n = code E(n+1). Same layout for Reg 91-101. Decode with decodeCodeBits().',
+    desc: 'Bit field (official map: "bit by bit operation"): bit n = code E(n+1). Same layout for Reg 91-101 '
+        + '(Reg 96-101 = P01-P96). Decode with decodeCodeBits().',
   },
   errorCodes_E17_E32: { address: 91, fc: 'input', dataType: 'U16', name: 'Error Codes E17-E32' },
   errorCodes_E33_E48: { address: 92, fc: 'input', dataType: 'U16', name: 'Error Codes E33-E48' },
@@ -556,13 +567,16 @@ export const SENSOR_REGISTERS: Record<string, InputRegister> = {
   currentTargetOpMode: {
     address: 102, fc: 'input', dataType: 'U16',
     name: 'Current Target Operation Mode',
-    desc: 'III-only explicit readback. Enum values undocumented. '
-        + 'The extended HA YAML reads this value from Reg 101 instead — see VERIFICATION_TASKS. @verify',
+    desc: 'Official map: B3-B0 zone 1 (or single zone) target mode, B7-B4 zone 2 target mode '
+        + '(0x0 standby, 0x1 cooling, 0x2 heating); B11-B8 DHW target mode (0x0 standby, 0x8 DHW); '
+        + 'upper bits: auto target mode (map text is ambiguous). Not decoded into capabilities.',
   },
   actualOpMode: {
     address: 103, fc: 'input', dataType: 'U16',
     name: 'Actual Operation Mode',
-    desc: 'Distinguishes from target during transitions/defrost. Enum values undocumented. @verify',
+    desc: 'Official map: B3-B0 zone 1 (or single zone) operation mode, B7-B4 zone 2 operation mode '
+        + '(0x0 standby, 0x1 cooling, 0x2 heating); B11-B8 DHW operation mode (0x0 standby, 0x8 DHW). '
+        + 'Not decoded into capabilities.',
   },
 } as const;
 
@@ -885,16 +899,22 @@ export const VERIFICATION_TASKS = [
     priority: 'high',
     item: 'Error code bit fields (E01-E96, P01-P96)',
     affects: ['SENSOR_REGISTERS.errorCodes_*', 'SENSOR_REGISTERS.protectionCodes_*'],
-    issue: 'Decoded as bit fields (extended HA YAML). Code-to-description mapping not in spec.',
+    issue: 'Bit fields per the official map ("bit by bit operation"). Code-to-description mapping not in the map.',
     action: 'Compare a reported code with the code on the unit display during a real fault.',
   },
   {
-    priority: 'high',
-    item: 'Reg 101 vs Reg 102 (target operation mode)',
-    affects: ['SENSOR_REGISTERS.protectionCodes_P81_P96', 'SENSOR_REGISTERS.currentTargetOpMode'],
-    issue: 'Extended HA YAML reads the target operation mode from Reg 101; the spec puts it at 102. '
-         + 'If HA is right, Reg 101 would show up as a permanent protection code P81-P96.',
-    action: 'Read Reg 101 and 102 in the expert dashboard while changing the operating mode.',
+    priority: 'medium',
+    item: 'Reg 67 scale factor (climate curve heating set temperature)',
+    affects: ['SENSOR_REGISTERS.zone1CurveHeatingSetTemp'],
+    issue: 'Official map says x1 ("123 means 123 °C"); both HA YAML references read it as x10. Read-only.',
+    action: 'Compare the dashboard value with the curve setpoint shown on the unit display.',
+  },
+  {
+    priority: 'low',
+    item: 'Reg 63 meaning and scale (PWM feedback DC water pump)',
+    affects: ['SENSOR_REGISTERS.pumpPwmFeedback'],
+    issue: 'Official map title says percentage, but scale x10 with unit m³/h; HA reads % x1. Not used for capabilities.',
+    action: 'Compare Reg 63 with Reg 62 (PWM output) and Reg 64 (flow) during pump operation.',
   },
   {
     priority: 'medium',
@@ -912,10 +932,11 @@ export const VERIFICATION_TASKS = [
   },
   {
     priority: 'medium',
-    item: 'Reg 2103 full bit layout',
-    affects: ['FUNCTION_A_BITS', 'SILENT_MODE_MASK', 'unknown bits 0-2, 7-15'],
-    issue: 'Bits 3 (backup heater), 4-5 (silent) and 6 (disinfection) known from HA; others preserved on write.',
-    action: 'Log Reg 2103 in standard operation; test bits 0-2 for "Powerful" mode equivalent.',
+    item: 'Reg 2103 writes on hardware',
+    affects: ['FUNCTION_A_BITS', 'SILENT_MODE_MASK'],
+    issue: 'Layout is documented in the official map (bit 3 forced electric heater, bits 4-5 silent, bit 6 '
+         + 'disinfection, other bits reserved). Silent level 2 is only for R290 units (Reg 7 = 1).',
+    action: 'Testers: switch silent mode and forced heater; confirm the other bits stay unchanged.',
   },
   {
     priority: 'medium',
