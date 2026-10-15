@@ -214,27 +214,6 @@
 </main>
 
 <script>
-// ── Poll-groep lookup ────────────────────────────────────────────────────────
-// Afgeleid uit de Aurora III pollgroepen.
-const POLL_RANGES = [
-  { group: 'SUPERFAST', ranges: [[0x0026, 0x0027], [0x002B, 0x002B], [0x0040, 0x0040], [0x004F, 0x004F]] },
-  { group: 'FAST',   ranges: [[0x0000, 0x0001], [0x0040, 0x005D]] },
-  { group: 'MEDIUM', ranges: [[0x0002, 0x0009], [0x0019, 0x0020], [0x0072, 0x007D], [0x0300, 0x0307]] },
-  { group: 'SLOW',   ranges: [[0x0313, 0x0316], [0x01FF, 0x0200], [0x0174, 0x0178], [0x011E, 0x011E],
-                               [0x0132, 0x013B], [0x013C, 0x0141], [0x0158, 0x0159],
-                               [0x0165, 0x0165], [0x01A4, 0x01A4], [0x0810, 0x0812], [0x0813, 0x0819]] },
-  { group: 'ONCE',   ranges: [[0x0360, 0x0363], [0x0100, 0x010A], [0x010B, 0x0110], [0x0172, 0x0173]] },
-];
-
-function resolvePollGroup(address) {
-  for (const { group, ranges } of POLL_RANGES) {
-    for (const [lo, hi] of ranges) {
-      if (address >= lo && address <= hi) return group;
-    }
-  }
-  return 'SLOW';
-}
-
 // ── HTML helpers ─────────────────────────────────────────────────────────────
 function hex(addr) {
   return '0x' + addr.toString(16).toUpperCase().padStart(4, '0');
@@ -322,7 +301,7 @@ function buildRows(snap) {
     value: sv.unit ? `${sv.value} ${sv.unit}` : String(sv.value),
     raw: sv.raw,
     category: 'Sensors',
-    pollGroup: resolvePollGroup(sv.address),
+    pollGroup: (sv.pollGroup || 'manual').toUpperCase(),
     fault: false,
   }));
   sensorRows.sort((a, b) => a.address.localeCompare(b.address));

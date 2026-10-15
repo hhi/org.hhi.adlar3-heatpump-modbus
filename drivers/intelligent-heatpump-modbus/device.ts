@@ -425,6 +425,7 @@ class AdlarModbusDevice extends Homey.Device {
       dashboard: {
         setWriteRegisterCallback(fn: (addr: number, rawValue: number) => Promise<void>): void;
         setCapabilityWriteCallback(fn: (capability: string, value: number) => Promise<void>): void;
+        setCapabilityTriggerCallback(fn: (capability: string, value: boolean | string) => Promise<void>): void;
         setReadRegisterCallback(fn: (addr: number, isCoil: boolean, isInput: boolean) => Promise<number>): void;
         setWriteExpertCallback(fn: (addr: number, rawValue: number, isCoil: boolean) => Promise<void>): void;
         setGetTemperatureScaleCallback(fn: () => 'x1' | 'x10'): void;
@@ -445,6 +446,15 @@ class AdlarModbusDevice extends Homey.Device {
       if (this.hasCapability(capability)) {
         await this.setCapabilityValue(capability, value);
       }
+    });
+
+    // Dashboard controls run through the capability listeners (RMW on 4-2103, on/off gate).
+    app.dashboard.setCapabilityTriggerCallback(async (capability, value) => {
+      if (!this.hasCapability(capability)) {
+        throw new Error(`Capability ${capability} is not available on this device`);
+      }
+      await this.triggerCapabilityListener(capability, value);
+      await this.setCapabilityValue(capability, value);
     });
 
     app.dashboard.setReadRegisterCallback(async (addr, isCoil, isInput) => {
