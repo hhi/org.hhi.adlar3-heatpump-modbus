@@ -733,6 +733,10 @@ class AdlarModbusDevice extends Homey.Device {
     this.registerCapabilityListener('adlar_silent_mode', async (value: string) => {
       this.logger.debug('Set silent mode:', value);
       if (!this.coordinator) return;
+      // Official register map: silent level 2 only for R290 heat pumps (Reg 7).
+      if (value === '2' && this.coordinator.getCurrentSnapshot()?.control.silentLevel2Allowed !== true) {
+        throw new Error(this.homey.__('errors.silent_level2_r290_only'));
+      }
       await this.coordinator.setFeature('silent_mode', parseInt(value, 10));
     });
 

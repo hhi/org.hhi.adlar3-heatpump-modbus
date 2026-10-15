@@ -166,3 +166,19 @@ test('control snapshot reports the allowed DHW setpoint range', () => {
   assert.deepStrictEqual(createService({ 14: 550, 15: 300 }).service.getSnapshot().control.dhwSetpointRange, { min: 30, max: 55 });
   assert.deepStrictEqual(createService().service.getSnapshot().control.dhwSetpointRange, { min: 20, max: 75 });
 });
+
+test('silent mode level 2 is only written on R290 units (Reg 7 = 1)', async () => {
+  const r32 = createService({ 7: 0, 2103: 0 });
+  await assert.rejects(() => r32.service.setFeature('silent_mode', 2), /R290/);
+  await r32.service.setFeature('silent_mode', 1);
+  assert.deepStrictEqual(r32.writes, [[2103, 0x0010]]);
+  assert.strictEqual(r32.service.getSnapshot().control.silentLevel2Allowed, false);
+
+  const unknown = createService({ 2103: 0 });
+  await assert.rejects(() => unknown.service.setFeature('silent_mode', 2), /R290/);
+
+  const r290 = createService({ 7: 1, 2103: 0 });
+  await r290.service.setFeature('silent_mode', 2);
+  assert.deepStrictEqual(r290.writes, [[2103, 0x0020]]);
+  assert.strictEqual(r290.service.getSnapshot().control.silentLevel2Allowed, true);
+});

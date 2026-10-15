@@ -258,7 +258,7 @@
       <select id="s-silent">
         <option value="0">Uit</option>
         <option value="1">Niveau 1</option>
-        <option value="2">Niveau 2</option>
+        <option value="2" id="opt-silent-2">Niveau 2</option>
       </select>
       <button class="btn btn-primary" onclick="doControl('adlar_silent_mode','s-silent','fb-silent')">Stel in</button>
     </div>
@@ -436,6 +436,9 @@ async function refresh() {
     updateControl('s-onoff', 'cur-onoff', control.on, onOff);
     updateControl('s-dhw-enabled', 'cur-dhw-enabled', control.dhwEnabled, onOff);
     updateControl('s-silent', 'cur-silent', control.silentMode, silent);
+    const opt2 = document.getElementById('opt-silent-2');
+    opt2.disabled = control.silentLevel2Allowed === false;
+    opt2.textContent = opt2.disabled ? 'Niveau 2 (alleen R290)' : 'Niveau 2';
     updateControl('s-backup', 'cur-backup', control.backupHeaterForced, onOff);
   } catch (e) {
     dot.className = 'dot';

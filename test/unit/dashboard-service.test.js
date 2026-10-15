@@ -55,7 +55,7 @@ test('snapshot sensors carry their poll group', () => {
 test('bit tables exist for Reg 9, 38, 39, 2103 and the code registers', () => {
   assert.deepStrictEqual(registerBitTable(9, 'input'), { COOLING: 1, HEATING: 2, DHW: 4 });
   assert.ok(registerBitTable(38, 'input').DEFROST);
-  assert.deepStrictEqual(Object.keys(registerBitTable(39, 'input')), ['EXTERNAL_ANTI_FREEZE', 'EXTERNAL_DEFROST']);
+  assert.deepStrictEqual(Object.keys(registerBitTable(39, 'input')), ['AHS_REQUEST_ANTI_FREEZING', 'AHS_REQUEST_DEFROSTING']);
   assert.deepStrictEqual(registerBitTable(2103, 'holding'), {
     FORCED_BACKUP_HEATER: 0x08, SILENT_MODE_BIT4: 0x10, SILENT_MODE_BIT5: 0x20, DISINFECTION_ENABLED: 0x40,
   });
@@ -72,7 +72,7 @@ test('/api/registers sends input descriptions, bit tables and current poll group
   try {
     const blocks = await (await fetch(`${dash.base}/api/registers`)).json();
     const find = (fc, address) => blocks.flatMap((b) => b.registers).find((r) => r.fc === fc && r.address === address);
-    assert.match(find('input', 39).desc, /anti-freeze/);
+    assert.match(find('input', 39).desc, /external heating source during anti-freezing/);
     assert.ok(find('input', 9).bits.DHW);
     assert.ok(find('input', 90).bits.E03);
     assert.ok(find('holding', 2103).bits.SILENT_MODE_BIT4);

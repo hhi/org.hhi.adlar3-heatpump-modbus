@@ -8,7 +8,7 @@ Bronnen in de code:
 - `lib/modbus/adlar3-modbus-service.ts` → pollgroepen, snapshot-opbouw, schrijfpaden
 - `lib/modbus/adlar3-modbus-registers.ts` → registermetadata, bitmaskers, `VERIFICATION_TASKS`
 
-Registerbronnen: de officiële Aurora III register map, de Home Assistant-packages `adlar_heatpump.yaml` en `adlar_warmtepomp.yaml` ([HA-modbus-Adlar-aurora-Pro-III](https://github.com/OnnoTimmermans/HA-modbus-Adlar-aurora-Pro-III)) en kruisverwijzingen naar Aurora II.
+Registerbronnen: de officiële Aurora III register map (leidend; `docs/Heatpump specs/modbus/Adlar III/HHi/Adlar-III_modbus_registers HHi.xlsx`, tabblad "Register Map"), de Home Assistant-packages `adlar_heatpump.yaml` en `adlar_warmtepomp.yaml` ([HA-modbus-Adlar-aurora-Pro-III](https://github.com/OnnoTimmermans/HA-modbus-Adlar-aurora-Pro-III)) en kruisverwijzingen naar Aurora II.
 
 ## Notatie
 
@@ -59,7 +59,7 @@ Storingsregisters zijn bitvelden: bit *n* van het *k*-de register is code *k*·1
 | `onoff` | `4-2101` | FC03/FC06 holding | x1 | read: `2101 ≠ 0` (vóór de eerste read van 2101: `2100 ≠ 0`). Write alleen met instelling `experimental_zone_onoff`: uit = `0`, aan = laatst bekende waarde ≠ 0, anders `1` (één zone) of `3` (twee zones volgens `3-2`) |
 | `adlar_mode` | `4-2100` | FC03/FC06 holding | x1 | `1=Cool`, `2=Heat`, `4=Auto`; `0=Off` wordt getoond maar nooit geschreven |
 | `adlar_dhw_enabled` | `4-2102` | FC03/FC06 holding | x1 | `0=uit`, `1=aan` |
-| `adlar_silent_mode` | `4-2103` bits 4-5 | FC03/FC06 holding | bitveld | `0=uit`, `1=niveau 1`, `2=niveau 2`; read-modify-write |
+| `adlar_silent_mode` | `4-2103` bits 4-5 | FC03/FC06 holding | bitveld | `0=uit`, `1=niveau 1`, `2=niveau 2` (alleen R290, `3-7 = 1`); read-modify-write |
 | `adlar_backup_heater_forced` | `4-2103` bit 3 | FC03/FC06 holding | bitmask | geforceerde elektrische bijverwarming; read-modify-write |
 | `adlar_disinfection_enabled` | `4-2103` bit 6 | FC03 holding | bitmask | instelling desinfectiefunctie; alleen-lezen |
 | `target_temperature` | `4-2107` | FC03/FC06 holding | raw = C x10 | registermetadata `18-50 C`; capability listener accepteert `15-60 C` |
@@ -112,12 +112,12 @@ Deze registers worden gelezen en zijn zichtbaar in de dashboards, maar hebben ge
 | Snapshotveld / register | Register | FC | Scaling | Opmerking |
 |---|---:|---|---:|---|
 | `roomTemp` | `3-40` | FC04 input | x0.1 C | |
-| externe aanvraag | `3-39` | FC04 input | bitveld | bit 0 = externe vorstbeveiliging, bit 1 = extern ontdooien; niet gedecodeerd |
+| aanvraag externe warmtebron (hybride) | `3-39` | FC04 input | bitveld | bit 0 = aanvraag tijdens vorstbeveiliging, bit 1 = aanvraag tijdens ontdooien; niet gedecodeerd |
 | limieten | `3-10..3-31` | FC04 input | x0.1 C | `3-14/15` en `3-30/31` begrenzen schrijfacties op `4-2105` en `4-2114` |
-| stooklijn-setpoints | `3-66..3-69` | FC04 input | x0.1 C | volgen de buitentemperatuur |
-| `pumpPwmFeedback` | `3-63` | FC04 input | x1 % | niet opgenomen in `SENSOR_DESCRIPTORS` |
-| `currentTargetOpMode` | `3-102` | FC04 input | x1 | enumwaarden onbekend; de HA-YAML leest de doelmodus uit `3-101` (`@verify`) |
-| `actualOpMode` | `3-103` | FC04 input | x1 | enumwaarden onbekend |
+| stooklijn-setpoints | `3-66..3-69` | FC04 input | x0.1 C | volgen de buitentemperatuur; `3-67` staat in de officiële map als x1 (`@verify`) |
+| `pumpPwmFeedback` | `3-63` | FC04 input | x0.1 m³/h | officiële map: x10, m³/h (titel zegt "percentage"; `@verify`); niet opgenomen in `SENSOR_DESCRIPTORS` |
+| `currentTargetOpMode` | `3-102` | FC04 input | bitveld | B3-B0 zone 1, B7-B4 zone 2 (0 standby, 1 koelen, 2 verwarmen), B11-B8 tapwater (0 standby, 8 tapwater); niet gedecodeerd |
+| `actualOpMode` | `3-103` | FC04 input | bitveld | zelfde indeling als `3-102`, maar de werkelijke modus; niet gedecodeerd |
 | `zone1AutoHeatingSetTemp` | `4-2109` | FC03/FC06 holding | vermoedelijk x0.1 C | schrijven expliciet geblokkeerd wegens schaalrisico |
 
 ## Flowkaarten voor bediening
@@ -154,6 +154,7 @@ Deze registers worden gelezen en zijn zichtbaar in de dashboards, maar hebben ge
 - **Aan/uit via `4-2101` is experimenteel.** Schrijven gebeurt alleen als de apparaatinstelling "Aan/uit via zonebesturing (experimenteel)" aan staat. Tapwater (`4-2102`) wordt apart geschakeld. Zie `VERIFICATION_TASKS` voor de hardwaretest.
 - **`4-2107` wordt overschreven door de eigen regeling.** Zolang de weersafhankelijke regeling (stooklijn) van de warmtepompregelaar (JAN-module) actief is, overschrijft die `4-2107`. Schrijfacties vanuit Homey hebben dan geen blijvend effect.
 - **`4-2114` werkt mogelijk niet zonder ruimtethermostaat** (`3-1 = 0`).
-- **`3-101` versus `3-102`:** als de HA-YAML gelijk heeft en `3-101` de doelmodus bevat, verschijnt er een permanente code in de reeks `P81..P96`.
+- **`3-101` is P81..P96** volgens de officiële map; de HA-YAML die daar de doelmodus leest, zit ernaast. De doelmodus staat in `3-102`.
+- **Stille modus niveau 2** is volgens de officiële map alleen voor R290-warmtepompen. De app weigert niveau 2 zolang `3-7` niet R290 (`1`) meldt.
 - **Waterflow `3-64`** heeft in de registermetadata unit `m3/h` met schaal x0.1; de Homey capability toont `L/min`. Thermisch vermogen telt alleen bij draaiende compressor, geen ontdooiing en een flow van minimaal `0.3 m3/h`.
 - **Geen native input-power register.** `measure_power` wordt afgeleid uit spanning en stroom; voor COP en energie heeft `adlar_external_power` voorrang.

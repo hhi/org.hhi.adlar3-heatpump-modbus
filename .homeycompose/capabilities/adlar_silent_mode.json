@@ -41,9 +41,9 @@
     }
   ],
   "description": {
-    "en": "Silent mode level in holding register 4-2103, bits 4-5. Other bits of the register are kept unchanged.",
-    "nl": "Niveau van de stille modus in holdingregister 4-2103, bits 4-5. De overige bits van het register blijven ongewijzigd.",
-    "fr": "Niveau du mode silencieux dans le registre holding 4-2103, bits 4-5. Les autres bits du registre restent inchangés.",
-    "de": "Stufe des Leisemodus in Holdingregister 4-2103, Bits 4-5. Die übrigen Bits des Registers bleiben unverändert."
+    "en": "Silent mode level in holding register 4-2103, bits 4-5. Level 2 is only available on R290 heat pumps. Other bits of the register are kept unchanged.",
+    "nl": "Niveau van de stille modus in holdingregister 4-2103, bits 4-5. Niveau 2 is alleen beschikbaar op R290-warmtepompen. De overige bits van het register blijven ongewijzigd.",
+    "fr": "Niveau du mode silencieux dans le registre holding 4-2103, bits 4-5. Le niveau 2 n'est disponible que sur les pompes à chaleur R290. Les autres bits du registre restent inchangés.",
+    "de": "Stufe des Leisemodus in Holdingregister 4-2103, Bits 4-5. Stufe 2 ist nur bei R290-Wärmepumpen verfügbar. Die übrigen Bits des Registers bleiben unverändert."
   }
 }

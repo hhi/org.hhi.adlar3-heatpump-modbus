@@ -21,6 +21,7 @@ import {
   FUNCTION_A_BITS,
   HvacMode,
   LIMIT_REGISTERS,
+  REFRIGERANT_R290,
   SENSOR_REGISTERS,
   STATUS_BITS,
   SilentMode,
@@ -191,6 +192,8 @@ export interface ControlSnapshot {
   dhwEnabled: boolean;
   /** Reg 2103 bits 4-5, see SilentMode. */
   silentMode: number;
+  /** Silent level 2 is only for R290 units (Reg 7); false while Reg 7 is unknown. */
+  silentLevel2Allowed: boolean;
   /** Reg 2103 bit 3. */
   backupHeaterForced: boolean;
   /** Reg 2103 bit 6. */
@@ -523,6 +526,9 @@ export class Adlar3ModbusService extends EventEmitter {
         if (![SilentMode.Off, SilentMode.Level1, SilentMode.Level2].includes(value)) {
           throw new Error(`Aurora III stille modus ${value} is niet vrijgegeven voor schrijven.`);
         }
+        if (value === SilentMode.Level2 && !this.isR290()) {
+          throw new Error('Stille modus niveau 2 is alleen beschikbaar voor R290-warmtepompen (register 3-7).');
+        }
         await this.updateFunctionA((raw) => encodeSilentMode(raw, value as SilentMode));
         return;
       case 'backup_heater_forced':
@@ -531,6 +537,12 @@ export class Adlar3ModbusService extends EventEmitter {
       default:
         throw new Error(`Onbekende Aurora III functie: ${String(feature)}`);
     }
+  }
+
+  /** Reg 7 reports R290 refrigerant. Unknown (not yet read) counts as not R290. */
+  private isR290(): boolean {
+    const addr = CONFIG_REGISTERS.refrigerantType.address;
+    return this.tcp.has(addr) && this.tcp.u16(addr) === REFRIGERANT_R290;
   }
 
   /** Read-modify-write of Reg 2103: always re-read first so bits changed on the unit are kept. */
@@ -644,6 +656,7 @@ export class Adlar3ModbusService extends EventEmitter {
       floorSetpointC: this.readScaledValue(CONTROL_REGISTERS.roomTempSetTemp, true),
       dhwEnabled: this.tcp.u16(CONTROL_REGISTERS.dhwOnOff.address) === 1,
       silentMode: decodeSilentMode(functionA),
+      silentLevel2Allowed: this.isR290(),
       backupHeaterForced: (functionA & FUNCTION_A_BITS.FORCED_BACKUP_HEATER) !== 0,
       disinfectionEnabled: (functionA & FUNCTION_A_BITS.DISINFECTION_ENABLED) !== 0,
     };
