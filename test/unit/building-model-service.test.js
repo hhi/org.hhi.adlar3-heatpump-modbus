@@ -158,3 +158,27 @@ test('ADR-061: BuildingModelService restores persisted state before 10 samples',
   const second = await runCollect({ store: first.device.store });
   assert.strictEqual(second.service.getLearner().getState().sampleCount, 1);
 });
+
+test('BuildingModelService writes capability options only when they change and keeps other keys', async () => {
+  const device = createDevice({ capabilities: { adlar_state_defrost_state: true } });
+  const options = { adlar_building_ua: { insights: true } };
+  const writes = [];
+  device.hasCapability = (cap) => cap.startsWith('adlar_building_');
+  device.getCapabilityOptions = (cap) => {
+    if (!options[cap]) throw new Error('no options');
+    return options[cap];
+  };
+  device.setCapabilityOptions = async (cap, value) => {
+    writes.push(cap);
+    options[cap] = value;
+  };
+  const service = new BuildingModelService({ device, enableDynamicPInt: false, logger: () => {} });
+
+  await service.collectAndLearn();
+  const firstWrites = writes.length;
+  assert.ok(firstWrites > 0, 'first blocked cycle writes the titles');
+  assert.strictEqual(options.adlar_building_ua.insights, true, 'existing option keys are kept');
+
+  await service.collectAndLearn();
+  assert.strictEqual(writes.length, firstWrites, 'unchanged titles are not written again');
+});
