@@ -24,12 +24,16 @@
   .write-row { display: flex; gap: 0.5rem; align-items: center; }
   .write-row input { flex: 1; background: #080d18; border: 1px solid #22334f; border-radius: 6px; color: #dde8f8; padding: 0.5rem 0.75rem; font-size: 0.9rem; }
   .write-row input:focus { outline: none; border-color: #3b82f6; }
+  .write-row select { flex: 1; background: #080d18; border: 1px solid #22334f; border-radius: 6px; color: #dde8f8; padding: 0.5rem 0.75rem; font-size: 0.9rem; }
+  .write-row select:focus { outline: none; border-color: #3b82f6; }
+  .current { font-size: 0.75rem; color: #8aa4c4; margin-top: 0.35rem; }
+  .badge-exp { display: inline-block; font-size: 0.65rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #fbbf24; border: 1px solid #fbbf24; border-radius: 4px; padding: 0 0.3rem; margin-left: 0.35rem; vertical-align: middle; }
   .write-row .unit { font-size: 0.8rem; color: #5a7a9a; white-space: nowrap; }
   .btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: opacity 0.15s; }
   .btn:disabled { opacity: 0.4; cursor: not-allowed; }
   .btn-primary { background: #2563eb; color: #fff; }
   .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
-  .feedback { font-size: 0.78rem; margin-top: 0.4rem; height: 1em; transition: color 0.2s; }
+  .feedback { font-size: 0.78rem; margin-top: 0.4rem; min-height: 1em; transition: color 0.2s; }
   .feedback.ok { color: #22c55e; }
   .feedback.err { color: #ef4444; }
   .range-hint { font-size: 0.72rem; color: #3d5070; margin-top: 0.25rem; }
@@ -77,6 +81,9 @@
     .write-card, .write-grid .write-card { background: #ffffff; border-color: #cbd5e1; box-shadow: 0 1px 3px rgba(0,0,0,0.07); }
     .write-card label { color: #64748b; }
     .write-row input { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+    .write-row select { background: #f8fafc; border-color: #cbd5e1; color: #0f172a; }
+    .current { color: #475569; }
+    .badge-exp { color: #b45309; border-color: #b45309; }
     .write-row .unit { color: #64748b; }
     .range-hint { color: #94a3b8; }
     nav { background: #ffffff; border-bottom-color: #cbd5e1; }
@@ -162,7 +169,7 @@
     <div class="machine-label">Ventilator</div>
     <div class="machine-val-row">
       <div class="machine-value" id="lv-fan">—</div>
-      <div class="machine-unit">%</div>
+      <div class="machine-unit">RPM</div>
     </div>
     <div class="bar-track"><div class="bar-fill bar-fill-blue" id="fan-bar"></div></div>
   </div>
@@ -198,7 +205,7 @@
       <span class="unit">°C</span>
       <button class="btn btn-primary" onclick="doWrite('dhwSetTemp','i-dhw','fb-dhw')">Stel in</button>
     </div>
-    <div class="range-hint">Bereik: 20–75 °C</div>
+    <div class="range-hint" id="rh-dhw">Bereik: 20–75 °C</div>
     <div class="feedback" id="fb-dhw"></div>
   </div>
 
@@ -215,12 +222,72 @@
 
 </div>
 
+<p class="section-title" style="margin-top:2rem;">Functies</p>
+<div class="write-grid">
+
+  <div class="write-card">
+    <label>Ruimteverwarming aan/uit (zone 4-2101)<span class="badge-exp">experimenteel</span></label>
+    <div class="write-row">
+      <select id="s-onoff">
+        <option value="true">Aan</option>
+        <option value="false">Uit</option>
+      </select>
+      <button class="btn btn-primary" onclick="doControl('onoff','s-onoff','fb-onoff')">Stel in</button>
+    </div>
+    <div class="current" id="cur-onoff">Huidig: —</div>
+    <div class="range-hint">Werkt alleen als 'Aan/uit via zonebesturing (experimenteel)' aan staat in de apparaatinstellingen. Tapwater wordt apart geschakeld.</div>
+    <div class="feedback" id="fb-onoff"></div>
+  </div>
+
+  <div class="write-card">
+    <label>Tapwaterfunctie (4-2102)</label>
+    <div class="write-row">
+      <select id="s-dhw-enabled">
+        <option value="true">Aan</option>
+        <option value="false">Uit</option>
+      </select>
+      <button class="btn btn-primary" onclick="doControl('adlar_dhw_enabled','s-dhw-enabled','fb-dhw-enabled')">Stel in</button>
+    </div>
+    <div class="current" id="cur-dhw-enabled">Huidig: —</div>
+    <div class="feedback" id="fb-dhw-enabled"></div>
+  </div>
+
+  <div class="write-card">
+    <label>Stille modus (4-2103 bits 4-5)</label>
+    <div class="write-row">
+      <select id="s-silent">
+        <option value="0">Uit</option>
+        <option value="1">Niveau 1</option>
+        <option value="2">Niveau 2</option>
+      </select>
+      <button class="btn btn-primary" onclick="doControl('adlar_silent_mode','s-silent','fb-silent')">Stel in</button>
+    </div>
+    <div class="current" id="cur-silent">Huidig: —</div>
+    <div class="feedback" id="fb-silent"></div>
+  </div>
+
+  <div class="write-card">
+    <label>Geforceerde bijverwarming (4-2103 bit 3)</label>
+    <div class="write-row">
+      <select id="s-backup">
+        <option value="false">Uit</option>
+        <option value="true">Aan</option>
+      </select>
+      <button class="btn btn-primary" onclick="doControl('adlar_backup_heater_forced','s-backup','fb-backup')">Stel in</button>
+    </div>
+    <div class="current" id="cur-backup">Huidig: —</div>
+    <div class="feedback" id="fb-backup"></div>
+  </div>
+
+</div>
+
 <p style="margin-top:2rem;font-size:0.75rem;color:#374151;">
   <a href="/live" style="color:#3b82f6;text-decoration:none;">Live dashboard (alle capabilities)</a>
 </p>
 
 <script>
 let refreshTimer = null;
+const FAN_RPM_MAX = 3000; // UI range of adlar_fan_speed
 
 // ── Sparklines ─────────────────────────────────────────────────────────────
 const MAX_SP = 20;
@@ -301,7 +368,9 @@ function updateLiveOverview(d) {
 
   // Machine
   const freq = sensors.compRunningFreq?.value;
-  const flow = sensors.waterFlow?.value;
+  // Reg 64 is in m³/h; the card shows L/min like the measure_water capability.
+  const flowSensor = sensors.waterFlow;
+  const flow = flowSensor?.unit === 'm³/h' ? (flowSensor.value * 1000) / 60 : flowSensor?.value;
   const fan  = sensors.fanSpeed?.value;
   const inlet = sensors.retourTE1?.value;
   const outlet = sensors.aanvoerTA?.value;
@@ -319,7 +388,7 @@ function updateLiveOverview(d) {
   const fanEl = document.getElementById('lv-fan');
   if (fanEl) fanEl.textContent = Number.isFinite(fan) ? Math.round(fan) : '—';
   const fanBar = document.getElementById('fan-bar');
-  if (fanBar) fanBar.style.width = Math.min(100, (fan ?? 0)) + '%';
+  if (fanBar) fanBar.style.width = Math.min(100, ((fan ?? 0) / FAN_RPM_MAX) * 100) + '%';
   const dtEl = document.getElementById('lv-dt');
   if (dtEl && Number.isFinite(inlet) && Number.isFinite(outlet)) {
     dtEl.textContent = (outlet - inlet).toFixed(1);
@@ -360,10 +429,51 @@ async function refresh() {
     updateInputIfNotActive('i-heat', control.heatingSetpointC);
     updateInputIfNotActive('i-dhw',  control.dhwSetpointC);
     updateInputIfNotActive('i-cool', control.coolingSetpointC);
+    updateDhwRange(control.dhwSetpointRange);
+
+    const onOff = (v) => (v == null ? '—' : (v ? 'aan' : 'uit'));
+    const silent = (v) => (v == null ? '—' : (Number(v) === 0 ? 'uit' : `niveau ${v}`));
+    updateControl('s-onoff', 'cur-onoff', control.on, onOff);
+    updateControl('s-dhw-enabled', 'cur-dhw-enabled', control.dhwEnabled, onOff);
+    updateControl('s-silent', 'cur-silent', control.silentMode, silent);
+    updateControl('s-backup', 'cur-backup', control.backupHeaterForced, onOff);
   } catch (e) {
     dot.className = 'dot';
     statusText.textContent = 'Geen verbinding: ' + e.message;
   }
+}
+
+function updateDhwRange(range) {
+  if (!range || range.min == null || range.max == null) return;
+  const input = document.getElementById('i-dhw');
+  input.min = range.min;
+  input.max = range.max;
+  input.placeholder = `${range.min}–${range.max}`;
+  document.getElementById('rh-dhw').textContent = `Bereik: ${range.min}–${range.max} °C (limieten warmtepomp)`;
+}
+
+function updateControl(selectId, currentId, value, format) {
+  document.getElementById(currentId).textContent = 'Huidig: ' + format(value);
+  const sel = document.getElementById(selectId);
+  if (value == null || document.activeElement === sel) return;
+  sel.value = String(value);
+}
+
+async function doControl(capability, selectId, fbId) {
+  const raw = document.getElementById(selectId).value;
+  const value = raw === 'true' ? true : raw === 'false' ? false : raw;
+  const fb = document.getElementById(fbId);
+  fb.textContent = 'Bezig…'; fb.className = 'feedback';
+  try {
+    const r = await fetch('/api/control', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capability, value }),
+    });
+    const j = await r.json();
+    if (j.ok) { setFb(fb, true, 'Opgeslagen'); setTimeout(() => refresh(), 2000); }
+    else setFb(fb, false, j.error ?? 'Fout');
+  } catch (e) { setFb(fb, false, e.message); }
 }
 
 function updateInputIfNotActive(id, val) {

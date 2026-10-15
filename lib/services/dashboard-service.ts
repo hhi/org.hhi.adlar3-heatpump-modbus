@@ -5,14 +5,14 @@
 import http from 'http';
 import fs from 'fs';
 import path from 'path';
-import { DataSnapshot } from '../modbus/adlar3-modbus-service';
+import { DataSnapshot, pollGroupsForAddress } from '../modbus/adlar3-modbus-service';
 import { RegisterChangeEntry, RegisterChangeLogMode } from '../modbus/modbus-tcp-service';
 import {
   ALL_HOLDING_REGISTERS,
   ALL_INPUT_REGISTERS,
   CONTROL_REGISTERS,
   SENSOR_REGISTERS,
-  STATUS_BITS,
+  registerBitTable,
 } from '../modbus/adlar3-modbus-registers';
 
 type TemperatureRegisterScale = 'x1' | 'x10';
@@ -34,6 +34,39 @@ const WRITABLE_REGISTERS: Record<string, WritableRegisterMeta> = {
   dhwSetTemp:          { address: CONTROL_REGISTERS.dhwSetTemp.address,          min: 20, max: 75, multiply: 0.1, name: 'Tapwater setpoint',            capability: 'target_temperature.dhw' },
   roomTempSetTemp:     { address: CONTROL_REGISTERS.roomTempSetTemp.address,     min: 16, max: 28, multiply: 0.1, name: 'Ruimtetemperatuur setpoint',   capability: 'target_temperature.floor' },
 };
+
+// ── Whitelist voor bediening via capability listeners (/api/control) ──────────
+// Deze schrijfacties lopen via de capability listeners van het device, zodat de
+// read-modify-write op 4-2103 en de experimentele vergrendeling van aan/uit gelden.
+
+type ControlValueKind = 'boolean' | readonly string[];
+
+const CONTROL_CAPABILITIES: Record<string, ControlValueKind> = {
+  onoff: 'boolean',
+  adlar_dhw_enabled: 'boolean',
+  adlar_backup_heater_forced: 'boolean',
+  adlar_silent_mode: ['0', '1', '2'],
+};
+
+interface CapabilityMeta {
+  title: string;
+  unit: string;
+  icon: string;
+  type: string;
+  /** Enum capabilities: value id → display title. */
+  values?: Record<string, string>;
+}
+
+/** Map an enum capability's `values` array to { id: title } (English first, like the titles). */
+function _enumValueTitles(values: unknown): Record<string, string> | undefined {
+  if (!Array.isArray(values)) return undefined;
+  const result: Record<string, string> = {};
+  for (const entry of values as Array<{ id?: unknown; title?: Record<string, string> }>) {
+    if (typeof entry.id !== 'string') continue;
+    result[entry.id] = entry.title?.en || entry.title?.nl || entry.id;
+  }
+  return result;
+}
 
 // ── Registermetadata types voor ADR-046 expertdashboard ───────────────────────
 
@@ -86,6 +119,7 @@ export interface DashboardServiceOptions {
  *   GET /interactive           → public/dashboard-interactive.html (ADR-044)
  *   GET /interactive.html      → zelfde
  *   POST /api/write            → schrijf één whitelisted register (ADR-044)
+ *   POST /api/control          → bedien één whitelisted capability via zijn listener
  *   GET /expert                → public/dashboard-expert.html   (ADR-046)
  *   GET /expert.html           → zelfde
  *   GET /api/registers         → alle registerblokken als JSON  (ADR-046)
@@ -100,11 +134,12 @@ export class DashboardService {
   private readonly appDir: string;
   private readonly publicDir: string;
   private readonly logger: (msg: string, ...args: unknown[]) => void;
-  private capabilityMeta: Map<string, { title: string; unit: string; icon: string; type: string }> | null = null;
+  private capabilityMeta: Map<string, CapabilityMeta> | null = null;
 
   // Callbacks — worden laat gebonden vanuit device.ts
   private onWriteRegister: ((address: number, rawValue: number) => Promise<void>) | null = null;
   private onCapabilityWrite: ((capability: string, value: number) => Promise<void>) | null = null;
+  private onCapabilityTrigger: ((capability: string, value: boolean | string) => Promise<void>) | null = null;
   private onReadRegister: ((address: number, isCoil: boolean, isInput: boolean) => Promise<number>) | null = null;
   private onWriteExpert: ((address: number, rawValue: number, isCoil: boolean) => Promise<void>) | null = null;
   private getTemperatureScale: (() => TemperatureRegisterScale) | null = null;
@@ -128,6 +163,10 @@ export class DashboardService {
 
   setCapabilityWriteCallback(fn: (capability: string, value: number) => Promise<void>): void {
     this.onCapabilityWrite = fn;
+  }
+
+  setCapabilityTriggerCallback(fn: (capability: string, value: boolean | string) => Promise<void>): void {
+    this.onCapabilityTrigger = fn;
   }
 
   setReadRegisterCallback(fn: (address: number, isCoil: boolean, isInput: boolean) => Promise<number>): void {
@@ -236,6 +275,10 @@ export class DashboardService {
     }
     if (method === 'POST' && url === '/api/write') {
       await this._handleWrite(req, res);
+      return;
+    }
+    if (method === 'POST' && url === '/api/control') {
+      await this._handleControl(req, res);
       return;
     }
 
@@ -372,7 +415,9 @@ export class DashboardService {
     for (const [id, value] of Object.entries(values)) {
       if (value === null || value === undefined) continue;
       const m = meta.get(id) ?? { title: id, unit: '', icon: '', type: 'string' };
-      entries.push({ id, title: m.title, unit: m.unit, icon: m.icon, type: m.type, value });
+      entries.push({
+        id, title: m.title, unit: m.unit, icon: m.icon, type: m.type, values: m.values, value,
+      });
     }
 
     res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
@@ -393,10 +438,10 @@ export class DashboardService {
     });
   }
 
-  private _getCapabilityMeta(): Map<string, { title: string; unit: string; icon: string; type: string }> {
+  private _getCapabilityMeta(): Map<string, CapabilityMeta> {
     if (this.capabilityMeta) return this.capabilityMeta;
 
-    const map = new Map<string, { title: string; unit: string; icon: string; type: string }>();
+    const map = new Map<string, CapabilityMeta>();
     const appJsonPath = path.join(this.appDir, 'app.json');
 
     try {
@@ -411,7 +456,12 @@ export class DashboardService {
           || '';
         const icon = (def.icon as string) || '';
         const type = (def.type as string) || 'string';
-        map.set(id, { title, unit, icon, type });
+        const values = _enumValueTitles(def.values);
+        map.set(id, values ? {
+          title, unit, icon, type, values,
+        } : {
+          title, unit, icon, type,
+        });
       }
 
       const drivers = (appJson.drivers ?? []) as Array<Record<string, unknown>>;
@@ -448,7 +498,9 @@ export class DashboardService {
       'measure_temperature.ambient': { title: 'Ambient Temp (T1)', unit: '°C', type: 'number' },
     };
     for (const [id, def] of Object.entries(defaults)) {
-      if (!map.has(id)) map.set(id, { icon: '', ...def });
+      const existing = map.get(id);
+      if (!existing) map.set(id, { icon: '', ...def });
+      else if (existing.title === id) map.set(id, { ...existing, title: def.title, unit: existing.unit || def.unit });
     }
 
     for (const [id, meta] of map.entries()) {
@@ -520,7 +572,6 @@ export class DashboardService {
       return;
     }
 
-    const pollGroupMap = this._buildPollGroupMap();
     const nameMap = this._buildNameMap();
     const tempScale = this.getTemperatureScale?.() ?? 'x10';
     const metaMap = this._buildRegisterMetaMap(tempScale);
@@ -552,7 +603,7 @@ export class DashboardService {
         addressHex: `0x${addr.toString(16).toUpperCase().padStart(4, '0')}`,
         name: nameMap.get(addr) ?? meta?.name ?? '',
         unit: meta?.unit ?? '',
-        pollGroup: pollGroupMap.get(addr) ?? 'manual',
+        pollGroup: pollGroupsForAddress(addr, 'input')[0] ?? pollGroupsForAddress(addr, 'holding')[0] ?? 'manual',
         mode,
         writable: writableAddresses.has(addr),
         firstSeen: entry.firstSeen,
@@ -590,26 +641,6 @@ export class DashboardService {
     for (const def of named) {
       const d = def as { address?: number; name?: string };
       if (d.address !== undefined && d.name) map.set(d.address, d.name);
-    }
-    return map;
-  }
-
-  private _buildPollGroupMap(): Map<number, string> {
-    const map = new Map<number, string>();
-    const groups = [
-      { name: 'superfast', reads: [{ start: 38, count: 2 }, { start: 42, count: 2 }, { start: 64, count: 1 }, { start: 79, count: 1 }] },
-      { name: 'fast', reads: [{ start: 40, count: 17 }, { start: 62, count: 3 }, { start: 70, count: 10 }, { start: 80, count: 2 }] },
-      { name: 'medium', reads: [{ start: 60, count: 2 }, { start: 86, count: 18 }, { start: 2100, count: 15 }] },
-      { name: 'slow', reads: [{ start: 10, count: 22 }] },
-      { name: 'once', reads: [{ start: 0, count: 10 }, { start: 34, count: 4 }, { start: 66, count: 4 }] },
-    ];
-    for (const group of groups) {
-      for (const block of group.reads) {
-        for (let i = 0; i < block.count; i++) {
-          const addr = block.start + i;
-          if (!map.has(addr)) map.set(addr, group.name);
-        }
-      }
     }
     return map;
   }
@@ -663,6 +694,42 @@ export class DashboardService {
       if (meta.capability && this.onCapabilityWrite) {
         await this.onCapabilityWrite(meta.capability, value).catch(() => {});
       }
+      this._jsonOk(res);
+    } catch (err) {
+      this._jsonError(res, 500, (err as Error).message);
+    }
+  }
+
+  // ── POST /api/control ────────────────────────────────────────────────────────
+
+  private async _handleControl(req: http.IncomingMessage, res: http.ServerResponse): Promise<void> {
+    if (!this.onCapabilityTrigger) {
+      this._jsonError(res, 503, 'Bedien-callback niet beschikbaar');
+      return;
+    }
+
+    let body: unknown;
+    try { body = await this._readBody(req); } catch {
+      this._jsonError(res, 400, 'Ongeldige JSON body');
+      return;
+    }
+
+    const { capability, value } = body as Record<string, unknown>;
+    const kind = typeof capability === 'string' ? CONTROL_CAPABILITIES[capability] : undefined;
+    if (typeof capability !== 'string' || kind === undefined) {
+      this._jsonError(res, 400, `Onbekende of niet toegestane capability: "${String(capability)}"`);
+      return;
+    }
+    const valid = kind === 'boolean'
+      ? typeof value === 'boolean'
+      : typeof value === 'string' && kind.includes(value);
+    if (!valid) {
+      this._jsonError(res, 400, `Ongeldige waarde voor ${capability}: ${JSON.stringify(value)}`);
+      return;
+    }
+
+    try {
+      await this.onCapabilityTrigger(capability, value as boolean | string);
       this._jsonOk(res);
     } catch (err) {
       this._jsonError(res, 500, (err as Error).message);
@@ -765,12 +832,13 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
         multiply: (def as { multiply?: number }).multiply,
         scaleMultiply: _scaleMultiplyForDef(def, tempScale),
         isTemperatureRegister: _isTemperatureDef(def),
+        desc: (def as { desc?: string }).desc,
         readOnly: true,
         fc: 'input' as const,
-        bits: key === 'systemStatus' ? STATUS_BITS : undefined,
+        bits: registerBitTable((def as { address: number }).address, 'input'),
         pollGroups: (def as { name: string }).name === 'Reserved'
           ? []
-          : _pollGroupsForAddress((def as { address: number }).address, 'input'),
+          : pollGroupsForAddress((def as { address: number }).address, 'input'),
       })).sort((a, b) => a.address - b.address),
     },
     {
@@ -792,59 +860,11 @@ function buildRegisterBlocks(tempScale: TemperatureRegisterScale = 'x10'): Regis
         desc: (def as { desc?: string }).desc,
         readOnly: key === 'zone1AutoHeatingSetTemp' || (def as { readOnly?: boolean }).readOnly === true,
         fc: 'holding',
-        pollGroups: _pollGroupsForAddress((def as { address: number }).address, 'holding'),
+        bits: registerBitTable((def as { address: number }).address, 'holding'),
+        pollGroups: pollGroupsForAddress((def as { address: number }).address, 'holding'),
       })),
     },
   ];
-}
-
-function _pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string[] {
-  const groups = [
-    {
-      name: 'superfast',
-      reads: [
-        { start: 38, count: 2, fc: 'input' },
-        { start: 42, count: 2, fc: 'input' },
-        { start: 64, count: 1, fc: 'input' },
-        { start: 79, count: 1, fc: 'input' },
-      ],
-    },
-    {
-      name: 'fast',
-      reads: [
-        { start: 40, count: 17, fc: 'input' },
-        { start: 62, count: 3, fc: 'input' },
-        { start: 70, count: 10, fc: 'input' },
-        { start: 80, count: 2, fc: 'input' },
-      ],
-    },
-    {
-      name: 'medium',
-      reads: [
-        { start: 60, count: 2, fc: 'input' },
-        { start: 86, count: 18, fc: 'input' },
-        { start: 2100, count: 15, fc: 'holding' },
-      ],
-    },
-    {
-      name: 'slow',
-      reads: [
-        { start: 10, count: 22, fc: 'input' },
-      ],
-    },
-    {
-      name: 'once',
-      reads: [
-        { start: 0,  count: 10, fc: 'input' },
-        { start: 34, count: 4,  fc: 'input' },
-        { start: 66, count: 4,  fc: 'input' },
-      ],
-    },
-  ];
-
-  return groups
-    .filter((group) => group.reads.some((read) => read.fc === fc && address >= read.start && address < read.start + read.count))
-    .map((group) => group.name);
 }
 
 function _isTemperatureDef(def: unknown): boolean {

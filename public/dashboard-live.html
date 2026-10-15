@@ -275,7 +275,8 @@ nav a.active { background: #07090f; color: var(--blue); border-color: var(--blue
 <script>
 // ── Capability groepen ─────────────────────────────────────────────────────
 const CAP_GROUPS = [
-  { label: 'Status',          match: id => ['onoff','adlar_running','adlar_mode','adlar_connection_active','adlar_connection_status'].includes(id) },
+  { label: 'Status',          match: id => ['onoff','adlar_running','adlar_mode','adlar_silent_mode','adlar_backup_heater_forced','adlar_connection_active','adlar_connection_status'].includes(id) },
+  { label: 'Tapwater',        match: id => ['adlar_dhw_enabled','adlar_dhw_active','adlar_disinfection_enabled'].includes(id) },
   { label: 'Storingen',       match: id => id.startsWith('alarm') || id.startsWith('adlar_fault') },
   { label: 'Setpoints',       match: id => id.startsWith('target_temperature') },
   { label: 'Temperaturen',    match: id => id.startsWith('measure_temperature') },
@@ -291,7 +292,7 @@ const CAP_GROUPS = [
   { label: 'Overig',          match: () => true },
 ];
 
-const RELEVANT    = ['Status','Storingen','Setpoints','Temperaturen','Vermogen','Mechanisch','Prestaties','Ontdooiing'];
+const RELEVANT    = ['Status','Storingen','Setpoints','Tapwater','Temperaturen','Vermogen','Mechanisch','Prestaties','Ontdooiing'];
 const OVERIGE     = ['Energie & Prijs','Extern','Gebouwmodel','Verbinding','Overig'];
 const DIAGNOSTIEK = ['Diagnostiek'];
 
@@ -334,6 +335,8 @@ function renderCapTile(cap, changedIds) {
     const isAlarm = cap.id.startsWith('alarm') || cap.id.startsWith('adlar_fault');
     valClass += raw ? (isAlarm ? ' bool-alarm' : ' bool-true') : ' bool-false';
     valText = raw ? (isAlarm ? '⚠ Actief' : '✓ Actief') : '○ Inactief';
+  } else if (cap.values && cap.values[String(raw)] !== undefined) {
+    valText = cap.values[String(raw)];
   } else if (typeof raw === 'number') {
     valText = raw.toFixed(raw % 1 === 0 ? 0 : 2);
   } else {

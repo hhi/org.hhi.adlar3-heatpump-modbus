@@ -131,6 +131,12 @@ Deze registers worden gelezen en zijn zichtbaar in de dashboards, maar hebben ge
 | `dhw_heating_active` | conditie | `adlar_dhw_active` |
 | `fault_detected` | trigger | code uit `adlar_fault_active`, bijv. `E03` |
 
+## Dashboards
+
+- **Interactief dashboard** (`/interactive`): setpoints via `POST /api/write` (whitelist in `WRITABLE_REGISTERS`), functies via `POST /api/control`. Die laatste route accepteert alleen `onoff`, `adlar_dhw_enabled`, `adlar_backup_heater_forced` en `adlar_silent_mode`, en loopt via de capability listeners. Daardoor gelden de read-modify-write op `4-2103` en de vergrendeling van aan/uit ook vanuit het dashboard. Het tapwaterveld toont `control.dhwSetpointRange`.
+- **Expertdashboard** (`/expert`): beschrijvingen en bittabellen komen uit `adlar3-modbus-registers.ts` (`registerBitTable()`: `3-9`, `3-38`, `3-39`, `3-90..3-101`, `4-2103`).
+- **Pollgroepen** in het hoofd-, expert- en changelog-dashboard komen uit `ADLAR3_POLL_GROUP_DEFINITIONS` via `pollGroupsForAddress()`; sensoren in de snapshot dragen hun groep in `pollGroup`. Er is geen aparte kopie meer in de dashboards.
+
 ## Externe capabilities zonder directe Modbus-register mapping
 
 | Capabilitygroep | Voorbeelden | Bron |

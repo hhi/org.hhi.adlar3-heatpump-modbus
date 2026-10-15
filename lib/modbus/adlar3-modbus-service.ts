@@ -52,7 +52,7 @@ interface NumericRegisterDefinition {
   calibrationCurve?: ReadonlyArray<CalibrationPoint>;
 }
 
-interface RegisterPollGroupDefinition {
+export interface RegisterPollGroupDefinition {
   name: string;
   interval: number;
   reads: readonly PollBlock[];
@@ -158,6 +158,8 @@ export interface SensorValue {
   value: number;
   unit: string;
   label: string;
+  /** Fastest poll group that reads this register, e.g. 'fast'. */
+  pollGroup: string;
 }
 
 export interface StatusSnapshot {
@@ -182,6 +184,8 @@ export interface ControlSnapshot {
   heatingSetpointC: number;
   coolingSetpointC: number;
   dhwSetpointC: number;
+  /** Allowed DHW setpoint range: active limits Reg 15..14 when plausible, else the static range. */
+  dhwSetpointRange: { min: number; max: number };
   floorSetpointC: number;
   /** Reg 2102 = 1. */
   dhwEnabled: boolean;
@@ -253,6 +257,23 @@ const SETPOINT_DEFINITIONS: Partial<Record<SetpointType, NumericRegisterDefiniti
   dhw: CONTROL_REGISTERS.dhwSetTemp,
   indoor: CONTROL_REGISTERS.roomTempSetTemp,
 };
+
+/** All poll groups, fastest first. Single source for the runtime and the dashboards. */
+export const ADLAR3_POLL_GROUP_DEFINITIONS: readonly RegisterPollGroupDefinition[] = [
+  ADLAR3_POLL_SUPERFAST_DEF,
+  ADLAR3_POLL_FAST_DEF,
+  ADLAR3_POLL_MEDIUM_DEF,
+  ADLAR3_POLL_SLOW_DEF,
+  ADLAR3_POLL_ONCE_DEF,
+];
+
+/** Names of the poll groups that read `address` with function code `fc`, fastest first. */
+export function pollGroupsForAddress(address: number, fc: 'input' | 'holding'): string[] {
+  return ADLAR3_POLL_GROUP_DEFINITIONS
+    .filter((group) => group.reads.some((read) => (read.fc ?? 'holding') === fc
+      && address >= read.start && address < read.start + read.count))
+    .map((group) => group.name);
+}
 
 /** Setpoint types whose write range follows the controller's active limit registers. */
 const DYNAMIC_LIMITS: Partial<Record<SetpointType, { upper: number; lower: number }>> = {
@@ -616,6 +637,10 @@ export class Adlar3ModbusService extends EventEmitter {
       heatingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1HeatingSetTemp, true),
       coolingSetpointC: this.readScaledValue(CONTROL_REGISTERS.zone1CoolingSetTemp, true),
       dhwSetpointC: this.readScaledValue(CONTROL_REGISTERS.dhwSetTemp, true),
+      dhwSetpointRange: this.activeLimits('dhw') ?? {
+        min: CONTROL_REGISTERS.dhwSetTemp.min ?? 0,
+        max: CONTROL_REGISTERS.dhwSetTemp.max ?? 0,
+      },
       floorSetpointC: this.readScaledValue(CONTROL_REGISTERS.roomTempSetTemp, true),
       dhwEnabled: this.tcp.u16(CONTROL_REGISTERS.dhwOnOff.address) === 1,
       silentMode: decodeSilentMode(functionA),
@@ -709,6 +734,7 @@ export class Adlar3ModbusService extends EventEmitter {
         value: this.readScaledValue(descriptor.def, descriptor.signed ?? false),
         unit: descriptor.def.unit ?? '',
         label: descriptor.def.name,
+        pollGroup: pollGroupsForAddress(descriptor.def.address, 'input')[0] ?? 'manual',
       };
     }
     return sensors;

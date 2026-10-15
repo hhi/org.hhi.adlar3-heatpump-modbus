@@ -227,6 +227,12 @@ export const EFFECTIVE_MODE_BITS = {
   DHW: 0x0004,
 } as const;
 
+/** Reg 39 external request bits (extended HA YAML). */
+export const EXTERNAL_REQUEST_BITS = {
+  EXTERNAL_ANTI_FREEZE: 0x0001,
+  EXTERNAL_DEFROST: 0x0002,
+} as const;
+
 // ============================================================================
 // BLOCK 4c: FAULT & PROTECTION CODE BIT-FIELDS (Reg 90-101)
 // ============================================================================
@@ -235,6 +241,40 @@ export const EFFECTIVE_MODE_BITS = {
 // Example: Reg 90 = 0x0004 → E03; Reg 97 = 0x0001 → P17.
 //
 // ============================================================================
+
+const ERROR_CODE_BASE_ADDRESS = 90;
+const PROTECTION_CODE_BASE_ADDRESS = 96;
+const CODE_REGISTER_COUNT = 6;
+
+/**
+ * Bit table for registers that are bit fields, as name → single-bit mask (for dashboards).
+ * Multi-bit fields are listed per bit, e.g. silent mode bits 4-5 as two entries.
+ */
+export function registerBitTable(address: number, fc: ModbusFC): Record<string, number> | undefined {
+  if (fc === 'holding') {
+    if (address !== 2103) return undefined;
+    return {
+      FORCED_BACKUP_HEATER: FUNCTION_A_BITS.FORCED_BACKUP_HEATER,
+      SILENT_MODE_BIT4: 0x0010,
+      SILENT_MODE_BIT5: 0x0020,
+      DISINFECTION_ENABLED: FUNCTION_A_BITS.DISINFECTION_ENABLED,
+    };
+  }
+  if (address === 38) return { ...STATUS_BITS };
+  if (address === 39) return { ...EXTERNAL_REQUEST_BITS };
+  if (address === 9) return { ...EFFECTIVE_MODE_BITS };
+  for (const [prefix, base] of [['E', ERROR_CODE_BASE_ADDRESS], ['P', PROTECTION_CODE_BASE_ADDRESS]] as const) {
+    const index = address - base;
+    if (index >= 0 && index < CODE_REGISTER_COUNT) {
+      const bits: Record<string, number> = {};
+      for (let bit = 0; bit < 16; bit++) {
+        bits[`${prefix}${String(index * 16 + bit + 1).padStart(2, '0')}`] = 1 << bit;
+      }
+      return bits;
+    }
+  }
+  return undefined;
+}
 
 /** Decode consecutive code-bitfield registers into codes like "E03" or "P17". */
 export function decodeCodeBits(prefix: string, words: readonly number[]): string[] {
