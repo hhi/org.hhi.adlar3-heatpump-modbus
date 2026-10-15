@@ -30,10 +30,10 @@
           "fr": "Port TCP"
         },
         "hint": {
-          "en": "Must match the 'Local port' of the Modbus gateway. The setup guide uses 502; the factory default of an Elfin EW11A is 8899. The gateway's serial protocol must be set to Modbus.",
-          "nl": "Moet gelijk zijn aan de 'Local port' van de Modbus-gateway. De installatiehandleiding gebruikt 502; de fabrieksinstelling van een Elfin EW11A is 8899. Het seriële protocol van de gateway moet op Modbus staan.",
-          "de": "Muss dem 'Local port' des Modbus-Gateways entsprechen. Die Einrichtungsanleitung verwendet 502; ab Werk nutzt ein Elfin EW11A 8899. Das serielle Protokoll des Gateways muss auf Modbus stehen.",
-          "fr": "Doit correspondre au 'Local port' de la passerelle Modbus. Le guide d'installation utilise 502 ; un Elfin EW11A utilise 8899 par défaut. Le protocole série de la passerelle doit être réglé sur Modbus."
+          "en": "Must match the 'Local port' of the Modbus gateway (the setup guide uses 502). The gateway's serial protocol must be set to Modbus.",
+          "nl": "Moet gelijk zijn aan de 'Local port' van de Modbus-gateway (de installatiehandleiding gebruikt 502). Het seriële protocol van de gateway moet op Modbus staan.",
+          "de": "Muss dem 'Local port' des Modbus-Gateways entsprechen (die Einrichtungsanleitung verwendet 502). Das serielle Protokoll des Gateways muss auf Modbus stehen.",
+          "fr": "Doit correspondre au 'Local port' de la passerelle Modbus (le guide d'installation utilise 502). Le protocole série de la passerelle doit être réglé sur Modbus."
         },
         "value": 502,
         "attr": {
