@@ -60,21 +60,23 @@ Netwerk:
 
 - geef de EW11A bij voorkeur een vast IP-adres of DHCP-reservering
 - noteer dit IP-adres voor het koppelen in Homey
-- gebruik in Homey poort `502`
+- gebruik in Homey dezelfde poort als `Local port` in de EW11A; deze handleiding gebruikt `502`
 - gebruik Modbus Unit ID `1`, tenzij de warmtepomp anders is ingesteld
+
+`Serial protocol` moet op `Modbus` staan: de EW11A vertaalt dan Modbus TCP naar Modbus RTU. Staat het protocol op `None` (transparant), dan krijgt de app geen geldige antwoorden. De fabrieksinstelling van `Local port` is `8899`. Laat je die staan, vul dan `8899` in bij de TCP-poort in Homey; ook de Home Assistant-packages gebruiken die poort.
 
 ## Koppelen in Homey
 
 Vul bij het toevoegen van het apparaat in Homey in:
 
 - IP-adres van de EW11A
-- TCP-poort `502`
+- TCP-poort `502` (of de `Local port` van de EW11A, standaard `8899`)
 - Modbus Unit ID `1`
 
 Bij verbindingsproblemen:
 
 1. controleer voeding en netwerkbereikbaarheid van de EW11A;
-2. controleer TCP Server / poort `502`;
+2. controleer TCP Server, `Serial protocol` = `Modbus` en dat de poort in Homey gelijk is aan `Local port`;
 3. controleer seriele instellingen: `9600`, `8N2`, parity `None`;
 4. controleer Modbus Unit ID;
 5. wissel RS485 `A/B` als alle instellingen kloppen maar er geen antwoord komt.

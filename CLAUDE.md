@@ -17,7 +17,11 @@ homey app validate          # Validate Homey app structure (run after build)
 homey app validate -l debug # Detailed validation output
 ```
 
-There are no automated unit tests. The `test/` directory contains standalone Modbus simulation scripts (`test-adlar3-registers.ts`, `test-sim3-registers.ts`) for manual register-map verification against a simulated device — not a test runner. Always run `npm run build` after making changes to verify TypeScript compiles.
+```bash
+npm test                    # Build, then run unit tests in test/unit/*.test.js (node --test)
+```
+
+Unit tests in `test/unit/` run against the compiled output in `.homeybuild/` (no Homey runtime; the `homey` module is stubbed where needed). The `test/` root also contains standalone Modbus simulation scripts (`test-adlar3-registers.ts`, `test-sim3-registers.ts`) for manual register-map verification against a simulated device. Always run `npm run build` after making changes to verify TypeScript compiles.
 
 ## Architecture
 
@@ -33,7 +37,7 @@ This is a Homey SDK v3 app that gives Homey Pro local Modbus TCP access to Adlar
 
 4. **`lib/services/modbus-connection-service.ts`** — Wraps the injected Aurora III Modbus runtime and handles connection lifecycle events (connected, disconnected, data, error) that are forwarded back to the coordinator.
 
-5. **`lib/modbus/adlar3-modbus-service.ts`** — Aurora III Modbus runtime: builds poll groups, decodes registers into a typed `DataSnapshot`, and handles write operations.
+5. **`lib/modbus/adlar3-modbus-service.ts`** — Aurora III Modbus runtime: builds poll groups, decodes registers into a typed `DataSnapshot`, and handles write operations (setpoints, mode, on/off via zone register 4-2101, and `setFeature()` for DHW on/off, silent mode and backup heater). Snapshots carry `sourcePollGroup`: `superfast`/`fast` snapshots drive sensors and poll health; `medium` snapshots carry controls (4-2100..2114), fault bit fields (3-90..101) and effective mode (3-9). `applyModbusSnapshot()` only applies each capability from the group that reads its register.
 
 6. **`lib/modbus/modbus-tcp-service.ts`** — Protocol-agnostic Modbus TCP transport (jsmodbus). Handles socket lifecycle, reconnect with backoff, FC03/FC05/FC06, register cache, and the multi-tier polling engine. Contains no device-specific logic.
 
@@ -50,7 +54,9 @@ This is a Homey SDK v3 app that gives Homey Pro local Modbus TCP access to Adlar
 
 ### Local HTTP dashboard
 
-`DashboardService` serves static files from `public/` on a configurable port (default 8090). Four pages: `dashboard.html` (live), `dashboard-interactive.html` (read/write), `dashboard-expert.html` (all registers), `heating_curve_line.html` (curve editor). See ADR-041/041a.
+`DashboardService` serves static files from `public/` on a configurable port (default 8090). Pages: `dashboard.html` (live), `dashboard-interactive.html` (read/write), `dashboard-live.html` (capability tiles), `dashboard-expert.html` (all registers), `dashboard-changelog.html` (register change log). See ADR-041/041a.
+
+The capability-to-register mapping is documented in `docs/Dev support/capability-modbus-mapping.md`; keep it in sync when adding or remapping capabilities.
 
 ### Architecture Decision Records
 

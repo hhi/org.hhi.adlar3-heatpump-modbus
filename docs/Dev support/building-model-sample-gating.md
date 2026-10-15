@@ -1,11 +1,13 @@
-# Building model sample-gating: `blocked_dhw_mode` en `blocked_defrost`
+# Building model sample-gating: `blocked_dhw_mode`, `blocked_dhw_active` en `blocked_defrost`
 
 **Project:** org.hhi.adlar3-heatpump-modbus
 **Status:** geïmplementeerd (2026-06-09, ADR-060 §5 actiepunt 3); gedrag vastgelegd in ADR-060 (gedeelde gedragsspecificatie, `plans/decisions/`).
 **Gerelateerd:** ADR-056 (building model hardening), referentieproject-ADR-057 W2b
 **Code:** `lib/services/building-model-service.ts` → `collectAndLearn()`
 
-Het gebouwmodel (RLS) leert vier thermische parameters — C (thermische massa), UA (warmteverlies), g (zonnewinst), P_int (interne winst) — uit de relatie tussen **toegevoerd thermisch vermogen** en **verandering van de binnentemperatuur**. Die relatie geldt alleen wanneer het thermisch vermogen daadwerkelijk het gebouw in gaat. Twee bedrijfssituaties breken die aanname structureel; daarvoor bestaan de gates `blocked_dhw_mode` en `blocked_defrost`.
+Het gebouwmodel (RLS) leert vier thermische parameters — C (thermische massa), UA (warmteverlies), g (zonnewinst), P_int (interne winst) — uit de relatie tussen **toegevoerd thermisch vermogen** en **verandering van de binnentemperatuur**. Die relatie geldt alleen wanneer het thermisch vermogen daadwerkelijk het gebouw in gaat. Drie bedrijfssituaties breken die aanname structureel; daarvoor bestaan de gates `blocked_dhw_mode`, `blocked_dhw_active` (sinds v1.9.0) en `blocked_defrost`.
+
+Volgorde in `collectAndLearn()`: modus-gate → tapwater-gate → defrost-gate.
 
 ---
 
@@ -43,7 +45,28 @@ De check zit in `collectAndLearn()` **vóór** `learner.addMeasurement()`:
 
 ---
 
-## 2. `blocked_defrost` — "Defrost active"
+## 2. `blocked_dhw_active` — "Hot water heating"
+
+### Waarom het ertoe doet
+
+Tijdens tapwaterverwarming stuurt de driewegklep het aanvoerwater naar de boiler. Het elektrisch vermogen en de berekende COP blijven plausibel, maar de warmte gaat in het tapwatervat en niet in het gebouw. Het model ziet dan vermogen zonder bijpassende stijging van de binnentemperatuur — dezelfde bias als bij de modus-gate (C te hoog, UA te laag). De modus-gate vangt dit niet af: `4-2100` blijft tijdens een tapwaterrun gewoon op Heat of Auto staan.
+
+### Hoe het wordt herkend (Modbus)
+
+**Input register 3-9, bit 2** ("effective mode": DHW actief) → snapshot `status.dhwActive` → capability `adlar_dhw_active` (boolean). Dit is een actuele statusbit, gelezen in de medium-pollgroep (standaard elke 30 s).
+
+### Hoe erop wordt gestuurd
+
+Zelfde mechanisme als de andere gates: skip vóór `addMeasurement()`, blocking reason `building_model.blocked_dhw_active` ("Hot water heating" / "Tapwater verwarmen"), zelfherstellend zodra de tapwaterrun eindigt.
+
+### Impact
+
+- **Mét gate:** een tapwaterrun duurt typisch 20–60 minuten, een paar keer per dag → enkele gemiste samples per run. Na de run kan de eerste meting nog een naijleffect bevatten; bij een blokkade > 15 min grijpt de dt-gap-guard in.
+- **Zónder gate:** elke tapwaterrun voegt samples toe met vermogen maar zonder gebouwrespons, juist in de ochtend- en avondpieken.
+
+---
+
+## 3. `blocked_defrost` — "Defrost active"
 
 ### Waarom het ertoe doet
 
@@ -66,10 +89,10 @@ Zelfde mechanisme als de modus-gate: skip vóór `addMeasurement()`, blocking re
 
 ## Samenvattend
 
-| | `blocked_dhw_mode` | `blocked_defrost` |
-|---|---|---|
-| Fout zonder gate | Vermogen zonder gebouwrespons → C te hoog, UA te laag (bias) | Geïnverteerd sample → parameters verkeerde kant op |
-| Detectie (dit project) | Register 4-2100 via `adlar_mode` ∈ {0, 1} | Register 3-38 bit 1 via `adlar_state_defrost_state` |
-| Frequentie | Tijdens uit-/koelmodus, structureel zolang actief | Bij koud/vochtig weer, episodisch |
-| Sturing | Sample-skip + blocking reason, zelfherstellend | idem |
-| Restrisico | Auto kan actuele koeling bevatten zolang 3-102/3-103 niet gevalideerd zijn | Dip in eerste post-defrost-sample (ruis); lange blokkade → dt-gap-guard |
+| | `blocked_dhw_mode` | `blocked_dhw_active` | `blocked_defrost` |
+|---|---|---|---|
+| Fout zonder gate | Vermogen zonder gebouwrespons → C te hoog, UA te laag (bias) | Vermogen gaat naar de boiler → zelfde bias | Geïnverteerd sample → parameters verkeerde kant op |
+| Detectie (dit project) | Register 4-2100 via `adlar_mode` ∈ {0, 1} | Register 3-9 bit 2 via `adlar_dhw_active` | Register 3-38 bit 1 via `adlar_state_defrost_state` |
+| Frequentie | Tijdens uit-/koelmodus, structureel zolang actief | Enkele tapwaterruns per dag | Bij koud/vochtig weer, episodisch |
+| Sturing | Sample-skip + blocking reason, zelfherstellend | idem | idem |
+| Restrisico | Auto kan actuele koeling bevatten zolang 3-102/3-103 niet gevalideerd zijn | Naijleffect in eerste sample na de run; 3-9 wordt elke 30 s gelezen | Dip in eerste post-defrost-sample (ruis); lange blokkade → dt-gap-guard |

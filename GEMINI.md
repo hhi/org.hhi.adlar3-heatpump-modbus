@@ -31,9 +31,9 @@ The project follows a service-oriented architecture centered around the Homey De
 
 ### Data Flow
 
-1.  `Adlar3ModbusService` polls registers and creates a `DataSnapshot`.
-2.  `ServiceCoordinator` receives the snapshot and notifies interested services.
-3.  `AdlarModbusDevice.applyModbusSnapshot()` updates Homey capability values based on the snapshot.
+1.  `Adlar3ModbusService` polls registers and creates a `DataSnapshot` tagged with its `sourcePollGroup`: `superfast`/`fast` for sensors, `medium` for controls (4-2100..2114), fault bit fields (3-90..101) and effective mode (3-9).
+2.  `ServiceCoordinator` receives the snapshot and notifies interested services. Only fast/superfast snapshots update poll health, energy tracking and defrost learning.
+3.  `AdlarModbusDevice.applyModbusSnapshot()` updates each Homey capability from the poll group that reads its register.
 4.  Adaptive control services analyze snapshots and may issue write commands via the coordinator.
 
 ## Development and Building
@@ -44,7 +44,8 @@ The project follows a service-oriented architecture centered around the Homey De
 - **Lint:** `npm run lint` (Runs `eslint`).
 - **Run (Development):** `homey app run` (Requires Homey CLI).
 - **Install:** `homey app install` (Requires Homey CLI).
-- **Simulation Testing:** The `test/` directory contains scripts like `test-modbus-service.ts` and `test-sim-registers.ts` that can be run with `tsx` to simulate Modbus communication without hardware.
+- **Unit Tests:** `npm test` (builds, then runs `test/unit/*.test.js` with `node --test`).
+- **Simulation Testing:** The `test/` directory contains `test-adlar3-registers.ts` and `test-sim3-registers.ts`, which can be run with `tsx` to check the register map and simulate Modbus communication without hardware.
 
 ### Environment Variables
 
