@@ -4,7 +4,7 @@
 
 This is a TypeScript Homey app for an Adlar Aurora III heat pump over Modbus. The entry point is `app.ts`; device and driver code lives in `drivers/intelligent-heatpump-modbus/`. Core runtime logic is under `lib/`, with Modbus definitions in `lib/modbus/`, adaptive control in `lib/adaptive/`, services in `lib/services/`, and shared types in `lib/types/`.
 
-Homey metadata, capabilities, and flow cards are generated from `.homeycompose/`. Static dashboards are in `public/`, icons are in `assets/`, translations are in `locales/`, and setup or technical notes are in `docs/` and `ADR/`. The `test/` directory contains standalone Modbus scripts and simulator files, not a full test runner.
+Homey metadata, capabilities, and flow cards are generated from `.homeycompose/`. Static dashboards are in `public/`, icons are in `assets/`, translations are in `locales/`, and setup or technical notes are in `docs/` and `ADR/`. Unit tests live in `test/unit/` (run with `npm test`); the rest of `test/` contains standalone Modbus scripts and simulator files.
 
 ## Build, Test, and Development Commands
 
@@ -25,7 +25,7 @@ Prefer typed interfaces over loose objects. For Homey timers, use `this.homey.se
 
 ## Testing Guidelines
 
-There is no automated coverage threshold. Add focused assertions to `test/test-adlar3-registers.ts` for register-map or calculation changes. Use `test/test-sim3-registers.ts` with a Modbus simulator for connection, read/write, and polling behavior.
+There is no automated coverage threshold. `npm test` builds the app and runs the unit tests in `test/unit/*.test.js` with `node --test`; add a test there for decoding, write-path or service logic changes. Add focused assertions to `test/test-adlar3-registers.ts` for register-map or calculation changes. Use `test/test-sim3-registers.ts` with a Modbus simulator for connection, read/write, and polling behavior.
 
 ## Commit & Pull Request Guidelines
 
