@@ -1,4 +1,8 @@
 {
+  "1.9.3": {
+    "en": "Silent mode level 2 can only be selected on R290 heat pumps; on other heat pumps it is greyed out in the interactive dashboard (e.g. 'Level 2 (R290 only)'). Expert dashboard: corrected descriptions for registers 39 (request for an external heat source), 63 and 67, and added the layout of registers 102 and 103.",
+    "nl": "Stille modus niveau 2 is alleen te kiezen op R290-warmtepompen; op andere warmtepompen is de optie in het interactieve dashboard uitgeschakeld (bijv. 'Niveau 2 (alleen R290)'). Expertdashboard: gecorrigeerde beschrijvingen voor registers 39 (aanvraag externe warmtebron), 63 en 67, en de indeling van registers 102 en 103 toegevoegd."
+  },
   "1.9.2": {
     "en": "The TCP port setting now refers to the 'Local port' set on the Modbus gateway (502 in the setup guide). The reference to port 8899 has been removed.",
     "nl": "De instelling TCP-poort verwijst nu naar de 'Local port' die op de Modbus-gateway is ingesteld (502 in de installatiehandleiding). De verwijzing naar poort 8899 is verwijderd."

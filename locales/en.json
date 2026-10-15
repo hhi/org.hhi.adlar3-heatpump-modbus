@@ -85,6 +85,7 @@
     "blocked_no_cop": "No COP measurement"
   },
   "errors": {
-    "zone_onoff_disabled": "On/off via zone control register 2101 is experimental. Enable 'On/off via zone control (experimental)' in the device settings to use it."
+    "zone_onoff_disabled": "On/off via zone control register 2101 is experimental. Enable 'On/off via zone control (experimental)' in the device settings to use it.",
+    "silent_level2_r290_only": "Silent mode level 2 is only available on R290 heat pumps."
   }
 }
