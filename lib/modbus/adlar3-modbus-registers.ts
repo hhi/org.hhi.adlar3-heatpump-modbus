@@ -5,9 +5,9 @@
  *
  * SCOPE: best-effort definitions derived from:
  *   1. The Aurora III official register map spreadsheet (125 registers, "Register Map" tab)
- *   2. The Home Assistant adlar_heatpump.yaml reference implementation (12 registers used)
- *   3. The extended Home Assistant package adlar_warmtepomp.yaml (OnnoTimmermans/
- *      HA-modbus-Adlar-aurora-Pro-III, 2026) — practical use of Reg 2101/2102/2103 on hardware
+ *   2. The earlier Home Assistant package adlar_heatpump.yaml (12 registers used) and
+ *   3. its successor adlar_warmtepomp.yaml (both from OnnoTimmermans/HA-modbus-Adlar-aurora-Pro-III
+ *      on GitHub, 2026) — practical use of Reg 2101/2102/2103 on hardware
  *   4. Cross-mapping against legacy Aurora II semantics where useful
  *
  *   The official register map (source 1) is leading. The HA packages are only used where the map
