@@ -24,12 +24,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import { ModbusTcpService, PollGroup } from '../lib/modbus/modbus-tcp-service';
+import { ModbusTcpService, PollGroup } from '../lib/aurora3/protocol/modbus-tcp-service';
 import {
   ALL_HOLDING_REGISTERS,
   ALL_INPUT_REGISTERS,
   decodeS16,
-} from '../lib/modbus/adlar3-modbus-registers';
+} from '../lib/aurora3/protocol/adlar3-modbus-registers';
 
 // -- CLI parsing -------------------------------------------------------------
 

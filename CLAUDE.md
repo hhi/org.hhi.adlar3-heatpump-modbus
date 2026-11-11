@@ -33,24 +33,24 @@ This is a Homey SDK v3 app that gives Homey Pro local Modbus TCP access to Adlar
 
 2. **`drivers/intelligent-heatpump-modbus/device.ts`** — The single Homey device class (`AdlarModbusDevice`). Owns the `ServiceCoordinator` lifecycle, registers capability listeners, and exposes `applyModbusSnapshot()` which maps a `DataSnapshot` onto Homey capabilities.
 
-3. **`lib/services/service-coordinator.ts`** — Orchestrates all services: `SettingsManagerService`, `CapabilityHealthService`, `EnergyTrackingService`, `FlowCardManagerService`, `ModbusConnectionService`, and optionally adaptive services. Acts as the single dependency-injection point for the device.
+3. **`lib/aurora3/services/service-coordinator.ts`** — Orchestrates all services: `SettingsManagerService`, `CapabilityHealthService`, `EnergyTrackingService`, `FlowCardManagerService`, `ModbusConnectionService`, and optionally adaptive services. Acts as the single dependency-injection point for the device.
 
-4. **`lib/services/modbus-connection-service.ts`** — Wraps the injected Aurora III Modbus runtime and handles connection lifecycle events (connected, disconnected, data, error) that are forwarded back to the coordinator.
+4. **`lib/aurora3/services/modbus-connection-service.ts`** — Wraps the injected Aurora III Modbus runtime and handles connection lifecycle events (connected, disconnected, data, error) that are forwarded back to the coordinator.
 
-5. **`lib/modbus/adlar3-modbus-service.ts`** — Aurora III Modbus runtime: builds poll groups, decodes registers into a typed `DataSnapshot`, and handles write operations (setpoints, mode, on/off via zone register 4-2101, and `setFeature()` for DHW on/off, silent mode and backup heater). Snapshots carry `sourcePollGroup`: `superfast`/`fast` snapshots drive sensors and poll health; `medium` snapshots carry controls (4-2100..2114), fault bit fields (3-90..101) and effective mode (3-9). `applyModbusSnapshot()` only applies each capability from the group that reads its register.
+5. **`lib/aurora3/protocol/adlar3-modbus-service.ts`** — Aurora III Modbus runtime: builds poll groups, decodes registers into a typed `DataSnapshot`, and handles write operations (setpoints, mode, on/off via zone register 4-2101, and `setFeature()` for DHW on/off, silent mode and backup heater). Snapshots carry `sourcePollGroup`: `superfast`/`fast` snapshots drive sensors and poll health; `medium` snapshots carry controls (4-2100..2114), fault bit fields (3-90..101) and effective mode (3-9). `applyModbusSnapshot()` only applies each capability from the group that reads its register.
 
-6. **`lib/modbus/modbus-tcp-service.ts`** — Protocol-agnostic Modbus TCP transport (jsmodbus). Handles socket lifecycle, reconnect with backoff, FC03/FC05/FC06, register cache, and the multi-tier polling engine. Contains no device-specific logic.
+6. **`lib/aurora3/protocol/modbus-tcp-service.ts`** — Protocol-agnostic Modbus TCP transport (jsmodbus). Handles socket lifecycle, reconnect with backoff, FC03/FC05/FC06, register cache, and the multi-tier polling engine. Contains no device-specific logic.
 
-7. **`lib/modbus/adlar3-modbus-registers.ts`** — Aurora III register metadata: addresses, scale factors, ranges, bit masks, and decode helpers.
+7. **`lib/aurora3/protocol/adlar3-modbus-registers.ts`** — Aurora III register metadata: addresses, scale factors, ranges, bit masks, and decode helpers.
 
 ### Supporting libraries
 
-- **`lib/adaptive/`** — Advanced features: `HeatingController` (PI control), `CopOptimizer`, `DefrostLearner`, `BuildingModelLearner`, `WeightedDecisionMaker`, `EnergyPriceOptimizer`.
-- **`lib/services/`** — Individual services: `CopCalculator`, `RollingCopCalculator`, `SCopCalculator`, `ModbusCopService`, `EnergyTrackingService`, `CapabilityHealthService`, `FlowCardManagerService`, `SettingsManagerService`, `PerformanceReportService`, `BuildingInsightsService`, `BuildingModelService`, `AdaptiveControlService`, `ExternalTemperatureService`, `SnapshotTriggerService`, `DashboardService`.
-- **`lib/types/shared-interfaces.ts`** — Shared TypeScript interfaces used across services (e.g., `DataSnapshot`).
-- **`lib/logger.ts`** — Structured logger with configurable `LogLevel`. Services receive a `(msg, ...args) => void` callback — they never import Logger directly.
-- **`lib/constants.ts`** — All timing, threshold, and calculation constants (`DeviceConstants`).
-- **`lib/self-healing-registry.ts`** — App-level registry for automatic error recovery.
+- **`lib/modbus/adaptive/`, `lib/shared/adaptive/`** — Advanced features: `HeatingController` (PI control), `CopOptimizer`, `DefrostLearner`, `BuildingModelLearner`, `WeightedDecisionMaker`, `EnergyPriceOptimizer`.
+- **`lib/aurora3/services/`** — Individual services: `CopCalculator`, `RollingCopCalculator`, `SCopCalculator`, `ModbusCopService`, `EnergyTrackingService`, `CapabilityHealthService`, `FlowCardManagerService`, `SettingsManagerService`, `PerformanceReportService`, `BuildingInsightsService`, `BuildingModelService`, `AdaptiveControlService`, `ExternalTemperatureService`, `SnapshotTriggerService`, `DashboardService`.
+- **`lib/aurora3/types/shared-interfaces.ts`** — Shared TypeScript interfaces used across services (e.g., `DataSnapshot`).
+- **`lib/shared/logger.ts`** — Structured logger with configurable `LogLevel`. Services receive a `(msg, ...args) => void` callback — they never import Logger directly.
+- **`lib/aurora3/constants.ts`** — All timing, threshold, and calculation constants (`DeviceConstants`).
+- **`lib/shared/self-healing-registry.ts`** — App-level registry for automatic error recovery.
 
 ### Local HTTP dashboard
 

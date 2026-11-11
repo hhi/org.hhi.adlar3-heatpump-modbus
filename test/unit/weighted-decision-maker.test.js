@@ -10,7 +10,7 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 
-const { WeightedDecisionMaker } = require('../../.homeybuild/lib/adaptive/weighted-decision-maker');
+const { WeightedDecisionMaker } = require('../../.homeybuild/lib/modbus/adaptive/weighted-decision-maker');
 
 const PRIORITIES = { comfort: 0.6, efficiency: 0.25, cost: 0.15 };
 
@@ -137,4 +137,19 @@ test('thermal component gated on building model confidence >= 0.5', () => {
   const result = dm.combineActionsWithThermal(pi, null, null, thermal, lowConf, null);
   assert.strictEqual(result.effectiveWeights.thermal, 0, 'thermal disabled below 50% confidence');
   assert.strictEqual(result.finalAdjustment, 0);
+});
+
+test('ADR-065 O14: thermalExcluded leaves the thermal component out and gives its budget to price and COP', () => {
+  const dm = new WeightedDecisionMaker({ ...PRIORITIES, thermal: 0.20 });
+  const thermal = { adjustment: 0.5, reason: 'thermal boost', priority: 'medium' };
+  const metrics = { copConfidence: 0, buildingModelConfidence: 1, priceDataAvailable: true };
+  const price = priceAction('reduce', -1);
+
+  const withThermal = dm.combineActionsWithThermal(heatingAction(0), null, price, thermal, metrics, null);
+  const excluded = dm.combineActionsWithThermal(heatingAction(0), null, price, thermal, { ...metrics, thermalExcluded: true }, null);
+  assert.ok(withThermal.effectiveWeights.thermal > 0, 'thermal weighted when included');
+  assert.strictEqual(excluded.effectiveWeights.thermal, 0);
+  assert.strictEqual(excluded.breakdown.thermal, 0);
+  assert.ok(Math.abs(excluded.effectiveWeights.cost - 0.4) < 1e-9, 'price gets the whole optimizer budget');
+  assert.ok(excluded.reasoning.includes('Thermal (0%): not used in the positional mode'));
 });

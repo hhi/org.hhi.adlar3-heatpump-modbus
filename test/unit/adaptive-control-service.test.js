@@ -15,7 +15,7 @@ Module._load = function load(request, parent, isMain) {
   return originalLoad.call(this, request, parent, isMain);
 };
 
-const { AdaptiveControlService } = require('../../.homeybuild/lib/services/adaptive-control-service');
+const { AdaptiveControlService } = require('../../.homeybuild/lib/aurora3/services/adaptive-control-service');
 
 function createHomey(flowEvents) {
   return {
@@ -88,6 +88,7 @@ function createService(device, adjustments = []) {
   service.externalTemperature = { getIndoorTemperature: () => 20 };
   service.weatherForecast = {
     getTempAt: () => null,
+    isLocationUserSet: () => false, // v3.7.1 (R21)
     hasFreshForecast: () => true,
     updateForecast: async () => {},
     calculateAdvice: () => null,
@@ -202,4 +203,207 @@ test('AdaptiveControlService coast helpers enforce activation, step limit and ex
   service._indoorTempHistory = [21.6, 21.4, 21.2];
   assert.strictEqual(service._isStaleCoast(-0.2), true, 'falling room + negligible coast triggers soft exit');
   assert.strictEqual(service._isStaleCoast(-0.8), false, 'large coast adjustment is not stale');
+});
+
+// ADR-065: positional mode
+
+/** Decision maker that passes the comfort share through, as the real one does without optimizers or coast. */
+function passThroughDecisionMaker() {
+  return {
+    getComfortAnchor: () => 0.6,
+    combineActionsWithThermal: (heating) => {
+      const comfort = (heating?.temperatureAdjustment ?? 0) * 0.6;
+      return {
+        finalAdjustment: comfort,
+        priority: 'medium',
+        reasoning: ['test decision'],
+        breakdown: {
+          comfort, efficiency: 0, cost: 0, thermal: 0, coast: 0, wind: 0,
+        },
+        effectiveWeights: {
+          comfort: 0.6, efficiency: 0, cost: 0, thermal: 0, coast: 0,
+        },
+      };
+    },
+  };
+}
+
+function createPositionalService(device, indoor) {
+  device.settings.adaptive_control_mode ??= 'positional_manual';
+  const service = createService(device, [0]);
+  service.decisionMaker = passThroughDecisionMaker();
+  service.externalTemperature = { getIndoorTemperature: () => indoor };
+  return service;
+}
+
+test('ADR-065: positional advice is basis + PI output, without the accumulator', async () => {
+  const device = createDevice();
+  device.settings.adaptive_control_mode = 'positional_radiator';
+  const service = createPositionalService(device, 19.5);
+  service.getEffectiveOutdoorTemp = async () => null; // no outdoor temperature: flat basis
+
+  await service.executeControlCycle();
+  // flat basis = setpoint 35 at activation; u = 3·0.5 + 0.5·3/36 ≈ 1.54 → 36.54 → 37
+  assert.strictEqual(service.lastRecommendedTemp, 37);
+  assert.strictEqual(device.capabilities.adlar_simulated_target, 37);
+  assert.strictEqual(device.store.adaptive_positional_flat_basis, 35);
+  assert.ok(Math.abs(device.store.adaptive_positional_integral - (0.5 * 3) / 36) < 1e-9, 'integral persisted');
+  assert.strictEqual(service.accumulatedAdjustment, 0, 'accumulator untouched');
+});
+
+test('ADR-065: switching from classic to positional resets the accumulator', async () => {
+  const device = createDevice();
+  const service = createService(device, [0.4]);
+  await service.executeControlCycle();
+  assert.ok(service.accumulatedAdjustment > 0.39, 'classic cycle accrued');
+
+  device.settings.adaptive_control_mode = 'positional_manual';
+  service.decisionMaker = passThroughDecisionMaker();
+  await service.executeControlCycle();
+  assert.strictEqual(service.accumulatedAdjustment, 0);
+  assert.strictEqual(device.store.adaptive_accumulated_adjustment, 0);
+  assert.strictEqual(device.store.adaptive_control_mode_last, 'positional');
+});
+
+test('ADR-065: both presets keep coast off (3.5.2), Manual follows the coast switch', async () => {
+  for (const [emitter, expected] of [['radiator', false], ['floor', false], ['manual', true]]) {
+    const device = createDevice();
+    device.settings.adaptive_control_mode = `positional_${emitter}`;
+    const service = createPositionalService(device, 21.5);
+    for (let i = 0; i < 3; i++) await service.executeControlCycle();
+    assert.strictEqual(service._coastActive, expected, emitter);
+  }
+});
+
+test('ADR-065: app heating curve as basis', async () => {
+  const device = createDevice();
+  Object.assign(device.settings, {
+    adaptive_curve_source: 'app', adaptive_curve_at_minus15: 40, adaptive_curve_at_plus15: 25,
+  });
+  const service = createPositionalService(device, 20);
+
+  await service.executeControlCycle();
+  // outdoor 5 °C: 40 − 0.5·20 = 30; no error, so no correction
+  assert.strictEqual(service.lastRecommendedTemp, 30);
+  assert.strictEqual(service.lastBasis.source, 'app_curve');
+});
+
+/** Decision maker with a fixed weighted price contribution; records every call. */
+function priceDecisionMaker(cost, calls) {
+  return {
+    getComfortAnchor: () => 0.6,
+    combineActionsWithThermal: (heating, cop, price, thermal, metrics) => {
+      calls.push({ heating, thermal, metrics });
+      const comfort = (heating?.temperatureAdjustment ?? 0) * 0.6;
+      return {
+        finalAdjustment: comfort + cost,
+        priority: 'medium',
+        reasoning: [],
+        breakdown: {
+          comfort, efficiency: 0, cost, thermal: 0, coast: 0, wind: 0,
+        },
+        effectiveWeights: {
+          comfort: 0.6, efficiency: 0, cost: 0.4, thermal: 0, coast: 0,
+        },
+      };
+    },
+  };
+}
+
+test('ADR-065 O14/O16: price shifts the room target, the basis follows and the thermal component stays out', async () => {
+  const device = createDevice();
+  Object.assign(device.settings, {
+    adaptive_curve_source: 'app', adaptive_curve_at_minus15: 40, adaptive_curve_at_plus15: 25,
+  });
+  const service = createPositionalService(device, 20);
+  const calls = [];
+  service.decisionMaker = priceDecisionMaker(-0.4, calls);
+
+  await service.executeControlCycle();
+  // basis 30 (outdoor 5 °C); room target 20 − 0.4: P 3·(−0.4) = −1.2, I −0.4·3/36;
+  // the basis follows (1 + 15/30)·(−0.4) = −0.6 → 30 − 0.6 − 1.233 = 28.17 → 28
+  assert.strictEqual(service.lastRecommendedTemp, 28);
+  assert.ok(Math.abs(service.lastTargetShift + 0.4) < 1e-9, 'room target shift');
+  assert.ok(Math.abs(service.lastFeedforward + 0.6) < 1e-9, 'basis feed-forward');
+  assert.ok(Math.abs(device.store.adaptive_positional_integral + (0.4 * 3) / 36) < 1e-9, 'integral on the shifted target');
+  assert.strictEqual(calls.length, 2, 'optimizers first, then with the PI');
+  assert.strictEqual(calls[0].heating, null);
+  assert.ok(calls.every((c) => c.thermal === null && c.metrics.thermalExcluded === true), 'thermal component left out');
+  const control = service._getControlDiagnostics();
+  assert.strictEqual(control.targetShift, -0.4);
+  assert.strictEqual(control.feedforward, -0.6);
+});
+
+test('ADR-065 O14: classic keeps the optimizers on the recommendation and the thermal component', async () => {
+  const device = createDevice();
+  const service = createService(device, [0]);
+  const calls = [];
+  service.decisionMaker = priceDecisionMaker(-0.4, calls);
+
+  await service.executeControlCycle();
+  assert.strictEqual(calls.length, 1);
+  assert.notStrictEqual(calls[0].thermal, null);
+  assert.strictEqual(calls[0].metrics.thermalExcluded, undefined);
+  assert.strictEqual(service.lastTargetShift, 0);
+});
+
+test('ADR-065: the heat pump curve is the basis when plausible', async () => {
+  const device = createDevice();
+  device.settings.adaptive_curve_source = 'auto';
+  const service = createPositionalService(device, 20);
+  service.resolveHeatPumpCurve = () => 33;
+
+  await service.executeControlCycle();
+  assert.strictEqual(service.lastRecommendedTemp, 33);
+  assert.strictEqual(service.lastBasis.source, 'heat_pump_curve');
+});
+
+test('ADR-065 O17: a pending heat pump curve skips the cycle; the app curve does not wait', async () => {
+  const device = createDevice();
+  device.settings.adaptive_curve_source = 'auto';
+  const service = createPositionalService(device, 20);
+  service.resolveHeatPumpCurve = () => 'pending';
+
+  await service.executeControlCycle();
+  assert.strictEqual(service.lastBasis, null, 'no basis while pending');
+  assert.strictEqual(service.lastRecommendedTemp, undefined, 'no recommendation while pending');
+
+  service.resolveHeatPumpCurve = () => 33;
+  await service.executeControlCycle();
+  assert.strictEqual(service.lastRecommendedTemp, 33);
+  assert.strictEqual(service.lastBasis.source, 'heat_pump_curve');
+
+  device.settings.adaptive_curve_source = 'app';
+  service.resolveHeatPumpCurve = () => 'pending';
+  await service.executeControlCycle();
+  assert.strictEqual(service.lastBasis.source, 'app_curve', 'the app curve does not wait');
+});
+
+test('ADR-065: defrost and hot water pause the integral', async () => {
+  const device = createDevice();
+  const service = createPositionalService(device, 19.5);
+  service.resolvePauseReason = () => 'dhw';
+
+  await service.executeControlCycle();
+  assert.strictEqual(service.lastPositionalStep.holdReason, 'dhw');
+  assert.strictEqual(device.store.adaptive_positional_integral, 0);
+});
+
+test('v3.5.1: without a valid COP measurement the COP optimizer gives no advice', async () => {
+  const device = createDevice();
+  device.settings.cop_optimizer_enabled = true;
+  const service = createService(device, [0, 0, 0]);
+  service.getEffectiveOutdoorTemp = async () => 5;
+  const calls = [];
+  service.copOptimizer.calculateAction = (...args) => { calls.push(args); return null; };
+
+  await service.executeControlCycle(); // adlar_cop not calculated yet (null)
+  device.capabilities.adlar_cop = 0; // compressor off, outlier or failed calculation
+  await service.executeControlCycle();
+  assert.strictEqual(calls.length, 0);
+
+  device.capabilities.adlar_cop = 3.1; // valid COP, daily COP still unknown
+  await service.executeControlCycle();
+  assert.strictEqual(calls.length, 1);
+  assert.deepStrictEqual(calls[0].slice(0, 2), [3.1, 3.1]);
 });

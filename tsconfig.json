@@ -6,9 +6,17 @@
     "resolveJsonModule": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
-    "typeRoots": ["./node_modules/@types", "./types"]
+    "typeRoots": [
+      "./node_modules/@types",
+      "./types"
+    ]
   },
   "exclude": [
-    "*.bak", "node_modules", "dist", "build", "todo/*"
+    "*.bak",
+    "node_modules",
+    "dist",
+    "build",
+    "todo/*",
+    "tmp/*"
   ]
 }
