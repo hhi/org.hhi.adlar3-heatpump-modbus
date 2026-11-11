@@ -14,8 +14,8 @@ const {
   setBitFlag,
   encodeSilentMode,
   SilentMode,
-} = require('../../.homeybuild/lib/modbus/adlar3-modbus-registers');
-const { Adlar3ModbusService } = require('../../.homeybuild/lib/modbus/adlar3-modbus-service');
+} = require('../../.homeybuild/lib/aurora3/protocol/adlar3-modbus-registers');
+const { Adlar3ModbusService } = require('../../.homeybuild/lib/aurora3/protocol/adlar3-modbus-service');
 
 /** Service with a pre-filled register cache and recorded writes; never opens a socket. */
 function createService(registers = {}) {
