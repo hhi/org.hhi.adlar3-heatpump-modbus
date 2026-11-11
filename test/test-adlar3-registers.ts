@@ -13,8 +13,8 @@ import {
   decodeS16,
   statusBitSet,
   thermalPowerKw,
-} from '../lib/modbus/adlar3-modbus-registers';
-import { COPCalculator } from '../lib/services/cop-calculator';
+} from '../lib/aurora3/protocol/adlar3-modbus-registers';
+import { COPCalculator } from '../lib/aurora3/services/cop-calculator';
 
 assert.strictEqual(decodeS16(0x0000), 0);
 assert.strictEqual(decodeS16(0x00FA), 250);
