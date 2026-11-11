@@ -2,7 +2,7 @@
 
 ## Project Structure & Module Organization
 
-This is a TypeScript Homey app for an Adlar Aurora III heat pump over Modbus. The entry point is `app.ts`; device and driver code lives in `drivers/intelligent-heatpump-modbus/`. Core runtime logic is under `lib/`, with Modbus definitions in `lib/modbus/`, adaptive control in `lib/adaptive/`, services in `lib/services/`, and shared types in `lib/types/`.
+This is a TypeScript Homey app for an Adlar Aurora III heat pump over Modbus. The entry point is `app.ts`; device and driver code lives in `drivers/intelligent-heatpump-modbus/`. Core runtime logic is under `lib/`, with Modbus definitions in `lib/aurora3/protocol/`, adaptive control in `lib/modbus/adaptive/ and lib/shared/adaptive/`, services in `lib/aurora3/services/`, and shared types in `lib/aurora3/types/`.
 
 Homey metadata, capabilities, and flow cards are generated from `.homeycompose/`. Static dashboards are in `public/`, icons are in `assets/`, translations are in `locales/`, and setup or technical notes are in `docs/` and `ADR/`. Unit tests live in `test/unit/` (run with `npm test`); the rest of `test/` contains standalone Modbus scripts and simulator files.
 

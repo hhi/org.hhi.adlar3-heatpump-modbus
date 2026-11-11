@@ -9,9 +9,9 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const path = require('node:path');
 
-const { DashboardService } = require('../../.homeybuild/lib/services/dashboard-service');
-const { pollGroupsForAddress, Adlar3ModbusService } = require('../../.homeybuild/lib/modbus/adlar3-modbus-service');
-const { registerBitTable } = require('../../.homeybuild/lib/modbus/adlar3-modbus-registers');
+const { DashboardService } = require('../../.homeybuild/lib/aurora3/services/dashboard-service');
+const { pollGroupsForAddress, Adlar3ModbusService } = require('../../.homeybuild/lib/aurora3/protocol/adlar3-modbus-service');
+const { registerBitTable } = require('../../.homeybuild/lib/aurora3/protocol/adlar3-modbus-registers');
 
 const APP_DIR = path.join(__dirname, '..', '..');
 

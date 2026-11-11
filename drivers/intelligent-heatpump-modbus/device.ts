@@ -3,17 +3,19 @@
 /* eslint-disable import/extensions */
 import os from 'os';
 import Homey from 'homey';
-import { DataSnapshot } from '../../lib/modbus/adlar3-modbus-service';
-import { Logger, LogLevel } from '../../lib/logger';
-import { ServiceCoordinator } from '../../lib/services/service-coordinator';
-import { ModbusCOPService } from '../../lib/services/modbus-cop-service';
-import { RollingCOPCalculator } from '../../lib/services/rolling-cop-calculator';
-import { DeviceConstants } from '../../lib/constants';
-import { RegisterChangeEntry } from '../../lib/modbus/modbus-tcp-service';
+import { DataSnapshot } from '../../lib/aurora3/protocol/adlar3-modbus-service';
+import { Logger, LogLevel } from '../../lib/shared/logger';
+import { BuildingModelLearner } from '../../lib/shared/adaptive/building-model-learner';
+import { ServiceCoordinator } from '../../lib/aurora3/services/service-coordinator';
+import { ModbusCOPService } from '../../lib/aurora3/services/modbus-cop-service';
+import { RollingCOPCalculator } from '../../lib/shared/services/rolling-cop-calculator';
+import { DeviceConstants } from '../../lib/aurora3/constants';
+import { isSetpointRangeValid, resolveMaxSetpoint, SETPOINT_RANGE_MIN_GAP } from '../../lib/shared/adaptive/setpoint-range';
+import { Aurora3AppHost } from '../../lib/aurora3/types/app-host';
 import {
   LiveOperationWidgetState,
   buildLiveOperationWidgetState,
-} from '../../lib/services/widget-state-service';
+} from '../../lib/aurora3/services/widget-state-service';
 
 // ============================================================================
 // CONSTANTS
@@ -107,6 +109,7 @@ const DRIVER_COMPOSE_CAPABILITIES = [
   'adlar_building_g',
   'adlar_building_c',
   'adlar_building_pint',
+  'adlar_building_emitter_delay', // ADR-066 (3.7.0)
   'building_model_diagnostics',
   'building_insight_insulation',
   'building_insight_preheating',
@@ -154,6 +157,8 @@ interface DeviceSettings {
   dashboard_port: number;
   log_level: string;
   enable_power_measurements: boolean;
+  adaptive_min_setpoint: number;
+  adaptive_max_setpoint: number;
   experimental_zone_onoff: boolean;
 }
 /* eslint-enable camelcase */
@@ -162,7 +167,7 @@ interface DeviceSettings {
 // DEVICE CLASS
 // ============================================================================
 
-class AdlarModbusDevice extends Homey.Device {
+class Aurora3ModbusDevice extends Homey.Device {
 
   private coordinator: ServiceCoordinator | null = null;
   // Exposed as serviceCoordinator for shared services (e.g. FlowCardManagerService) that access it via duck-typing
@@ -176,6 +181,20 @@ class AdlarModbusDevice extends Homey.Device {
   private internalPowerZeroSamples = 0;
   private internalPowerZeroLogged = false;
 
+  /**
+   * Tijdstempel van de laatste flowwaarde voor externalCap. Na een herstart is de map leeg; voor de
+   * buitentemperatuur staat het tijdstempel dan nog in de store, zodat de TTL doortelt over de herstart.
+   */
+  private getExternalDataTimestamp(externalCap: string): number {
+    const ts = this.externalDataTimestamps.get(externalCap);
+    if (ts !== undefined) return ts;
+    if (externalCap === 'adlar_external_ambient') {
+      const stored = this.getStoreValue('external_outdoor_temp_timestamp');
+      if (typeof stored === 'number' && Number.isFinite(stored)) return stored;
+    }
+    return 0;
+  }
+
   public registerExternalDataReceived(cap: string): void {
     this.externalDataTimestamps.set(cap, Date.now());
   }
@@ -185,7 +204,7 @@ class AdlarModbusDevice extends Homey.Device {
       device: this,
       snapshot: this.coordinator?.getCurrentSnapshot() ?? null,
       isExternalCapabilityFresh: (capabilityId) => {
-        const timestamp = this.externalDataTimestamps.get(capabilityId) ?? 0;
+        const timestamp = this.getExternalDataTimestamp(capabilityId);
         return timestamp > 0 && Date.now() - timestamp <= DeviceConstants.EXTERNAL_DATA_TTL_MS;
       },
     });
@@ -210,6 +229,9 @@ class AdlarModbusDevice extends Homey.Device {
 
     this.logger.info('Device initializing:', this.getName());
 
+    // Migration v3.6.2 (R25): before the services start, so the learner gets the new value
+    await this._migrateForgettingFactor();
+
     await this._applyDashboardPort(settings.dashboard_port ?? 8090);
     await this._ensureCapabilities();
     await this._applyPowerCapabilities(settings.enable_power_measurements ?? true);
@@ -223,8 +245,7 @@ class AdlarModbusDevice extends Homey.Device {
       device: this,
       logger: (msg, ...args) => this.logger.debug(msg, ...args),
       onSnapshot: (snapshot) => {
-        const app = this.homey.app as unknown as { dashboard: { setSnapshot(s: DataSnapshot): void } | null };
-        app.dashboard?.setSnapshot(snapshot);
+        this._appHost.aurora3Dashboard?.setSnapshot(snapshot);
       },
     });
 
@@ -272,6 +293,18 @@ class AdlarModbusDevice extends Homey.Device {
   async onSettings({ newSettings, changedKeys }: { newSettings: Partial<DeviceSettings>; changedKeys: string[] }) {
     this.logger.info('Settings changed:', changedKeys);
 
+    // Reject a maximum water temperature that is not at least SETPOINT_RANGE_MIN_GAP above the minimum
+    if (changedKeys.includes('adaptive_min_setpoint') || changedKeys.includes('adaptive_max_setpoint')) {
+      const minSetpoint = (newSettings.adaptive_min_setpoint as number | null | undefined) ?? 18;
+      const maxSetpoint = resolveMaxSetpoint(
+        newSettings.adaptive_max_setpoint as number | null | undefined,
+        DeviceConstants.ADAPTIVE_MAX_SETPOINT,
+      );
+      if (!isSetpointRangeValid(minSetpoint, maxSetpoint)) {
+        throw new Error(this.homey.__('errors.adaptive_setpoint_range', { gap: SETPOINT_RANGE_MIN_GAP }));
+      }
+    }
+
     if (changedKeys.includes('log_level')) {
       const logLevelMap: Record<string, LogLevel> = {
         error: LogLevel.ERROR,
@@ -291,7 +324,7 @@ class AdlarModbusDevice extends Homey.Device {
     }
 
     if (changedKeys.includes('dashboard_port')) {
-      await this._applyDashboardPort((newSettings.dashboard_port ?? 8090) as number);
+      await this._applyDashboardPort((newSettings.dashboard_port ?? 8091) as number);
       this._registerDashboardCallbacks();
     }
 
@@ -338,12 +371,28 @@ class AdlarModbusDevice extends Homey.Device {
     }
   }
 
+  /** De app als Aurora III-host: eigen dashboardinstantie op een eigen poort (ADR-004 §5). */
+  private get _appHost(): Aurora3AppHost {
+    return this.homey.app as unknown as Aurora3AppHost;
+  }
+
   private async _applyDashboardPort(port: number): Promise<void> {
-    const app = this.homey.app as unknown as {
-      setDashboardPort?(dashboardPort: number): Promise<void>;
-    };
-    if (!app.setDashboardPort) return;
-    await app.setDashboardPort(port);
+    const host = this._appHost;
+    if (typeof host.setAurora3DashboardPort !== 'function') return;
+    await host.setAurora3DashboardPort(port);
+  }
+
+  /** Migration v3.6.2 (R25): a forgetting factor outside 0.9985–0.9995 (minimum raised in 3.4.2) blocks every settings save. */
+  private async _migrateForgettingFactor(): Promise<void> {
+    const stored: unknown = this.getSetting('building_model_forgetting_factor');
+    const replacement = BuildingModelLearner.forgettingFactorMigration(stored);
+    if (replacement === null) return;
+    try {
+      await this.setSettings({ building_model_forgetting_factor: replacement });
+      this.logger.info(`Migration v3.6.2: forgetting factor ${String(stored)} set to ${replacement}`);
+    } catch (error) {
+      this.logger.warn('Migration v3.6.2: failed to update the forgetting factor:', error);
+    }
   }
 
   private async _ensureCapabilities(): Promise<void> {
@@ -396,8 +445,7 @@ class AdlarModbusDevice extends Homey.Device {
       device: this,
       logger: (msg, ...args) => this.logger.debug(msg, ...args),
       onSnapshot: (snapshot) => {
-        const app = this.homey.app as unknown as { dashboard: { setSnapshot(s: DataSnapshot): void } | null };
-        app.dashboard?.setSnapshot(snapshot);
+        this._appHost.aurora3Dashboard?.setSnapshot(snapshot);
       },
     });
 
@@ -421,35 +469,21 @@ class AdlarModbusDevice extends Homey.Device {
 
   /** Bindt lees/schrijf-callbacks op het dashboard zodat HTTP-requests naar Modbus worden doorgestuurd. */
   private _registerDashboardCallbacks(): void {
-    type DashboardApp = {
-      dashboard: {
-        setWriteRegisterCallback(fn: (addr: number, rawValue: number) => Promise<void>): void;
-        setCapabilityWriteCallback(fn: (capability: string, value: number) => Promise<void>): void;
-        setCapabilityTriggerCallback(fn: (capability: string, value: boolean | string) => Promise<void>): void;
-        setReadRegisterCallback(fn: (addr: number, isCoil: boolean, isInput: boolean) => Promise<number>): void;
-        setWriteExpertCallback(fn: (addr: number, rawValue: number, isCoil: boolean) => Promise<void>): void;
-        setGetTemperatureScaleCallback(fn: () => 'x1' | 'x10'): void;
-        setGetChangeLogCallback(fn: (mode?: import('../../lib/modbus/modbus-tcp-service').RegisterChangeLogMode) => Map<number, RegisterChangeEntry>): void;
-        setGetSnapshotCallback(fn: () => DataSnapshot | null): void;
-        setGetRegisterCacheCallback(fn: () => Map<number, number>): void;
-        setGetCapabilityValuesCallback(fn: () => Record<string, unknown>): void;
-      } | null;
-    };
-    const app = this.homey.app as unknown as DashboardApp;
-    if (!app.dashboard || !this.coordinator) return;
+    const dashboard = this._appHost.aurora3Dashboard;
+    if (!dashboard || !this.coordinator) return;
 
-    app.dashboard.setWriteRegisterCallback(async (addr, rawValue) => {
+    dashboard.setWriteRegisterCallback(async (addr, rawValue) => {
       await this.coordinator!.writeRaw(addr, rawValue, false);
     });
 
-    app.dashboard.setCapabilityWriteCallback(async (capability, value) => {
+    dashboard.setCapabilityWriteCallback(async (capability, value) => {
       if (this.hasCapability(capability)) {
         await this.setCapabilityValue(capability, value);
       }
     });
 
     // Dashboard controls run through the capability listeners (RMW on 4-2103, on/off gate).
-    app.dashboard.setCapabilityTriggerCallback(async (capability, value) => {
+    dashboard.setCapabilityTriggerCallback(async (capability, value) => {
       if (!this.hasCapability(capability)) {
         throw new Error(`Capability ${capability} is not available on this device`);
       }
@@ -457,21 +491,21 @@ class AdlarModbusDevice extends Homey.Device {
       await this.setCapabilityValue(capability, value);
     });
 
-    app.dashboard.setReadRegisterCallback(async (addr, isCoil, isInput) => {
+    dashboard.setReadRegisterCallback(async (addr, isCoil, isInput) => {
       if (isCoil) return this.coordinator!.readCoil(addr);
       if (isInput) return this.coordinator!.readInputRegister(addr);
       return this.coordinator!.readRegister(addr);
     });
 
-    app.dashboard.setWriteExpertCallback(async (addr, rawValue, isCoil) => {
+    dashboard.setWriteExpertCallback(async (addr, rawValue, isCoil) => {
       await this.coordinator!.writeRaw(addr, rawValue, isCoil);
     });
 
-    app.dashboard.setGetTemperatureScaleCallback(() => this.coordinator!.getTemperatureScale());
-    app.dashboard.setGetChangeLogCallback((mode) => this.coordinator!.getChangeLog(mode));
-    app.dashboard.setGetSnapshotCallback(() => this.coordinator!.getCurrentSnapshot());
-    app.dashboard.setGetRegisterCacheCallback(() => this.coordinator!.getRegisterCache());
-    app.dashboard.setGetCapabilityValuesCallback(() => {
+    dashboard.setGetTemperatureScaleCallback(() => this.coordinator!.getTemperatureScale());
+    dashboard.setGetChangeLogCallback((mode) => this.coordinator!.getChangeLog(mode));
+    dashboard.setGetSnapshotCallback(() => this.coordinator!.getCurrentSnapshot());
+    dashboard.setGetRegisterCacheCallback(() => this.coordinator!.getRegisterCache());
+    dashboard.setGetCapabilityValuesCallback(() => {
       const result: Record<string, unknown> = {};
       for (const id of this.getCapabilities()) {
         result[id] = this.getCapabilityValue(id);
@@ -507,7 +541,7 @@ class AdlarModbusDevice extends Homey.Device {
       if (!this.hasCapability(externalCap)) return;
       const val = this.getCapabilityValue(externalCap);
       if (val === null || val === undefined) return;
-      const ts = this.externalDataTimestamps.get(externalCap) ?? 0;
+      const ts = this.getExternalDataTimestamp(externalCap);
       if (Date.now() - ts > DeviceConstants.EXTERNAL_DATA_TTL_MS) {
         this.setCapabilityValue(externalCap, null).catch(() => {});
         this.externalDataTimestamps.delete(externalCap);
@@ -831,4 +865,4 @@ class AdlarModbusDevice extends Homey.Device {
 
 }
 
-module.exports = AdlarModbusDevice;
+module.exports = Aurora3ModbusDevice;

@@ -8,3 +8,5 @@ todo/*
 plans/*
 .claude/*
 .github/*
+test/*
+tmp/

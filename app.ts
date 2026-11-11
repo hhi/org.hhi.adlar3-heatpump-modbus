@@ -3,13 +3,16 @@
 /* eslint-disable import/extensions */
 import { App } from 'homey';
 import enableDebugInspector from './app-debug';
-import { SelfHealingRegistry } from './lib/self-healing-registry';
-import { Logger, LogLevel } from './lib/logger';
-import { DashboardService } from './lib/services/dashboard-service';
-import { LiveOperationWidgetState } from './lib/services/widget-state-service';
+import { SelfHealingRegistry } from './lib/shared/self-healing-registry';
+import { Logger, LogLevel } from './lib/shared/logger';
+import { DashboardService } from './lib/aurora3/services/dashboard-service';
+import { LiveOperationWidgetState as Aurora3LiveOperationWidgetState } from './lib/aurora3/services/widget-state-service';
+import { LiveOperationWidgetEmptyState } from './lib/shared/widget-state-common';
 
 const DEFAULT_DASHBOARD_PORT = 8090;
 const ADLAR_DRIVER_ID = 'intelligent-heatpump-modbus';
+
+type LiveOperationWidgetState = Aurora3LiveOperationWidgetState | LiveOperationWidgetEmptyState;
 
 interface LiveOperationWidgetDevice {
   getData(): unknown;
@@ -32,47 +35,18 @@ class MyApp extends App {
     return this._dashboard;
   }
 
+  get aurora3Dashboard(): DashboardService | null {
+    return this._dashboard;
+  }
+
+  async setAurora3DashboardPort(port: number): Promise<void> {
+    await this.setDashboardPort(port);
+  }
+
   getAdlarLiveOperationWidgetState(deviceId?: string): LiveOperationWidgetState {
     const devices = this._getAdlarDevices();
     if (devices.length === 0) {
-      return {
-        ok: false,
-        message: 'Geen Adlar warmtepomp gekoppeld.',
-        device: { name: '' },
-        status: {
-          running: false,
-          compressorOn: false,
-          defrosting: false,
-          mode: 'Unknown',
-          faultActive: '',
-          connectionStatus: 'unknown',
-        },
-        temperatures: {
-          outletC: null,
-          inletC: null,
-          ambientC: null,
-          dhwC: null,
-          bufferC: null,
-          setpointC: null,
-        },
-        process: {
-          deltaTC: null,
-          flowLpm: null,
-          electricalPowerKw: null,
-          thermalPowerKw: null,
-          compressorHz: null,
-          liveCopEstimate: null,
-          capabilityCop: null,
-          flowSource: 'none',
-          powerSource: 'none',
-        },
-        data: {
-          timestamp: null,
-          ageMs: null,
-          freshness: 'no_data',
-          sourcePollGroup: null,
-        },
-      };
+      return { ok: false, messageCode: 'no_device' };
     }
 
     const device = this._findAdlarDevice(devices, deviceId) ?? devices[0];
@@ -156,6 +130,86 @@ class MyApp extends App {
     }
   }
 
+  private scopedFeature(featureName: string, args?: unknown): string {
+    const driverId = (args as { device?: { driver?: { id?: string } } } | undefined)
+      ?.device?.driver?.id;
+    return driverId ? `${featureName}:${driverId}` : featureName;
+  }
+
+  /**
+   * Run listeners for the daily and monthly COP cards: the condition and threshold in the card
+   * decide whether a flow starts. Registered once per app, not per device.
+   */
+  private registerCopTriggerRunListeners(): void {
+    // Daily COP Efficiency Changed
+    const dailyCOPCard = this.homey.flow.getDeviceTriggerCard('daily_cop_efficiency_changed');
+    dailyCOPCard.registerRunListener(async (args, state) => {
+      const featureName = 'daily_cop_efficiency_changed';
+      try {
+        if (!this.selfHealing.isFeatureEnabled(this.scopedFeature(featureName, args))) return true;
+
+        if (!state?.condition || typeof state?.cop_value !== 'number') {
+          this.error(`${featureName}: Invalid state`, { state });
+          this.selfHealing.trackError(this.scopedFeature(featureName, args), { error: 'Invalid state', state });
+          return false;
+        }
+        if (!args?.condition || typeof args?.threshold !== 'number') {
+          this.error(`${featureName}: Invalid args`, { args });
+          this.selfHealing.trackError(this.scopedFeature(featureName, args), { error: 'Invalid args', args });
+          return false;
+        }
+
+        const userCondition = args.condition;
+        const userThreshold = args.threshold;
+        const currentCOP = state.cop_value;
+        const triggerCondition = state.condition;
+
+        if (userCondition === 'above') {
+          return triggerCondition === 'above' && currentCOP >= userThreshold;
+        }
+        return triggerCondition === 'below' && currentCOP <= userThreshold;
+      } catch (error) {
+        this.error(`${featureName} runListener error:`, error);
+        this.selfHealing.trackError(this.scopedFeature(featureName, args), { error });
+        return false;
+      }
+    });
+
+    // Monthly COP Efficiency Changed
+    const monthlyCOPCard = this.homey.flow.getDeviceTriggerCard('monthly_cop_efficiency_changed');
+    monthlyCOPCard.registerRunListener(async (args, state) => {
+      const featureName = 'monthly_cop_efficiency_changed';
+      try {
+        if (!this.selfHealing.isFeatureEnabled(this.scopedFeature(featureName, args))) return true;
+
+        if (!state?.condition || typeof state?.cop_value !== 'number') {
+          this.error(`${featureName}: Invalid state`, { state });
+          this.selfHealing.trackError(this.scopedFeature(featureName, args), { error: 'Invalid state', state });
+          return false;
+        }
+        if (!args?.condition || typeof args?.threshold !== 'number') {
+          this.error(`${featureName}: Invalid args`, { args });
+          this.selfHealing.trackError(this.scopedFeature(featureName, args), { error: 'Invalid args', args });
+          return false;
+        }
+
+        const userCondition = args.condition;
+        const userThreshold = args.threshold;
+        const currentCOP = state.cop_value;
+        const triggerCondition = state.condition;
+
+        if (userCondition === 'above') {
+          return triggerCondition === 'above' && currentCOP >= userThreshold;
+        }
+        return triggerCondition === 'below' && currentCOP <= userThreshold;
+      } catch (error) {
+        this.error(`${featureName} runListener error:`, error);
+        this.selfHealing.trackError(this.scopedFeature(featureName, args), { error });
+        return false;
+      }
+    });
+  }
+
   async onInit() {
     const logLevel = process.env.DEBUG === '1' ? LogLevel.DEBUG : LogLevel.ERROR;
     this.logger = new Logger(
@@ -192,6 +246,8 @@ class MyApp extends App {
         excerpt: 'Adlar Modbus: Critical error — please restart',
       }).catch(() => {});
     });
+
+    this.registerCopTriggerRunListeners();
 
     await this.setDashboardPort(DEFAULT_DASHBOARD_PORT);
 
