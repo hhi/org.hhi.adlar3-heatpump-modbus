@@ -430,7 +430,7 @@ export class COPCalculator {
   /**
    * Calculate base COP from temperature difference using improved empirical curves
    */
-  private static calculateBaseCOPFromTemperature(tempDiff: number, inletTemp: number, outletTemp: number): number {
+  private static calculateBaseCOPFromTemperature(tempDiff: number, _inletTemp: number, _outletTemp: number): number {
     // Use sigmoid-like curve for more realistic COP progression
     // Based on actual heat pump performance data from field studies
 

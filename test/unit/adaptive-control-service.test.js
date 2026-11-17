@@ -66,10 +66,14 @@ function createDevice() {
     store,
     getSetting: (key) => settings[key],
     getStoreValue: (key) => store[key],
-    setStoreValue: async (key, value) => { store[key] = value; },
+    setStoreValue: async (key, value) => {
+      store[key] = value;
+    },
     getCapabilityValue: (key) => capabilities[key] ?? null,
     hasCapability: (key) => Object.prototype.hasOwnProperty.call(capabilities, key),
-    setCapabilityValue: async (key, value) => { capabilities[key] = value; },
+    setCapabilityValue: async (key, value) => {
+      capabilities[key] = value;
+    },
     setCapabilityOptions: async () => {},
     getOutdoorTemperatureWithFallback: () => 5,
     error: () => {},
@@ -81,11 +85,13 @@ function createService(device, adjustments = []) {
   const logs = [];
   const service = new AdaptiveControlService({
     device,
-    logger: (...args) => { logs.push(args); },
+    logger: (...args) => {
+      logs.push(args);
+    },
   });
   service.__testLogs = logs;
   service.isEnabled = true;
-  service.externalTemperature = { getIndoorTemperature: () => 20 };
+  service.externalTemperature = { getIndoorTemperature: () => 20, getIndoorStaleness: () => 'fresh' };
   service.weatherForecast = {
     getTempAt: () => null,
     isLocationUserSet: () => false, // v3.7.1 (R21)
@@ -108,7 +114,9 @@ function createService(device, adjustments = []) {
     setThermalCapacity: () => {},
   };
   service.windCorrection = {
-    calculateCorrection: () => ({ correction: 0, windSpeed: 0, deltaT: 0, alpha: 0, alphaSource: 'test', capped: false }),
+    calculateCorrection: () => ({
+      correction: 0, windSpeed: 0, deltaT: 0, alpha: 0, alphaSource: 'test', capped: false,
+    }),
   };
   service.copOptimizer = {
     calculateAction: () => null,
@@ -232,7 +240,7 @@ function createPositionalService(device, indoor) {
   device.settings.adaptive_control_mode ??= 'positional_manual';
   const service = createService(device, [0]);
   service.decisionMaker = passThroughDecisionMaker();
-  service.externalTemperature = { getIndoorTemperature: () => indoor };
+  service.externalTemperature = { getIndoorTemperature: () => indoor, getIndoorStaleness: () => 'fresh' };
   return service;
 }
 
@@ -318,7 +326,18 @@ test('ADR-065 O14/O16: price shifts the room target, the basis follows and the t
   const service = createPositionalService(device, 20);
   const calls = [];
   service.decisionMaker = priceDecisionMaker(-0.4, calls);
+  // ADR-067 D10: a new shift is approached at 0.24 °C per hour
+  await service.executeControlCycle();
+  assert.ok(Math.abs(service.lastTargetShift + 0.02) < 1e-9, 'first cycle: 0.02 °C of the −0.4');
+  assert.ok(Math.abs(service.lastFeedforward + 0.03) < 1e-9, 'the basis follows the limited shift');
 
+  // The shift reached: the state after 100 minutes at this price
+  service.lastTargetShift = -0.4;
+  service.lastRecommendedTemp = undefined;
+  service.lastRawRecommendation = null;
+  device.store.adaptive_positional_integral = 0;
+  service.positionalPI.reset();
+  calls.length = 0;
   await service.executeControlCycle();
   // basis 30 (outdoor 5 °C); room target 20 − 0.4: P 3·(−0.4) = −1.2, I −0.4·3/36;
   // the basis follows (1 + 15/30)·(−0.4) = −0.6 → 30 − 0.6 − 1.233 = 28.17 → 28
@@ -395,7 +414,9 @@ test('v3.5.1: without a valid COP measurement the COP optimizer gives no advice'
   const service = createService(device, [0, 0, 0]);
   service.getEffectiveOutdoorTemp = async () => 5;
   const calls = [];
-  service.copOptimizer.calculateAction = (...args) => { calls.push(args); return null; };
+  service.copOptimizer.calculateAction = (...args) => {
+    calls.push(args); return null;
+  };
 
   await service.executeControlCycle(); // adlar_cop not calculated yet (null)
   device.capabilities.adlar_cop = 0; // compressor off, outlier or failed calculation

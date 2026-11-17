@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- Separate mocks model the device and service. */
 /**
  * Unit tests for times shown to the user and the Time Schedule flow card in Homey's timezone.
  *

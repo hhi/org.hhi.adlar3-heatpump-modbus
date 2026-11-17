@@ -17,6 +17,7 @@ import {
   resolveCopTarget,
   resolveMaxPreHeatOffset,
 } from '../../shared/adaptive/optimizer-settings';
+import { resolvePiControllerSettings } from '../../shared/adaptive/pi-controller-settings';
 import { DefrostLearner } from '../../shared/adaptive/defrost-learner';
 import {
   APP_CURVE_DEFAULTS,
@@ -26,13 +27,18 @@ import {
   curvePresetFor,
   basisFeedforward,
   roomTargetShift,
+  limitTargetShift,
   resolveControlParams,
+  roundRecommendation,
   type ControlMode,
   type ControlParams,
   type CurveBasis,
   type IntegralPauseReason,
   type PositionalPIStep,
 } from '../../shared/adaptive/positional-pi-controller';
+import {
+  INDOOR_UNCHANGED_STALE_HOURS, SKIP_REASON_INDOOR_UNCHANGED, type IndoorStaleness,
+} from '../../shared/adaptive/indoor-staleness';
 import {
   resolveEffectiveRange,
   resolveMaxSetpoint,
@@ -172,6 +178,8 @@ export class AdaptiveControlService {
   private accumulatedAdjustment: number = 0; // ADR-059 W1 (referentieproject): accumulates fractional adjustments across cycles (settled when user flow applies)
   private lastObservedSetpoint: number | null = null; // ADR-059 W1: Aurora III heating setpoint 4-2107 at previous cycle, for settlement-on-observation
   private lastSkipReason: string | null = null; // v3.7.1 (R24): last reported reason for a skipped cycle
+  private lastIndoorStaleness: IndoorStaleness | null = null; // ADR-067 D2: last reported state; null until read from the store
+  private readonly STORE_KEY_INDOOR_STALENESS = 'adaptive_indoor_staleness'; // ADR-067 D2
   private static readonly ACCUMULATOR_CLAMP = 2.0; // ±°C
   private lastRecommendedTemp: number | undefined = undefined; // Change detection for temperature_adjustment_recommended
   private resolveActiveSetpoint: ActiveSetpointResolver;
@@ -227,8 +235,10 @@ export class AdaptiveControlService {
     this.resolvePauseReason = config.resolvePauseReason ?? (() => null);
 
     // Initialize Component 1: Heating Controller (PI control)
+    // R31: Kp, Ki and the dead zone from the settings at construction, so they survive a restart
     this.heatingController = new HeatingController({
       logger: this.logger,
+      ...resolvePiControllerSettings((key) => this.device.getSetting(key)),
     });
 
     this.externalTemperature = new ExternalTemperatureService({
@@ -775,10 +785,13 @@ export class AdaptiveControlService {
     };
   }
 
-  /** Positional recommendation: basis + correction, rounded and clamped to the effective range. */
+  /**
+   * Positional recommendation: basis + correction, rounded with hysteresis against the previous
+   * recommendation (ADR-067 D3) and clamped to the effective range.
+   */
   private _positionalRecommendation(basis: CurveBasis, correction: number): number {
     this.lastRawRecommendation = basis.value + correction;
-    return this._clampRecommendation(Math.round(this.lastRawRecommendation));
+    return this._clampRecommendation(roundRecommendation(this.lastRawRecommendation, this.lastRecommendedTemp));
   }
 
   /** Control mode, emitter, parameters and the positional terms for adaptive_control_diagnostics (ADR-065 O8). */
@@ -957,7 +970,9 @@ export class AdaptiveControlService {
 
     return {
       adjustment: coastAdj,
-      reason: `Coast: uitlaattemp ${outletTemp.toFixed(1)}°C − offset ${offset}°C → delta ${coastAdj.toFixed(1)}°C (dropRate: ${outletDropRate.toFixed(2)}°C/cyclus, multiplier: ${dropRateMultiplier.toFixed(2)}, staplimiet: ${AdaptiveControlService.COAST_STEP_LIMIT}°C)`,
+      reason: `Coast: uitlaattemp ${outletTemp.toFixed(1)}°C − offset ${offset}°C → delta ${coastAdj.toFixed(1)}°C `
+        + `(dropRate: ${outletDropRate.toFixed(2)}°C/cyclus, multiplier: ${dropRateMultiplier.toFixed(2)}, `
+        + `staplimiet: ${AdaptiveControlService.COAST_STEP_LIMIT}°C)`,
       priority: 'high',
       strength,
     };
@@ -1048,6 +1063,16 @@ export class AdaptiveControlService {
       if (positional && basis === null) {
         this.logger('AdaptiveControlService: heat pump curve not read yet after start, skipping cycle');
         await this.reportSkippedCycle('heat_pump_curve_not_read');
+        return;
+      }
+
+      // ADR-067 D2 (R27): an indoor temperature that stays the same value is reported after 12 h;
+      // after 24 h the control stops correcting on it (positional: bare curve, classic: no change)
+      const indoorStaleness = this.externalTemperature.getIndoorStaleness();
+      await this._trackIndoorStaleness(indoorStaleness);
+      if (indoorStaleness === 'stale') {
+        this.logger('AdaptiveControlService: Indoor temperature unchanged for 24 h, not correcting on it');
+        await this._indoorUnchangedFallback(basis, currentSetpoint);
         return;
       }
 
@@ -1284,7 +1309,8 @@ export class AdaptiveControlService {
         const tau = buildingModel.UA > 0 ? buildingModel.C / buildingModel.UA : 0;
 
         this.heatingController.setThermalInertia(tau);
-        this.heatingController.setDynamicDeadbandUA(buildingModel.UA);
+        // R30: with the building model switched off the dead zone setting counts; otherwise the UA decides
+        this.heatingController.setDynamicDeadbandUA(buildingDiagnostics.enabled ? buildingModel.UA : 0);
         this.energyOptimizer.setThermalCapacity(buildingModel.C);
 
         // Get outdoor temperature for thermal calculation with TTL-based source priority (v2.10.0)
@@ -1344,7 +1370,8 @@ export class AdaptiveControlService {
       const decisionMetrics: ConfidenceMetrics = positional ? { ...confidenceMetrics, thermalExcluded: true } : confidenceMetrics;
       if (positional && basis) {
         const optimizers = this.decisionMaker.combineActionsWithThermal(null, copAction, priceAction, null, decisionMetrics, coastAction);
-        this.lastTargetShift = roomTargetShift(optimizers.breakdown);
+        // ADR-067 D10: the shift moves at most 0.24 °C per hour, so a price change does not jump the recommendation
+        this.lastTargetShift = limitTargetShift(roomTargetShift(optimizers.breakdown), this.lastTargetShift, this.controlIntervalMs);
         this.lastFeedforward = basisFeedforward(this.lastTargetShift, basis, this._appCurve());
         heatingAction = await this._positionalHeatingAction(desiredIndoorTemp + this.lastTargetShift - indoorTemp, currentSetpoint);
       }
@@ -1863,6 +1890,10 @@ export class AdaptiveControlService {
       // Apply price mode to optimizer
       this.energyOptimizer.setPriceMode(priceMode as 'market' | 'market_plus' | 'all_in');
 
+      // v3.11.0: automatic or fixed thresholds (existing devices are migrated to 'fixed')
+      const thresholdMode = (await this.device.getSetting('price_threshold_mode')) === 'auto' ? 'auto' : 'fixed';
+      this.energyOptimizer.setThresholdMode(thresholdMode);
+
       // Apply financial components to optimizer
       this.energyOptimizer.setFinancialComponents({
         storageFee: supplierFee,
@@ -1880,6 +1911,7 @@ export class AdaptiveControlService {
 
       this.logger('AdaptiveControlService: Price settings loaded from device settings', {
         priceMode,
+        thresholdMode,
         supplierFee: `€${supplierFee.toFixed(4)}/kWh`,
         energyTax: `€${energyTax.toFixed(5)}/kWh`,
         vatPercentage: `${vatPercentage}%`,
@@ -1896,6 +1928,7 @@ export class AdaptiveControlService {
       });
       // Fallback to defaults from settings schema (driver.settings.compose.json)
       this.energyOptimizer.setPriceMode('all_in');
+      this.energyOptimizer.setThresholdMode('fixed');
       this.energyOptimizer.setFinancialComponents({
         storageFee: 0.0182,
         energyTax: 0.11085,
@@ -2046,9 +2079,7 @@ export class AdaptiveControlService {
 
     // Handle PI parameter changes (Expert Mode)
     if (changedKeys.includes('adaptive_pi_kp') || changedKeys.includes('adaptive_pi_ki') || changedKeys.includes('adaptive_pi_deadband')) {
-      const Kp = newSettings.adaptive_pi_kp as number || 5.0; // ADR-059 W2 (referentieproject): default herijkt voor vast comfort-anker
-      const Ki = newSettings.adaptive_pi_ki as number || 1.5;
-      const deadband = newSettings.adaptive_pi_deadband as number || 0.3;
+      const { Kp, Ki, deadband } = resolvePiControllerSettings((key) => newSettings[key]);
       this.updatePIParameters(Kp, Ki, deadband);
     }
 
@@ -2077,6 +2108,11 @@ export class AdaptiveControlService {
     if (changedKeys.includes('price_calculation_mode')) {
       const mode = newSettings.price_calculation_mode as 'market' | 'market_plus' | 'all_in';
       this.energyOptimizer.setPriceMode(mode);
+    }
+
+    // v3.11.0: automatic or fixed thresholds (value from newSettings, not getSetting)
+    if (changedKeys.includes('price_threshold_mode')) {
+      this.energyOptimizer.setThresholdMode(newSettings.price_threshold_mode === 'auto' ? 'auto' : 'fixed');
     }
 
     // Handle financial component changes
@@ -2191,6 +2227,75 @@ export class AdaptiveControlService {
     } catch (error) {
       this.device.error('⚠️ Failed to report skipped control cycle:', error);
     }
+  }
+
+  /**
+   * ADR-067 D2 (R27): follow how long the indoor temperature has been the same value and tell the
+   * user once per transition: after 12 h, after 24 h (control stops correcting) and on recovery.
+   */
+  private async _trackIndoorStaleness(staleness: IndoorStaleness): Promise<void> {
+    if (this.lastIndoorStaleness === null) {
+      const stored: unknown = await this.device.getStoreValue(this.STORE_KEY_INDOOR_STALENESS);
+      this.lastIndoorStaleness = stored === 'warn' || stored === 'stale' ? stored : 'fresh';
+    }
+    if (staleness === this.lastIndoorStaleness) return;
+    const previous = this.lastIndoorStaleness;
+    this.lastIndoorStaleness = staleness;
+    await this.device.setStoreValue(this.STORE_KEY_INDOOR_STALENESS, staleness);
+    this.logger(`AdaptiveControlService: indoor temperature staleness ${previous} → ${staleness}`);
+
+    let messageKey: string | null = null;
+    if (staleness === 'stale') messageKey = 'adaptive_control.indoor_unchanged_stale';
+    else if (staleness === 'warn' && previous === 'fresh') messageKey = 'adaptive_control.indoor_unchanged_warn';
+    else if (staleness === 'fresh' && previous === 'stale') messageKey = 'adaptive_control.indoor_changed_again';
+    if (messageKey === null) return;
+    try {
+      await this.device.homey.notifications.createNotification({
+        excerpt: `${this.device.getName()}: ${this.device.homey.__(messageKey)}`,
+      });
+    } catch (error) {
+      this.logger('AdaptiveControlService: Failed to send indoor temperature notification', {
+        error: (error as Error).message,
+      });
+    }
+  }
+
+  /**
+   * ADR-067 D2 (R27): the indoor temperature has not changed for 24 h, so the control no longer
+   * corrects on it. Positional follows the bare curve (no PI, no optimizer shift); classic leaves
+   * the setpoint alone. Ends by itself with the first reading that differs.
+   */
+  private async _indoorUnchangedFallback(basis: CurveBasis | null, currentSetpoint: number): Promise<void> {
+    await this.reportSkippedCycle(SKIP_REASON_INDOOR_UNCHANGED);
+    if (basis === null) return;
+
+    this.positionalPI.reset();
+    await this.device.setStoreValue(this.STORE_KEY_POSITIONAL_INTEGRAL, 0);
+    this.lastTargetShift = 0;
+
+    const recommendedTemp = this._positionalRecommendation(basis, 0);
+    this.simulatedTargetTemp = recommendedTemp;
+    if (this.device.hasCapability('adlar_simulated_target')) {
+      await this.device.setCapabilityValue('adlar_simulated_target', recommendedTemp);
+    }
+    if (this.lastRecommendedTemp === undefined) {
+      this.lastRecommendedTemp = currentSetpoint;
+    }
+    if (recommendedTemp !== this.lastRecommendedTemp) {
+      this.lastRecommendedTemp = recommendedTemp;
+      await this.triggerTemperatureRecommendation(
+        currentSetpoint,
+        recommendedTemp,
+        {
+          finalAdjustment: 0,
+          reasoning: [`Indoor temperature unchanged for ${INDOOR_UNCHANGED_STALE_HOURS} h: following the heating curve`],
+          priority: 'medium',
+        },
+        0,
+        'heating',
+      );
+    }
+    this.lastControlCycleTime = Date.now();
   }
 
   /**

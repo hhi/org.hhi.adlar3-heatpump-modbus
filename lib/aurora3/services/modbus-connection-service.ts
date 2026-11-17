@@ -161,7 +161,9 @@ export class ModbusConnectionService<TSnapshot = DataSnapshot> extends EventEmit
     if (!this._initialDelayDone) {
       this._initialDelayDone = true;
       this.logger('ModbusConnectionService: Wachten 5s voor initiële Modbus-polling...');
-      await new Promise<void>((resolve) => this.device.homey.setTimeout(resolve, 5_000));
+      await new Promise<void>((resolve) => {
+        this.device.homey.setTimeout(resolve, 5_000);
+      });
     }
 
     try {

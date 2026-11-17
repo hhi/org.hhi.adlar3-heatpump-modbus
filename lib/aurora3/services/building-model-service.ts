@@ -21,6 +21,7 @@ import {
 } from '../../shared/adaptive/building-model-learner';
 import { isTransientBlockingKey, shouldShowBlocked } from '../../shared/adaptive/building-model-blocking';
 import { HeatingPowerHistory } from '../../shared/adaptive/heating-power-history';
+import { ModelHistory, type ModelParameters } from '../../shared/adaptive/model-history';
 import { EmitterDelayTracker, EMITTER_DELAY_SETTING_KEYS } from '../../shared/adaptive/emitter-delay-tracker';
 import type { PreHeatConditions } from '../../shared/utils/preheat-calculator';
 import { DeviceConstants } from '../constants';
@@ -84,6 +85,8 @@ export class BuildingModelService {
   /** G14: hourly mean thermal power of the past week, for the pre-heat estimate */
   private static readonly POWER_HISTORY_STORE_KEY = 'preheat_power_history';
   private powerHistory = new HeatingPowerHistory();
+  private static readonly MODEL_HISTORY_STORE_KEY = 'preheat_model_history';
+  private modelHistory = new ModelHistory(); // G19: day mean of the model for the pre-heat estimate
   /** ADR-066: emitter delay (start value from the settings, learned from the samples) */
   private emitterDelay: EmitterDelayTracker;
 
@@ -153,6 +156,11 @@ export class BuildingModelService {
       this.logger(`BuildingModelService: Power history restored — ${this.powerHistory.getHourCount()} hours`);
     }
 
+    // G19: the hours of the model the pre-heat estimate averages over
+    if (this.modelHistory.restoreState(await this.device.getStoreValue(BuildingModelService.MODEL_HISTORY_STORE_KEY))) {
+      this.logger(`BuildingModelService: Model history restored — ${this.modelHistory.getHourCount()} hours`);
+    }
+
     // ADR-066: the estimator is separate from the learner and survives a model reset
     await this.emitterDelay.restore();
     this.emitterDelay.refreshStart();
@@ -214,6 +222,20 @@ export class BuildingModelService {
         return;
       }
       this.logger(`BuildingModelService: ✅ Indoor temp OK: ${indoorTemp.toFixed(1)}°C`);
+
+      // ADR-067 D2 (R27): a reading that has stayed the same for 24 h is not a measurement of the room
+      // @ts-expect-error - Accessing MyDevice.serviceCoordinator (not in Homey.Device base type)
+      const indoorStaleness = this.device.serviceCoordinator
+        .getAdaptiveControl()
+        .getExternalTemperatureService()
+        .getIndoorStaleness();
+      if (indoorStaleness === 'stale') {
+        this.lastBlockingReason = 'Indoor temperature unchanged for 24 h (sensor or flow stopped)';
+        this.lastBlockingReasonKey = 'building_model.blocked_indoor_temp_unchanged';
+        this.logger('BuildingModelService: ❌ EXIT - Indoor temp unchanged for 24 h, skipping');
+        await this.updateModelCapabilities(); // Update UI to show blocked status
+        return;
+      }
 
       // Get outdoor temperature with priority fallback (v2.0.2)
       // Uses device helper method: external sensor → heat pump sensor
@@ -343,6 +365,10 @@ export class BuildingModelService {
       const heatPumpPower = HeatingPowerHistory.thermalPowerKw(powerElectric, compressorOn === false ? null : cop);
       if (this.powerHistory.addSample(measurement.timestamp, heatPumpPower)) {
         await this.persistPowerHistory();
+      }
+      // G19: likewise for the model the pre-heat estimate averages over
+      if (this.modelHistory.addSample(measurement.timestamp, this.learner.getModel())) {
+        await this.persistModelHistory();
       }
 
       // Clear blocking reason - data is flowing successfully
@@ -649,6 +675,28 @@ export class BuildingModelService {
   }
 
   /**
+   * G19: persist the model history; a failure is logged and never blocks learning
+   */
+  private async persistModelHistory(): Promise<void> {
+    try {
+      await this.device.setStoreValue(BuildingModelService.MODEL_HISTORY_STORE_KEY, this.modelHistory.getState());
+    } catch (error) {
+      this.logger('BuildingModelService: ⚠️ Failed to persist model history:', error);
+    }
+  }
+
+  /**
+   * G19: the model for the pre-heat estimate. The mean over the past day, so the outcome does not
+   * follow the daily pattern of the learned values; the momentary model while the day is not full.
+   */
+  public getPreHeatModel(): ModelParameters {
+    const mean = this.modelHistory.getMean(Date.now());
+    if (mean) return mean;
+    const { C, UA, pInt } = this.learner.getModel();
+    return { C, UA, pInt };
+  }
+
+  /**
    * G14 (ADR-062 B7): conditions for the physical pre-heat estimate, or null while the power
    * history holds less than a day or no outdoor temperature is available
    */
@@ -658,7 +706,7 @@ export class BuildingModelService {
     // @ts-expect-error - Accessing MyDevice.getOutdoorTemperatureWithFallback() (not in Homey.Device base type)
     const outdoorTemp = this.device.getOutdoorTemperatureWithFallback() as number | null;
     if (outdoorTemp === null || outdoorTemp === undefined) return null;
-    const model = this.learner.getModel();
+    const model = this.getPreHeatModel();
     return {
       UA: model.UA, pInt: model.pInt, outdoorTemp, maxHeatingPowerKw,
     };
@@ -1280,6 +1328,8 @@ export class BuildingModelService {
       // Perform soft reset on learner
       this.learner.softReset(newProfile);
       await this._clearMilestone(); // ADR-062 A6
+      this.modelHistory.clear(); // G19: the old hours describe the previous profile
+      await this.persistModelHistory();
 
       // Log new values after soft reset
       const newModel = this.learner.getModel();
@@ -1351,6 +1401,8 @@ export class BuildingModelService {
 
       this.learner = new BuildingModelLearner(learnerConfig);
       await this._clearMilestone(); // ADR-062 A6
+      this.modelHistory.clear(); // G19: the old hours describe the model that was reset
+      await this.persistModelHistory();
 
       // Log new default values
       const newModel = this.learner.getModel();
@@ -1392,6 +1444,7 @@ export class BuildingModelService {
       this.logger('BuildingModelService: Failed to persist final state:', error);
     }
     await this.persistPowerHistory();
+    await this.persistModelHistory();
     await this.emitterDelay.persist(); // ADR-066
 
     // Cleanup timers (ADR-056: via Homey-timerbeheer, conform conventie)
