@@ -59,4 +59,3 @@ test('fixedCurveFor returns the values of a known curve and null otherwise', () 
   assert.strictEqual(fixedCurveFor('toString'), null, 'no inherited properties');
   assert.strictEqual(fixedCurveFor(undefined), null);
 });
-

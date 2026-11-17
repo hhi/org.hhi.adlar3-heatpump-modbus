@@ -10,3 +10,5 @@ plans/*
 .github/*
 test/*
 tmp/
+tsconfig.eslint.json
+**/* 2.*

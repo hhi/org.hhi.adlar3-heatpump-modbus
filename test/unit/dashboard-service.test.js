@@ -17,10 +17,14 @@ const APP_DIR = path.join(__dirname, '..', '..');
 
 /** Start a dashboard on a free port; returns { base, service, close }. */
 async function startDashboard(configure) {
-  const service = new DashboardService({ appDir: APP_DIR, logger: () => {}, port: 0 });
+  const service = new DashboardService({
+    appDir: APP_DIR, publicDir: path.join(APP_DIR, 'public'), logger: () => {}, port: 0,
+  });
   configure?.(service);
   service.start();
-  await new Promise((resolve) => service.server.once('listening', resolve));
+  await new Promise((resolve) => {
+    service.server.once('listening', resolve);
+  });
   const { port } = service.server.address();
   return { base: `http://127.0.0.1:${port}`, service, close: () => service.destroy() };
 }
@@ -50,6 +54,32 @@ test('snapshot sensors carry their poll group', () => {
   const { sensors } = service.getSnapshot();
   assert.strictEqual(sensors.aanvoerTA.pollGroup, 'superfast');
   assert.strictEqual(sensors.dischargeTP.pollGroup, 'fast');
+});
+
+test('process schema serves the III page, shared assets and correctly scaled input readings', async () => {
+  const modbus = new Adlar3ModbusService({ transport: { host: '127.0.0.1' } });
+  assert.strictEqual(modbus.getSnapshot().sensors.fourWayValveState, undefined);
+  for (const [address, value] of [[64, 12], [80, 1], [81, 0]]) modbus.getRegisterCache().set(address, value);
+  const dash = await startDashboard((service) => service.setSnapshot(modbus.getSnapshot()));
+  try {
+    const html = await (await fetch(`${dash.base}/processchema`)).text();
+    assert.match(html, /data-driver="aurora3"/);
+    for (const asset of ['/schema-renderer.js', '/styles/dashboard-schema.css']) {
+      const response = await fetch(`${dash.base}${asset}`);
+      assert.strictEqual(response.status, 200);
+      assert.ok((await response.text()).length > 0);
+    }
+    const snap = await (await fetch(`${dash.base}/api/snapshot`)).json();
+    assert.strictEqual(snap.sensors.waterFlow.value, 1.2);
+    assert.strictEqual(snap.sensors.waterFlow.unit, 'm³/h');
+    assert.strictEqual(snap.cop.flowLpm, 20);
+    assert.strictEqual(snap.sensors.mainPumpState.address, 80);
+    assert.strictEqual(snap.sensors.mainPumpState.value, 1);
+    assert.strictEqual(snap.sensors.fourWayValveState.address, 81);
+    assert.strictEqual(snap.sensors.fourWayValveState.value, 0);
+  } finally {
+    await dash.close();
+  }
 });
 
 test('bit tables exist for Reg 9, 38, 39, 2103 and the code registers', () => {
@@ -147,6 +177,19 @@ test('/api/register-changelog uses the current poll groups', async () => {
     assert.strictEqual(group(9), 'medium');
     assert.strictEqual(group(67), 'slow');
     assert.strictEqual(group(2103), 'medium');
+  } finally {
+    await dash.close();
+  }
+});
+
+test('standalone process history uses the unsuffixed indoor capability', async () => {
+  const dash = await startDashboard((service) => {
+    service.setGetCapabilityValuesCallback(() => ({ 'measure_temperature.indoor': 21.5 }));
+    service.setSnapshot({ ts: Date.now(), sensors: {} });
+  });
+  try {
+    const snap = await (await fetch(`${dash.base}/api/snapshot`)).json();
+    assert.strictEqual(snap.history[0].room, 21.5);
   } finally {
     await dash.close();
   }

@@ -1,7 +1,7 @@
 /**
  * Pre-heat recommendation reads the target temperature from
  * target_temperature.indoor (BUILDING_MODEL_REVIEW_ADDENDUM.md, A1).
- * Runs against the compiled insights service of all three drivers.
+ * Runs against the compiled insights service of the Aurora III driver.
  */
 
 'use strict';
@@ -43,10 +43,11 @@ function createService(driver, conditions = undefined) {
   };
   const buildingModelService = {
     getLearner: () => ({ getModel: () => model }),
+    getPreHeatModel: () => model,
     getDiagnosticStatus: async () => ({ confidence: 80 }),
   };
   if (conditions !== undefined) buildingModelService.getPreHeatConditions = () => conditions;
-  const adaptiveControlService = { externalTemperature: { getIndoorTemperature: () => 19 } };
+  const adaptiveControlService = { externalTemperature: { getIndoorTemperature: () => 19, getIndoorStaleness: () => 'fresh' } };
   const service = new BuildingInsightsService({
     device, buildingModelService, adaptiveControlService, logger: () => {},
   });

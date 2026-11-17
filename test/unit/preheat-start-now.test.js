@@ -20,7 +20,9 @@ const { FlowCardManagerService } = require('../../.homeybuild/lib/aurora3/servic
 async function getPreHeatListener() {
   const listeners = {};
   const card = (id) => ({
-    registerRunListener: (fn) => { listeners[id] = fn; return card(id); },
+    registerRunListener: (fn) => {
+      listeners[id] = fn; return card(id);
+    },
     registerArgumentAutocompleteListener: () => card(id),
     trigger: async () => {},
   });
@@ -47,6 +49,7 @@ async function getPreHeatListener() {
         // tau = C / UA = 15 h → 4 h per 1 °C
         getBuildingModelService: () => ({
           getLearner: () => ({ getModel: () => ({ C: 15, UA: 1, confidence: 80 }) }),
+          getPreHeatModel: () => ({ C: 15, UA: 1, confidence: 80 }),
         }),
         getExternalTemperatureService: () => ({ getIndoorTemperature: () => 19 }),
       }),

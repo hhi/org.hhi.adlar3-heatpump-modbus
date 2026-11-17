@@ -19,8 +19,6 @@ const {
   calculatePreHeatDuration, estimatePreHeatDuration, PREHEAT_GOAL_MARGIN,
 } = require('../../.homeybuild/lib/shared/utils/preheat-calculator');
 const { HeatingPowerHistory } = require('../../.homeybuild/lib/shared/adaptive/heating-power-history');
-const { BuildingModelService: TuyaBuildingModel } = require('../../.homeybuild/lib/aurora3/services/building-model-service');
-const { BuildingModelService: ModbusBuildingModel } = require('../../.homeybuild/lib/aurora3/services/building-model-service');
 const { BuildingModelService: Aurora3BuildingModel } = require('../../.homeybuild/lib/aurora3/services/building-model-service');
 
 const HOUR = 3600 * 1000;
@@ -79,7 +77,11 @@ test('a larger rise never gives a shorter time', () => {
   const cases = [];
   for (const UA of [0.15, 0.3, 0.6]) {
     for (const outdoorTemp of [-5, 5, 12]) {
-      for (const maxHeatingPowerKw of [3, 6, 10]) cases.push({ ...CONDITIONS, UA, outdoorTemp, maxHeatingPowerKw });
+      for (const maxHeatingPowerKw of [3, 6, 10]) {
+        cases.push({
+          ...CONDITIONS, UA, outdoorTemp, maxHeatingPowerKw,
+        });
+      }
     }
   }
   for (const c of cases) {
@@ -184,12 +186,14 @@ function mockDevice(store, outdoor = 5) {
   const capabilities = { adlar_enum_mode: 'heating', adlar_state_defrost_state: false, adlar_cop: 3.5 };
   return {
     serviceCoordinator: {
-      getAdaptiveControl: () => ({ getExternalTemperatureService: () => ({ getIndoorTemperature: () => 20.1 }) }),
+      getAdaptiveControl: () => ({ getExternalTemperatureService: () => ({ getIndoorTemperature: () => 20.1, getIndoorStaleness: () => 'fresh' }) }),
       getEnergyTracking: () => ({ getCurrentPowerMeasurement: () => ({ value: 1200 }) }),
     },
     getSetting: (key) => settings[key] ?? null,
     getStoreValue: async (key) => store[key] ?? null,
-    setStoreValue: async (key, value) => { store[key] = value; },
+    setStoreValue: async (key, value) => {
+      store[key] = value;
+    },
     getCapabilityValue: (key) => capabilities[key] ?? null,
     hasCapability: () => false,
     getOutdoorTemperatureWithFallback: () => outdoor,
@@ -203,12 +207,12 @@ function mockDevice(store, outdoor = 5) {
   };
 }
 
-test('Tuya: accepted samples fill the power history, which is persisted and restored', async () => {
+test('Aurora III: accepted samples fill the power history, which is persisted and restored', async () => {
   const store = {};
   const start = Date.UTC(2026, 10, 2, 0, 0, 0);
   mock.timers.enable({ apis: ['Date'], now: start });
   try {
-    const service = new TuyaBuildingModel({ device: mockDevice(store), buildingProfile: 'average', logger: () => {} });
+    const service = new Aurora3BuildingModel({ device: mockDevice(store), buildingProfile: 'average', logger: () => {} });
     assert.strictEqual(service.getPreHeatConditions(), null, 'no history yet');
     for (let i = 0; i <= 24 * 12; i++) {
       mock.timers.setTime(start + i * 5 * 60 * 1000);
@@ -221,7 +225,7 @@ test('Tuya: accepted samples fill the power history, which is persisted and rest
     assert.ok(Math.abs(conditions.maxHeatingPowerKw - 4.2) < 1e-9, '1200 W × COP 3.5');
     assert.strictEqual(conditions.outdoorTemp, 5);
 
-    const restarted = new TuyaBuildingModel({ device: mockDevice(store), buildingProfile: 'average', logger: () => {} });
+    const restarted = new Aurora3BuildingModel({ device: mockDevice(store), buildingProfile: 'average', logger: () => {} });
     await restarted.initialize();
     assert.ok(Math.abs(restarted.getPreHeatConditions().maxHeatingPowerKw - 4.2) < 1e-9);
   } finally {
@@ -229,7 +233,7 @@ test('Tuya: accepted samples fill the power history, which is persisted and rest
   }
 });
 
-for (const [name, Service] of [['Tuya', TuyaBuildingModel], ['Aurora II', ModbusBuildingModel], ['Aurora III', Aurora3BuildingModel]]) {
+for (const [name, Service] of [['Aurora III', Aurora3BuildingModel]]) {
   test(`${name}: pre-heat conditions combine the model, the outdoor temperature and the history`, () => {
     const powerHistory = new HeatingPowerHistory();
     const now = Math.floor(Date.now() / HOUR) * HOUR; // samples on whole clock hours
@@ -237,7 +241,7 @@ for (const [name, Service] of [['Tuya', TuyaBuildingModel], ['Aurora II', Modbus
     const ctx = {
       powerHistory,
       device: mockDevice({}, -2),
-      learner: { getModel: () => ({ UA: 0.25, pInt: 0.4 }) },
+      getPreHeatModel: () => ({ C: 15, UA: 0.25, pInt: 0.4 }), // G19: the model averaged over the past day
     };
     assert.deepStrictEqual(Service.prototype.getPreHeatConditions.call(ctx), {
       UA: 0.25, pInt: 0.4, outdoorTemp: -2, maxHeatingPowerKw: 7,
