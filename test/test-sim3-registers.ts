@@ -41,11 +41,10 @@ const PORT = parseInt(process.env.MODBUS_PORT ?? '502', 10);
 const UNIT_ID = parseInt(process.env.MODBUS_UNIT ?? '1', 10);
 
 const DEFAULT_MBS = path.resolve(process.cwd(), 'test', 'adlar3-server.mbs');
-const MBS_FILE = process.env.MBS_FILE
-  ? path.resolve(process.env.MBS_FILE)
-  : (ARGS[0] && ARGS[0].endsWith('.mbs'))
-    ? path.resolve(ARGS[0])
-    : DEFAULT_MBS;
+let mbsFile = DEFAULT_MBS;
+if (ARGS[0]?.endsWith('.mbs')) mbsFile = path.resolve(ARGS[0]);
+if (process.env.MBS_FILE) mbsFile = path.resolve(process.env.MBS_FILE);
+const MBS_FILE = mbsFile;
 
 if (!HOST) {
   console.log(`
@@ -387,11 +386,21 @@ async function pollAurora3(svc: ModbusTcpService): Promise<void> {
       name: 'adlar3-test',
       intervalMs: 5_000,
       blocks: [
-        { start: 38, count: 2, label: 'status', fc: 'input' },
-        { start: 40, count: 17, label: 'temperatures', fc: 'input' },
-        { start: 62, count: 3, label: 'pump/flow', fc: 'input' },
-        { start: 70, count: 10, label: 'compressor/electric', fc: 'input' },
-        { start: 2100, count: 15, label: 'control', fc: 'holding' },
+        {
+          start: 38, count: 2, label: 'status', fc: 'input',
+        },
+        {
+          start: 40, count: 17, label: 'temperatures', fc: 'input',
+        },
+        {
+          start: 62, count: 3, label: 'pump/flow', fc: 'input',
+        },
+        {
+          start: 70, count: 10, label: 'compressor/electric', fc: 'input',
+        },
+        {
+          start: 2100, count: 15, label: 'control', fc: 'holding',
+        },
       ],
     },
   ];
@@ -427,7 +436,9 @@ async function pollAurora3(svc: ModbusTcpService): Promise<void> {
   });
 
   svc.startPolling(groups);
-  await new Promise((resolve) => setTimeout(resolve, 30_000));
+  await new Promise((resolve) => {
+    setTimeout(resolve, 30_000);
+  });
 }
 
 main().catch((err) => {

@@ -1,3 +1,4 @@
+/* eslint-disable max-classes-per-file -- Separate mocks model the device and service. */
 /**
  * Display text of the adlar_cop_method capability, shared by the Tuya, Aurora I/II and Aurora III drivers.
  *

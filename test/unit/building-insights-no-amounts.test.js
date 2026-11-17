@@ -3,7 +3,7 @@
  * A predicted saving cannot be substantiated (dynamic prices are not known in advance,
  * the heat pump does not run every hour). The 'savings above' condition is deprecated
  * and returns false; the trigger token estimated_savings_eur_month stays 0.
- * Runs against the compiled insights service of all three drivers.
+ * Runs against the compiled insights service of the Aurora III driver.
  */
 
 'use strict';
@@ -30,7 +30,9 @@ function createService(driver, model, lang = 'nl') {
       clearInterval: () => {},
       flow: {
         getDeviceTriggerCard: (id) => ({
-          trigger: async (_device, tokens) => { triggers.push({ id, tokens }); },
+          trigger: async (_device, tokens) => {
+            triggers.push({ id, tokens });
+          },
         }),
       },
     },
@@ -39,7 +41,7 @@ function createService(driver, model, lang = 'nl') {
   };
   const service = new BuildingInsightsService({
     device,
-    buildingModelService: { getLearner: () => ({ getModel: () => model }) },
+    buildingModelService: { getLearner: () => ({ getModel: () => model }), getPreHeatModel: () => model },
     adaptiveControlService: { hasDynamicPricing: () => true },
     logger: () => {},
   });

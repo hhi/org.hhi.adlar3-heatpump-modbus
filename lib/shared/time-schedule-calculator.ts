@@ -66,8 +66,7 @@ export class TimeScheduleCalculator {
   private static readonly MAX_SCHEDULE_ENTRIES = 30;
 
   /** Regex pattern for parsing time range entries: "HH:MM-HH:MM: value" */
-  private static readonly TIME_RANGE_PATTERN =
-    /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})\s*:\s*(-?[\d.]+)$/;
+  private static readonly TIME_RANGE_PATTERN = /^(\d{1,2}):(\d{2})-(\d{1,2}):(\d{2})\s*:\s*(-?[\d.]+)$/;
 
   /** Regex pattern for default/catch-all entries: "default: value" or "*: value" */
   private static readonly DEFAULT_PATTERN = /^(default|\*)\s*:\s*(-?[\d.]+)$/i;
