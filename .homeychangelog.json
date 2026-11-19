@@ -1,4 +1,10 @@
 {
+  "3.13.0": {
+    "en": "The device settings now show the address of live monitoring. Live monitoring shows the same COP and power as Homey, and energy use only counts measured values.",
+    "nl": "De apparaatinstellingen tonen nu het adres van live monitoring. Live monitoring toont dezelfde COP en hetzelfde vermogen als Homey, en het energieverbruik telt alleen nog gemeten waarden.",
+    "de": "Die Geräteeinstellungen zeigen jetzt die Adresse des Live-Monitorings. Das Live-Monitoring zeigt dieselbe COP und dieselbe Leistung wie Homey, und der Energieverbrauch zählt nur noch gemessene Werte.",
+    "fr": "Les réglages de l'appareil affichent désormais l'adresse de la surveillance en direct. La surveillance en direct affiche le même COP et la même puissance que Homey, et la consommation d'énergie ne compte plus que des valeurs mesurées."
+  },
   "3.12.3": {
     "en": "Aurora III process schema (/processchema) now shows the Aurora III sensor names, register numbers and units, including the state of the main pump and the four-way valve. In Live mode, no sample values appear before the first measurement.",
     "nl": "Het processchema van Aurora III (/processchema) toont nu de sensornamen, registernummers en eenheden van Aurora III, met de stand van de hoofdpomp en de vierwegklep. In Live verschijnen geen voorbeeldwaarden meer vóór de eerste meting.",

@@ -163,5 +163,9 @@
     "indoor_unchanged_warn": "La température intérieure a la même valeur depuis 12 heures. Vérifiez le capteur et le flow qui envoie la valeur.",
     "indoor_unchanged_stale": "La température intérieure n'a pas changé depuis 24 heures. La régulation adaptative ne corrige plus sur cette valeur et le modèle du bâtiment n'apprend plus, jusqu'à l'arrivée d'une autre valeur.",
     "indoor_changed_again": "La température intérieure change à nouveau. La régulation adaptative et le modèle du bâtiment utilisent de nouveau la valeur."
+  },
+  "live_monitoring": {
+    "not_available": "Indisponible : le port __port__ est déjà utilisé. Choisissez un autre port ci-dessus.",
+    "address_unknown": "Adresse inconnue ; utilisez l'adresse IP de votre Homey avec le port __port__."
   }
 }

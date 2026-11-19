@@ -163,5 +163,9 @@
     "indoor_unchanged_warn": "De binnentemperatuur heeft al 12 uur dezelfde waarde. Controleer de sensor en de flow die de waarde stuurt.",
     "indoor_unchanged_stale": "De binnentemperatuur is 24 uur niet veranderd. De adaptieve regeling stuurt er niet meer op bij en het gebouwmodel leert niet meer, tot er een andere waarde binnenkomt.",
     "indoor_changed_again": "De binnentemperatuur verandert weer. De adaptieve regeling en het gebouwmodel gebruiken de waarde weer."
+  },
+  "live_monitoring": {
+    "not_available": "Niet beschikbaar: poort __port__ is al in gebruik. Kies hierboven een andere poort.",
+    "address_unknown": "Adres onbekend; gebruik het IP-adres van uw Homey met poort __port__."
   }
 }
