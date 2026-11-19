@@ -170,7 +170,7 @@ test('pump-only operation is not compressor operation; defrost valve state is ex
 
 test('live history is restored after demo and missing history removes the old series', async () => {
   const s = snapshot();
-  s.history = [{ t7: 34, hz: 45 }, { t7: 35, hz: 48 }];
+  s.history = [{ ts: 1700000000000, t7: 34, hz: 45 }, { ts: 1700000300000, t7: 35, hz: 48 }];
   const p = await page(s);
   const history = p.attr('sc-chart-t7', 'd');
   assert.match(history, /^M .* L /);
