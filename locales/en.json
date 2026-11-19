@@ -164,6 +164,9 @@
     "indoor_unchanged_stale": "The indoor temperature has not changed for 24 hours. The adaptive control no longer corrects on it and the building model has stopped learning, until a different value arrives.",
     "indoor_changed_again": "The indoor temperature is changing again. The adaptive control and the building model use it again."
   },
+  "flow_notices": {
+    "savings_above_deprecated": "The condition 'Insight savings are above threshold' no longer works: it is always false, and inverted ('aren't above') always true. Remove it from your flows."
+  },
   "live_monitoring": {
     "not_available": "Not available: port __port__ is already in use. Choose another port above.",
     "address_unknown": "Address unknown; use the IP address of your Homey with port __port__."
